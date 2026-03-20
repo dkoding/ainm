@@ -337,6 +337,15 @@ The scoring docs define:
 - entropy-weighted KL divergence
 - exponential conversion to a `0..100` score
 
+Exact scoring formula from the official docs:
+
+```text
+KL(p || q) = Σ p_i * log(p_i / q_i)
+entropy(cell) = -Σ p_i * log(p_i)
+weighted_kl = Σ entropy(cell) * KL(p || q) / Σ entropy(cell)
+score = max(0, min(100, 100 * exp(-3 * weighted_kl)))
+```
+
 The practical API implication is:
 
 - never submit zero probability for any class
@@ -362,6 +371,11 @@ The correct round loop is:
 6. build one tensor per seed
 7. `POST /submit` once per seed
 8. later inspect `my-rounds`, `my-predictions`, and `analysis`
+
+Important clarification:
+
+- the `50` query cap is for the entire round
+- it is not `50` queries per seed
 
 That is the actual submission surface for Astar.
 

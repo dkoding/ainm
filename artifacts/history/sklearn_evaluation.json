@@ -1,0 +1,477 @@
+{
+  "rounds": [
+    {
+      "round_id": "36e581f1-73f8-453f-ab98-cbe3052b701b",
+      "round_number": 7,
+      "round_score": 61.510329884994135,
+      "seed_reports": [
+        {
+          "score": 57.3447354321162,
+          "seed_index": 0
+        },
+        {
+          "score": 61.1586521006999,
+          "seed_index": 1
+        },
+        {
+          "score": 63.9847351918562,
+          "seed_index": 2
+        },
+        {
+          "score": 60.04758803607994,
+          "seed_index": 3
+        },
+        {
+          "score": 65.01593866421844,
+          "seed_index": 4
+        }
+      ],
+      "training_summary": {
+        "class_counts": {
+          "0": 36056,
+          "1": 981,
+          "2": 21,
+          "3": 0,
+          "4": 9962,
+          "5": 980
+        },
+        "min_samples_leaf": 5,
+        "n_estimators": 300,
+        "random_state": 0,
+        "records_used": 48000,
+        "round_ids": [
+          "71451d74-be9f-471f-aacd-a41f3b68a9cd",
+          "76909e29-f664-4b2f-b16b-61b7507277e9",
+          "8e839974-b13b-407b-a5e7-fc749d877195",
+          "ae78003a-4efe-425a-881a-d16a39bca0ad",
+          "f1dac9a9-5cf1-49a9-8f17-d6cb5d5ba5cb",
+          "fd3c92ff-3178-4dc9-8d9b-acf389b3982b"
+        ],
+        "round_numbers": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "rounds_used": 6,
+        "target_mass": {
+          "0": 31172.94999999979,
+          "1": 5743.73500000025,
+          "2": 420.6049999999971,
+          "3": 603.0499999997529,
+          "4": 9079.660000000304,
+          "5": 980.0
+        }
+      }
+    },
+    {
+      "round_id": "ae78003a-4efe-425a-881a-d16a39bca0ad",
+      "round_number": 6,
+      "round_score": 58.6660195848087,
+      "seed_reports": [
+        {
+          "score": 59.96480084165338,
+          "seed_index": 0
+        },
+        {
+          "score": 58.315987420792425,
+          "seed_index": 1
+        },
+        {
+          "score": 58.24343455077211,
+          "seed_index": 2
+        },
+        {
+          "score": 59.30375558919244,
+          "seed_index": 3
+        },
+        {
+          "score": 57.502119521633155,
+          "seed_index": 4
+        }
+      ],
+      "training_summary": {
+        "class_counts": {
+          "0": 36004,
+          "1": 1224,
+          "2": 40,
+          "3": 0,
+          "4": 9784,
+          "5": 948
+        },
+        "min_samples_leaf": 5,
+        "n_estimators": 300,
+        "random_state": 0,
+        "records_used": 48000,
+        "round_ids": [
+          "36e581f1-73f8-453f-ab98-cbe3052b701b",
+          "71451d74-be9f-471f-aacd-a41f3b68a9cd",
+          "76909e29-f664-4b2f-b16b-61b7507277e9",
+          "8e839974-b13b-407b-a5e7-fc749d877195",
+          "f1dac9a9-5cf1-49a9-8f17-d6cb5d5ba5cb",
+          "fd3c92ff-3178-4dc9-8d9b-acf389b3982b"
+        ],
+        "round_numbers": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          7
+        ],
+        "rounds_used": 6,
+        "target_mass": {
+          "0": 31971.594999999714,
+          "1": 5074.965000000212,
+          "2": 372.6299999999976,
+          "3": 456.8649999998433,
+          "4": 9175.945000000303,
+          "5": 948.0
+        }
+      }
+    },
+    {
+      "round_id": "fd3c92ff-3178-4dc9-8d9b-acf389b3982b",
+      "round_number": 5,
+      "round_score": 83.92934068321306,
+      "seed_reports": [
+        {
+          "score": 83.021398724221,
+          "seed_index": 0
+        },
+        {
+          "score": 80.43601128654727,
+          "seed_index": 1
+        },
+        {
+          "score": 85.21967450766404,
+          "seed_index": 2
+        },
+        {
+          "score": 84.95027000192982,
+          "seed_index": 3
+        },
+        {
+          "score": 86.01934889570317,
+          "seed_index": 4
+        }
+      ],
+      "training_summary": {
+        "class_counts": {
+          "0": 35754,
+          "1": 1573,
+          "2": 50,
+          "3": 0,
+          "4": 9668,
+          "5": 955
+        },
+        "min_samples_leaf": 5,
+        "n_estimators": 300,
+        "random_state": 0,
+        "records_used": 48000,
+        "round_ids": [
+          "36e581f1-73f8-453f-ab98-cbe3052b701b",
+          "71451d74-be9f-471f-aacd-a41f3b68a9cd",
+          "76909e29-f664-4b2f-b16b-61b7507277e9",
+          "8e839974-b13b-407b-a5e7-fc749d877195",
+          "ae78003a-4efe-425a-881a-d16a39bca0ad",
+          "f1dac9a9-5cf1-49a9-8f17-d6cb5d5ba5cb"
+        ],
+        "round_numbers": [
+          1,
+          2,
+          3,
+          4,
+          6,
+          7
+        ],
+        "rounds_used": 6,
+        "target_mass": {
+          "0": 31182.379999999754,
+          "1": 5911.550000000188,
+          "2": 427.45499999999777,
+          "3": 588.0599999997926,
+          "4": 8935.555000000231,
+          "5": 955.0
+        }
+      }
+    },
+    {
+      "round_id": "8e839974-b13b-407b-a5e7-fc749d877195",
+      "round_number": 4,
+      "round_score": 88.66228210893719,
+      "seed_reports": [
+        {
+          "score": 87.76627298098077,
+          "seed_index": 0
+        },
+        {
+          "score": 89.41225145308417,
+          "seed_index": 1
+        },
+        {
+          "score": 89.11480018224913,
+          "seed_index": 2
+        },
+        {
+          "score": 88.46414137836088,
+          "seed_index": 3
+        },
+        {
+          "score": 88.55394455001104,
+          "seed_index": 4
+        }
+      ],
+      "training_summary": {
+        "class_counts": {
+          "0": 35652,
+          "1": 1725,
+          "2": 51,
+          "3": 0,
+          "4": 9628,
+          "5": 944
+        },
+        "min_samples_leaf": 5,
+        "n_estimators": 300,
+        "random_state": 0,
+        "records_used": 48000,
+        "round_ids": [
+          "36e581f1-73f8-453f-ab98-cbe3052b701b",
+          "71451d74-be9f-471f-aacd-a41f3b68a9cd",
+          "76909e29-f664-4b2f-b16b-61b7507277e9",
+          "ae78003a-4efe-425a-881a-d16a39bca0ad",
+          "f1dac9a9-5cf1-49a9-8f17-d6cb5d5ba5cb",
+          "fd3c92ff-3178-4dc9-8d9b-acf389b3982b"
+        ],
+        "round_numbers": [
+          1,
+          2,
+          3,
+          5,
+          6,
+          7
+        ],
+        "rounds_used": 6,
+        "target_mass": {
+          "0": 31007.559999999914,
+          "1": 6157.1450000002205,
+          "2": 443.85499999999814,
+          "3": 615.729999999788,
+          "4": 8831.710000000241,
+          "5": 944.0
+        }
+      }
+    },
+    {
+      "round_id": "f1dac9a9-5cf1-49a9-8f17-d6cb5d5ba5cb",
+      "round_number": 3,
+      "round_score": 37.50604401326799,
+      "seed_reports": [
+        {
+          "score": 37.87545225664747,
+          "seed_index": 0
+        },
+        {
+          "score": 37.476823019683046,
+          "seed_index": 1
+        },
+        {
+          "score": 37.430064722842474,
+          "seed_index": 2
+        },
+        {
+          "score": 38.24557269529567,
+          "seed_index": 3
+        },
+        {
+          "score": 36.502307371871304,
+          "seed_index": 4
+        }
+      ],
+      "training_summary": {
+        "class_counts": {
+          "0": 35597,
+          "1": 1727,
+          "2": 51,
+          "3": 0,
+          "4": 9655,
+          "5": 970
+        },
+        "min_samples_leaf": 5,
+        "n_estimators": 300,
+        "random_state": 0,
+        "records_used": 48000,
+        "round_ids": [
+          "36e581f1-73f8-453f-ab98-cbe3052b701b",
+          "71451d74-be9f-471f-aacd-a41f3b68a9cd",
+          "76909e29-f664-4b2f-b16b-61b7507277e9",
+          "8e839974-b13b-407b-a5e7-fc749d877195",
+          "ae78003a-4efe-425a-881a-d16a39bca0ad",
+          "fd3c92ff-3178-4dc9-8d9b-acf389b3982b"
+        ],
+        "round_numbers": [
+          1,
+          2,
+          4,
+          5,
+          6,
+          7
+        ],
+        "rounds_used": 6,
+        "target_mass": {
+          "0": 30360.620000000057,
+          "1": 6782.370000000128,
+          "2": 488.62999999999545,
+          "3": 676.3449999997152,
+          "4": 8722.035000000464,
+          "5": 970.0
+        }
+      }
+    },
+    {
+      "round_id": "76909e29-f664-4b2f-b16b-61b7507277e9",
+      "round_number": 2,
+      "round_score": 81.69491207961028,
+      "seed_reports": [
+        {
+          "score": 81.03691065657307,
+          "seed_index": 0
+        },
+        {
+          "score": 83.53710477978665,
+          "seed_index": 1
+        },
+        {
+          "score": 81.4749339033101,
+          "seed_index": 2
+        },
+        {
+          "score": 81.74812610252768,
+          "seed_index": 3
+        },
+        {
+          "score": 80.67748495585383,
+          "seed_index": 4
+        }
+      ],
+      "training_summary": {
+        "class_counts": {
+          "0": 35662,
+          "1": 1572,
+          "2": 46,
+          "3": 0,
+          "4": 9736,
+          "5": 984
+        },
+        "min_samples_leaf": 5,
+        "n_estimators": 300,
+        "random_state": 0,
+        "records_used": 48000,
+        "round_ids": [
+          "36e581f1-73f8-453f-ab98-cbe3052b701b",
+          "71451d74-be9f-471f-aacd-a41f3b68a9cd",
+          "8e839974-b13b-407b-a5e7-fc749d877195",
+          "ae78003a-4efe-425a-881a-d16a39bca0ad",
+          "f1dac9a9-5cf1-49a9-8f17-d6cb5d5ba5cb",
+          "fd3c92ff-3178-4dc9-8d9b-acf389b3982b"
+        ],
+        "round_numbers": [
+          1,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "rounds_used": 6,
+        "target_mass": {
+          "0": 31496.73500000015,
+          "1": 5452.375000000374,
+          "2": 388.64499999999435,
+          "3": 549.4249999998227,
+          "4": 9128.820000000325,
+          "5": 984.0
+        }
+      }
+    },
+    {
+      "round_id": "71451d74-be9f-471f-aacd-a41f3b68a9cd",
+      "round_number": 1,
+      "round_score": 81.74750737528653,
+      "seed_reports": [
+        {
+          "score": 80.00806695989532,
+          "seed_index": 0
+        },
+        {
+          "score": 83.35344281099127,
+          "seed_index": 1
+        },
+        {
+          "score": 81.1687017808448,
+          "seed_index": 2
+        },
+        {
+          "score": 85.7534248701312,
+          "seed_index": 3
+        },
+        {
+          "score": 78.4539004545701,
+          "seed_index": 4
+        }
+      ],
+      "training_summary": {
+        "class_counts": {
+          "0": 35799,
+          "1": 1560,
+          "2": 47,
+          "3": 0,
+          "4": 9643,
+          "5": 951
+        },
+        "min_samples_leaf": 5,
+        "n_estimators": 300,
+        "random_state": 0,
+        "records_used": 48000,
+        "round_ids": [
+          "36e581f1-73f8-453f-ab98-cbe3052b701b",
+          "76909e29-f664-4b2f-b16b-61b7507277e9",
+          "8e839974-b13b-407b-a5e7-fc749d877195",
+          "ae78003a-4efe-425a-881a-d16a39bca0ad",
+          "f1dac9a9-5cf1-49a9-8f17-d6cb5d5ba5cb",
+          "fd3c92ff-3178-4dc9-8d9b-acf389b3982b"
+        ],
+        "round_numbers": [
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "rounds_used": 6,
+        "target_mass": {
+          "0": 31386.60000000005,
+          "1": 5683.710000000331,
+          "2": 392.38999999999635,
+          "3": 593.4349999997887,
+          "4": 8992.865000000449,
+          "5": 951.0
+        }
+      }
+    }
+  ],
+  "summary": {
+    "completed_rounds_evaluated": 7,
+    "floor": 0.02,
+    "mean_round_score": 70.53091939001683,
+    "mean_seed_score": 70.53091939001683,
+    "min_samples_leaf": 5,
+    "n_estimators": 300,
+    "neighborhood_radius": 1,
+    "random_state": 0,
+    "seed_scores_evaluated": 35
+  }
+}

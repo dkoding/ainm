@@ -1,0 +1,115 @@
+{
+  "analysis_cached_seeds": 35,
+  "analysis_enabled": true,
+  "cache_prefix": "history",
+  "completed_rounds_cached": 7,
+  "generated_at": "2026-03-20T15:05:54.709979+00:00",
+  "public_rounds_total": 8,
+  "rounds": [
+    {
+      "analysis_cached_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "analysis_errors": [],
+      "event_date": "2026-03-20",
+      "round_id": "36e581f1-73f8-453f-ab98-cbe3052b701b",
+      "round_number": 7,
+      "seeds_count": 5,
+      "status": "completed"
+    },
+    {
+      "analysis_cached_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "analysis_errors": [],
+      "event_date": "2026-03-20",
+      "round_id": "ae78003a-4efe-425a-881a-d16a39bca0ad",
+      "round_number": 6,
+      "seeds_count": 5,
+      "status": "completed"
+    },
+    {
+      "analysis_cached_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "analysis_errors": [],
+      "event_date": "2026-03-20",
+      "round_id": "fd3c92ff-3178-4dc9-8d9b-acf389b3982b",
+      "round_number": 5,
+      "seeds_count": 5,
+      "status": "completed"
+    },
+    {
+      "analysis_cached_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "analysis_errors": [],
+      "event_date": "2026-03-20",
+      "round_id": "8e839974-b13b-407b-a5e7-fc749d877195",
+      "round_number": 4,
+      "seeds_count": 5,
+      "status": "completed"
+    },
+    {
+      "analysis_cached_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "analysis_errors": [],
+      "event_date": "2026-03-20",
+      "round_id": "f1dac9a9-5cf1-49a9-8f17-d6cb5d5ba5cb",
+      "round_number": 3,
+      "seeds_count": 5,
+      "status": "completed"
+    },
+    {
+      "analysis_cached_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "analysis_errors": [],
+      "event_date": "2026-03-19",
+      "round_id": "76909e29-f664-4b2f-b16b-61b7507277e9",
+      "round_number": 2,
+      "seeds_count": 5,
+      "status": "completed"
+    },
+    {
+      "analysis_cached_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "analysis_errors": [],
+      "event_date": "2026-03-19",
+      "round_id": "71451d74-be9f-471f-aacd-a41f3b68a9cd",
+      "round_number": 1,
+      "seeds_count": 5,
+      "status": "completed"
+    }
+  ]
+}

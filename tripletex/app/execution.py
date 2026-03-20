@@ -17,7 +17,13 @@ class TripletexCommandExecutor:
         self.registry = registry
 
     def execute(self, command: TripletexCommand) -> Any:
+        self.validate(command)
+        return self.execute_prevalidated(command)
+
+    def validate(self, command: TripletexCommand) -> None:
         self._validate(command)
+
+    def execute_prevalidated(self, command: TripletexCommand) -> Any:
         return self.client.request(
             command.method,
             command.path,

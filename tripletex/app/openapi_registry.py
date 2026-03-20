@@ -7,7 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from .tasking import TripletexCommand
+from .tasking import TaskAnalysis, TripletexCommand
 
 
 class OpenAPIRegistryError(RuntimeError):
@@ -88,20 +88,30 @@ class TripletexOpenAPIRegistry:
                 return operation
         return None
 
-    def planner_hints(self, *, target_resource: str | None = None, limit: int = 36) -> list[dict[str, Any]]:
-        prefixes = _resource_prefixes(target_resource)
+    def planner_hints(
+        self,
+        *,
+        target_resource: str | None = None,
+        prefixes: tuple[str, ...] | None = None,
+        limit: int = 36,
+    ) -> list[dict[str, Any]]:
+        selected_prefixes = prefixes or _resource_prefixes(target_resource)
         selected: list[dict[str, Any]] = []
         seen: set[tuple[str, str]] = set()
-        for operation in self.operations:
-            if prefixes and not any(operation.template_path.startswith(prefix) for prefix in prefixes):
-                continue
-            key = (operation.method, operation.template_path)
-            if key in seen:
-                continue
-            seen.add(key)
-            selected.append(operation.planner_hint())
-            if len(selected) >= limit:
-                break
+        if selected_prefixes:
+            for prefix in selected_prefixes:
+                for operation in self.operations:
+                    if not operation.template_path.startswith(prefix):
+                        continue
+                    key = (operation.method, operation.template_path)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    selected.append(operation.planner_hint())
+                    if len(selected) >= limit:
+                        break
+                if len(selected) >= limit:
+                    break
 
         if selected:
             return selected
@@ -208,16 +218,52 @@ def _normalize_path(path: str) -> str:
 
 def _resource_prefixes(target_resource: str | None) -> tuple[str, ...]:
     mapping = {
-        "employee": ("/employee",),
+        "activity": (
+            "/activity",
+            "/project/activity",
+        ),
+        "employee": (
+            "/employee",
+            "/employee/entitlement",
+        ),
         "customer": ("/customer", "/deliveryAddress"),
         "product": ("/product",),
-        "invoice": ("/invoice", "/order"),
-        "order": ("/order", "/invoice"),
-        "travelexpense": ("/travelExpense",),
-        "project": ("/project",),
-        "department": ("/department",),
+        "invoice": (
+            "/invoice",
+            "/invoice/paymentType",
+            "/incomingInvoice",
+            "/order",
+            "/supplierInvoice",
+        ),
+        "order": (
+            "/invoice",
+            "/invoice/paymentType",
+            "/order",
+        ),
+        "travelexpense": (
+            "/travelExpense",
+            "/travelExpense/paymentType",
+            "/travelExpense/settings",
+        ),
+        "project": (
+            "/project",
+            "/project/settings",
+            "/company/salesmodules",
+        ),
+        "department": (
+            "/department",
+            "/attestation/companyModules",
+            "/company/salesmodules",
+        ),
+        "timesheet": (
+            "/timesheet",
+            "/activity",
+            "/project",
+            "/employee",
+        ),
         "ledger": (
             "/ledger/account",
+            "/ledger/paymentTypeOut",
             "/ledger/posting",
             "/ledger/voucher",
             "/ledger/vatType",
@@ -228,11 +274,21 @@ def _resource_prefixes(target_resource: str | None) -> tuple[str, ...]:
             "/customer",
             "/product",
             "/invoice",
+            "/invoice/paymentType",
+            "/incomingInvoice",
             "/order",
+            "/supplierInvoice",
             "/travelExpense",
+            "/travelExpense/paymentType",
+            "/travelExpense/settings",
             "/project",
+            "/project/settings",
             "/department",
+            "/employee/entitlement",
+            "/company/salesmodules",
+            "/attestation/companyModules",
             "/ledger/account",
+            "/ledger/paymentTypeOut",
             "/ledger/posting",
             "/ledger/voucher",
             "/ledger/vatType",
@@ -241,6 +297,102 @@ def _resource_prefixes(target_resource: str | None) -> tuple[str, ...]:
     }
     key = (target_resource or "other").replace("_", "").replace("-", "").lower()
     return mapping.get(key, mapping["other"])
+
+
+def planner_prefixes_for_task(*, task_prompt: str, task_analysis: TaskAnalysis | None = None) -> tuple[str, ...]:
+    text_parts = [task_prompt]
+    field_keys: set[str] = set()
+
+    if task_analysis is not None:
+        text_parts.extend(
+            (
+                task_analysis.objective,
+                task_analysis.task_family,
+                task_analysis.operation,
+                task_analysis.target_resource or "",
+                " ".join(task_analysis.ambiguity_notes),
+                " ".join(task_analysis.notes),
+            )
+        )
+        field_keys.update(str(key).lower() for key in task_analysis.method_arguments)
+        field_keys.update(str(key).lower() for key in task_analysis.search_hints)
+        field_keys.update(str(key).lower() for key in task_analysis.payload_fields)
+
+    text = " ".join(part for part in text_parts if part).lower()
+    selected_prefixes: list[str] = []
+    seen: set[str] = set()
+
+    def add_resource(resource: str) -> None:
+        for prefix in _resource_prefixes(resource):
+            if prefix in seen:
+                continue
+            seen.add(prefix)
+            selected_prefixes.append(prefix)
+
+    if task_analysis is not None and task_analysis.target_resource:
+        add_resource(task_analysis.target_resource)
+
+    if any(token in text for token in ("customer", "kunde", "client", "cliente", "org.nr", "organization number")):
+        add_resource("customer")
+    if any(token in text for token in ("employee", "ansatt", "employe", "medarbeider", "project manager")) or any(
+        key in field_keys for key in ("employeeemail", "employeenumber", "projectmanageremail")
+    ):
+        add_resource("employee")
+    if any(token in text for token in ("department", "avdeling")) or any(
+        key in field_keys for key in ("departmentname", "departmentnumber")
+    ):
+        add_resource("department")
+    if any(token in text for token in ("product", "produkt", "item", "vare")) or any(
+        key.startswith("orderline") for key in field_keys
+    ):
+        add_resource("product")
+    if any(token in text for token in ("project", "prosjekt", "projet")) or any(
+        key in field_keys for key in ("projectname", "projectnumber")
+    ):
+        add_resource("project")
+    if any(token in text for token in ("activity", "aktivitet", "activite")) or any(
+        key in field_keys for key in ("activityname", "activityid")
+    ):
+        add_resource("activity")
+    if any(
+        token in text
+        for token in (
+            "timesheet",
+            "time sheet",
+            "register hours",
+            "record hours",
+            "hour registration",
+            "time registration",
+            "timer",
+            "heures",
+            "hours",
+        )
+    ) or any(key in field_keys for key in ("hours", "hourlyrate", "activityname", "employeeemail", "projectname")):
+        add_resource("timesheet")
+        add_resource("activity")
+        add_resource("project")
+        add_resource("employee")
+    if any(token in text for token in ("invoice", "faktura", "facture", "credit note", "kreditnota")) or any(
+        key in field_keys for key in ("invoicenumber", "createinvoice", "paymenttypeid")
+    ):
+        add_resource("customer")
+        add_resource("order")
+        add_resource("invoice")
+    if any(token in text for token in ("payment", "betaling", "paid", "betale")):
+        add_resource("invoice")
+    if any(token in text for token in ("travel expense", "reise", "travel report", "expense")):
+        add_resource("employee")
+        add_resource("project")
+        add_resource("travelexpense")
+    if any(token in text for token in ("ledger", "voucher", "bilag", "posting", "reconciliation", "regnskap")):
+        add_resource("ledger")
+        add_resource("customer")
+        add_resource("project")
+        add_resource("department")
+
+    if not selected_prefixes:
+        add_resource("other")
+    return tuple(selected_prefixes)
 
 
 def _placeholder_count(template_path: str) -> int:

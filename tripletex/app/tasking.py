@@ -25,6 +25,9 @@ class TaskAnalysis(BaseModel):
     task_family: str = Field(min_length=1)
     operation: str = Field(min_length=1)
     target_resource: str | None = None
+    method_name: str = "UnknownMethod"
+    method_arguments: dict[str, Any] = Field(default_factory=dict)
+    missing_required_arguments: list[str] = Field(default_factory=list)
     detected_language: str = "unknown"
     search_hints: dict[str, Any] = Field(default_factory=dict)
     payload_fields: dict[str, Any] = Field(default_factory=dict)
@@ -62,12 +65,20 @@ class PlannedAction(BaseModel):
         )
 
 
+class MethodCall(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    method_name: str = Field(min_length=1)
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+
 class PlannerDecision(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    kind: Literal["action", "finish"]
+    kind: Literal["action", "method", "finish"]
     reason: str = Field(min_length=1)
     action: PlannedAction | None = None
+    method_call: MethodCall | None = None
 
     def to_command(self) -> TripletexCommand:
         if self.kind != "action":
@@ -75,3 +86,10 @@ class PlannerDecision(BaseModel):
         if self.action is None:
             raise ValueError("Planner returned kind=action without an action payload.")
         return self.action.to_command(reason=self.reason)
+
+    def to_method_call(self) -> MethodCall:
+        if self.kind != "method":
+            raise ValueError("Only method decisions can be converted into method calls.")
+        if self.method_call is None:
+            raise ValueError("Planner returned kind=method without a method_call payload.")
+        return self.method_call

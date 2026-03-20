@@ -29,14 +29,11 @@ ENV_VARS=(
   "AINM_BASE_URL=https://api.ainm.no"
 )
 
-SECRET_FLAGS=()
-if gcloud secrets describe "${SECRET_NAME}" --project "${PROJECT}" >/dev/null 2>&1; then
-  SECRET_FLAGS+=(--set-secrets "AINM_ACCESS_TOKEN=${SECRET_NAME}:latest")
-elif [[ -n "${AINM_ACCESS_TOKEN:-}" ]]; then
+if [[ -n "${AINM_ACCESS_TOKEN:-}" ]]; then
   ENV_VARS+=("AINM_ACCESS_TOKEN=${AINM_ACCESS_TOKEN}")
 else
-  echo "No Secret Manager secret named ${SECRET_NAME} found and no AINM_ACCESS_TOKEN provided." >&2
-  echo "Set AINM_ACCESS_TOKEN in astar/.env or create the secret ${SECRET_NAME} before deploying." >&2
+  echo "AINM_ACCESS_TOKEN is required for deployment." >&2
+  echo "Set it in astar/.env before running this script." >&2
   exit 1
 fi
 
@@ -56,8 +53,7 @@ gcloud run jobs deploy "${JOB_NAME}" \
   --tasks 1 \
   --parallelism 1 \
   --max-retries 0 \
-  --set-env-vars "$(IFS=,; echo "${ENV_VARS[*]}")" \
-  "${SECRET_FLAGS[@]}"
+  --set-env-vars "$(IFS=,; echo "${ENV_VARS[*]}")"
 
 echo "To execute now:"
 echo "gcloud run jobs execute ${JOB_NAME} --region ${REGION} --project ${PROJECT}"

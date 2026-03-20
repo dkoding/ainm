@@ -21,7 +21,6 @@ Primary sources:
 - https://cloud.google.com/shell/docs/editor-overview
 - https://cloud.google.com/python/docs/reference/storage/latest
 - https://cloud.google.com/python/docs/reference/bigquery/latest
-- https://cloud.google.com/python/docs/reference/secretmanager/latest
 - https://cloud.google.com/python/docs/reference/logging/latest
 - https://cloud.google.com/python/docs/reference/pubsub/latest
 - https://cloud.google.com/vertex-ai/generative-ai/docs/sdks/overview
@@ -32,10 +31,11 @@ Primary sources:
 
 Recommended primary stack for Astar:
 
+0. local execution as the default development and round-ops path
 1. `Cloud Run Jobs` for round-time batch execution
 2. `Cloud Scheduler` for timed or repeated job execution
 3. `Cloud Storage` for artifacts and round evidence
-4. `Secret Manager` for `AINM_ACCESS_TOKEN` in deployed runs
+4. runtime env injection for `AINM_ACCESS_TOKEN` in deployed runs, only if Cloud Run is used
 5. `Cloud Logging` for execution traces
 6. `Cloud Shell` and `Cloud Shell Editor` for daily ops and deployment
 
@@ -72,7 +72,7 @@ That means:
 - you do not need a public solver endpoint to submit Astar predictions
 - you need a reliable internal batch runner
 
-That is why `Cloud Run Jobs` is the right first GCP component, not a public Cloud Run service.
+That is why `Cloud Run Jobs` are the only Cloud Run shape that fits this task, and even they are optional.
 
 ## 3. Component Decision Matrix
 
@@ -137,7 +137,7 @@ Store in deployed config:
 
 - the active `gcloud` project or `GOOGLE_CLOUD_PROJECT`
 
-Prefer `Secret Manager` for:
+If you deploy this repo to Cloud Run, inject at runtime:
 
 - `AINM_ACCESS_TOKEN`
 
@@ -145,7 +145,9 @@ Prefer hard-coded defaults or CLI flags for:
 
 - stable Astar runtime knobs such as base URL, viewport size, floor, and prior strength
 
-In this scaffold, the Cloud Run Job deployment path intentionally hard-codes the non-secret deployment settings and looks for a fixed Secret Manager secret name, `astar-access-token`.
+In this scaffold, the Cloud Run Job deployment path intentionally hard-codes the non-secret deployment settings and passes `AINM_ACCESS_TOKEN` as a runtime environment variable.
+
+Do not bake `AINM_ACCESS_TOKEN` into the Docker image. That would leak the token into image layers, registry history, and every future pull of that image.
 
 ### Duplicate to avoid
 
@@ -260,11 +262,11 @@ Cloud Run and Cloud Shell should authenticate through ADC.
 - writing custom blob upload wrappers when `google-cloud-storage` already solves it
 - putting raw JSON artifacts into BigQuery before you know you need SQL analytics
 
-## 3.4 Secret Manager
+## 3.4 Runtime Secret Injection
 
 ### Description
 
-Managed secret storage.
+Pass the AINM token into the running process only at execution time.
 
 ### Why it fits Astar
 
@@ -274,37 +276,34 @@ The main secret for deployed Astar automation is:
 
 This should not be hardcoded into the container image or committed to git.
 
-### Relevant capabilities
-
-Official docs describe Secret Manager as storing, managing, and securing application secrets.
-
-The official Python client library is:
-
-- `google-cloud-secret-manager`
-
 ### Usage instructions
 
-Use Secret Manager for:
+Use runtime env injection for:
 
-- AINM access token in Cloud Run Jobs
-- any future webhook or alerting credentials
+- local development through `astar/.env`
+- optional Cloud Run Job deployment through `--set-env-vars`
 
-Use `.env` only for local dev.
+Do not use:
+
+- Dockerfile `ENV` with the live token
+- Docker build args for the live token
+- committing the token to git
 
 ### Python libraries
 
-- `google-cloud-secret-manager`
+- none
 
 ### Credentials and env
 
 Useful env:
 
-- `ASTAR_TOKEN_SECRET_NAME`
+- `AINM_ACCESS_TOKEN`
 
 ### Duplicate to avoid
 
 - putting live secrets into source control
-- storing deployment secrets only in `.env` on Cloud Shell
+- baking live secrets into the Docker image
+- adding a second secret-distribution path without a concrete need
 
 ## 3.5 Cloud Logging
 
@@ -322,7 +321,7 @@ You need to debug:
 - submission timing
 - model outputs per round
 
-Cloud Run already emits stdout/stderr into Cloud Logging, so this comes almost for free.
+Cloud Run already emits stdout/stderr into Cloud Logging, so this comes almost for free if you choose to use Cloud Run at all.
 
 ### Relevant capabilities
 
@@ -617,7 +616,6 @@ Move to Compute Engine only if:
 - `pandas` or `polars` for analysis tables
 - `scikit-learn` for classical models and calibration
 - `google-cloud-bigquery` for SQL analytics
-- `google-cloud-secret-manager` for programmatic secret access
 - `google-cloud-logging` for custom structured logging
 - `google-cloud-pubsub` only if orchestration is split
 - `google-genai` only for optional Gemini-assisted workflows
@@ -628,7 +626,7 @@ Avoid introducing multiple libraries that solve the same problem at the same lay
 
 - `Cloud Run Job` plus a separate always-on `Cloud Run service` for the same batch task
 - `Cloud Storage` plus a custom file sync system
-- `Secret Manager` plus checked-in secret files
+- baking secrets into the Docker image
 - `Vertex AI` plus `AI Studio` keys in the same production path
 - `requests` and `httpx` both in the same small scaffold unless there is a strong reason
 
@@ -636,21 +634,22 @@ Avoid introducing multiple libraries that solve the same problem at the same lay
 
 Build Astar around this minimal GCP stack:
 
-1. `Cloud Run Jobs`
-2. `Cloud Scheduler`
-3. `Cloud Storage`
-4. `Secret Manager`
-5. `Cloud Logging`
-6. `Cloud Shell`
+1. local runner first
+2. `Cloud Run Jobs` only when unattended execution is worth it
+3. `Cloud Scheduler` only when there is a real schedule to automate
+4. `Cloud Storage` when artifact retention across machines matters
+5. runtime env injection only if Cloud Run is used
+6. `Cloud Logging`
+7. `Cloud Shell`
 
 Add:
 
-7. `BigQuery`
+8. `BigQuery`
 
 only when cross-round analytics justify it.
 
 Add:
 
-8. `Compute Engine`
+9. `Compute Engine`
 
 only when you have a proven GPU or persistent-worker requirement.

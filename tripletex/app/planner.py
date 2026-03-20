@@ -7,7 +7,10 @@ import re
 import time
 from typing import Any
 
-from .openapi_registry import TripletexOpenAPIRegistry
+from .generated_methods import GeneratedAPIMethodRegistry
+from .internal_tasks import planner_method_hints
+from .openapi_registry import TripletexOpenAPIRegistry, planner_prefixes_for_task
+from .spec_runtime import planner_runtime_hints
 from .tasking import AttachmentContext, PlannerDecision, TaskAnalysis
 
 logger = logging.getLogger(__name__)
@@ -20,9 +23,12 @@ Return JSON only. No markdown fences.
 Produce exactly one JSON object with this shape:
 {
   "objective": "short description of desired end state",
+  "method_name": "supported method name or UnknownMethod",
+  "method_arguments": {"key": "value"},
+  "missing_required_arguments": ["argumentName"],
   "task_family": "resource.operation style label such as customer.create",
   "operation": "create | update | delete | invoice | register_payment | correct | reverse | search | other",
-  "target_resource": "employee | customer | product | order | invoice | travelExpense | project | department | ledger | other",
+  "target_resource": "employee | customer | product | order | invoice | travelExpense | project | department | activity | timesheet | ledger | other",
   "detected_language": "best guess language name or code",
   "search_hints": {"key": "value"},
   "payload_fields": {"key": "value"},
@@ -34,27 +40,35 @@ Produce exactly one JSON object with this shape:
 }
 
 Rules:
-- infer the likely Tripletex workflow family from the prompt and attachments
+- your primary job is to map the user request to one supported internal method call when possible
+- choose method_name from method_catalog only when the curated method can satisfy the requested workflow without semantic loss; otherwise use UnknownMethod
+- UnknownMethod does not mean the task is impossible; it means later execution should use the full OpenAPI-derived method catalog instead of a curated internal shortcut
+- method_arguments must use the exact argument names from the chosen method hint
+- extract only arguments supported by the chosen method; do not emit API paths, endpoint names, or query parameters
+- if a required argument is not present in the prompt or attachments, do not guess it; list it in missing_required_arguments
+- infer the likely Tripletex workflow family from the prompt and attachments for fallback logging and full-catalog execution planning
 - keep search_hints limited to values useful for API lookups
 - keep payload_fields limited to values likely needed for creation or update
 - mark risk_level=high for destructive or ambiguous tasks
 - do not invent facts that are not supported by the prompt or attachments
+- do not use closest-match curated methods when the request actually requires timesheet registration, project billing from registered hours, ledger correction, reconciliation, or any other extra workflow steps not covered by that curated method
 """
 
-EXECUTION_PROMPT = """You are a deterministic Tripletex v2 API planner.
+EXECUTION_PROMPT = """You are a deterministic Tripletex v2 method planner.
 
 Return JSON only. No markdown fences.
 
 Allowed response shapes:
-1. Take one API step:
+1. Call one generated API method:
 {
-  "kind": "action",
+  "kind": "method",
   "reason": "short explanation",
-  "action": {
-    "method": "GET | POST | PUT | DELETE",
-    "path": "/customer",
-    "params": {"fields": "id,name"},
-    "json": {"name": "Acme AS"}
+  "method_call": {
+    "method_name": "CustomerSearch",
+    "arguments": {
+      "organizationNumber": "845903077",
+      "fields": "id,name"
+    }
   }
 }
 
@@ -65,15 +79,22 @@ Allowed response shapes:
 }
 
 Rules:
-- use only standard Tripletex v2 paths
-- the action.path must match an actual OpenAPI path template, including prefixes like /ledger/ when required
-- do not shorten or rename paths; for example use /ledger/vatType, not /vatType
-- prefer paths listed in openapi_endpoint_hints
+- use only method_name values listed in api_method_hints
+- method arguments must match the generated method signature exactly
+- task_prompt is the authoritative user intent; if task_analysis reflects a rejected curated shortcut or incomplete extraction, recover from task_prompt instead of following the shortcut
+- the task may require combining multiple method calls across different Tripletex resource families; choose the single best next generated method that advances that workflow
+- treat the OpenAPI spec as authoritative; the examples docs may use simplified parameter names or flows
+- do not emit raw HTTP methods, raw paths, or ad-hoc endpoint names
+- do not invent a generic payment method; use the canonical generated invoice or supplier-invoice payment methods
+- when a search method requires a date window, always include the required date arguments
+- use payment-type, entitlement, and module-related methods when the task requires them
+- use timesheet, activity, project, customer, order, invoice, payment, travel, and ledger methods together when the workflow spans those resources
+- prefer methods listed in api_method_hints
 - prefer exact searches before create or update if duplicates are possible
 - keep API calls efficient and minimal
 - reuse earlier responses instead of repeating searches
 - do not finish until the intended state change is complete
-- if a request failed, use the error payload to repair the next step instead of guessing broadly
+- if a request failed, use the error payload to repair the next method call instead of guessing broadly
 """
 
 
@@ -93,6 +114,7 @@ class BasePlanner:
     def next_step(
         self,
         *,
+        task_prompt: str,
         task_analysis: TaskAnalysis,
         attachments: list[AttachmentContext],
         history: list[dict[str, Any]],
@@ -128,6 +150,7 @@ class NoopPlanner(BasePlanner):
     def next_step(
         self,
         *,
+        task_prompt: str,
         task_analysis: TaskAnalysis,
         attachments: list[AttachmentContext],
         history: list[dict[str, Any]],
@@ -155,6 +178,7 @@ class VertexAIPlanner(BasePlanner):
         self.part_type = Part
         self.model_name = model_name
         self.registry = TripletexOpenAPIRegistry.from_default_spec()
+        self.generated_methods = GeneratedAPIMethodRegistry.from_default_spec()
 
     def analyze_task(
         self,
@@ -163,10 +187,14 @@ class VertexAIPlanner(BasePlanner):
         attachments: list[AttachmentContext],
     ) -> TaskAnalysis:
         started_at = time.monotonic()
+        analysis_prefixes = planner_prefixes_for_task(task_prompt=task_prompt)
         payload = {
             "task_prompt": task_prompt,
             "attachments": [attachment.model_dump(mode="json") for attachment in attachments],
-            "openapi_endpoint_hints": self.registry.planner_hints(target_resource=None),
+            "method_catalog": planner_method_hints(),
+            "openapi_endpoint_hints": self.registry.planner_hints(prefixes=analysis_prefixes, limit=60),
+            "api_method_hints": self.generated_methods.planner_hints(prefixes=analysis_prefixes, limit=80),
+            "spec_runtime_hints": planner_runtime_hints(),
         }
         logger.info(
             "planner.analysis.start model=%s attachments=%s prompt_chars=%s endpoint_hints=%s",
@@ -187,34 +215,49 @@ class VertexAIPlanner(BasePlanner):
             response_text[:400],
         )
         try:
-            return TaskAnalysis.model_validate(_extract_json(response_text))
+            analysis = TaskAnalysis.model_validate(_extract_json(response_text))
         except Exception as exc:
             logger.exception("planner.analysis.parse_failed response_preview=%r", response_text[:1200])
             raise PlannerError(f"Failed to parse task analysis: {response_text!r}") from exc
+        logger.info(
+            "planner.analysis.method method=%s missing_required_arguments=%s",
+            analysis.method_name,
+            analysis.missing_required_arguments,
+        )
+        return analysis
 
     def next_step(
         self,
         *,
+        task_prompt: str,
         task_analysis: TaskAnalysis,
         attachments: list[AttachmentContext],
         history: list[dict[str, Any]],
         remaining_steps: int,
     ) -> PlannerDecision:
         started_at = time.monotonic()
+        planner_prefixes = planner_prefixes_for_task(
+            task_prompt=task_prompt,
+            task_analysis=task_analysis,
+        )
         payload = {
+            "task_prompt": task_prompt,
             "task_analysis": task_analysis.model_dump(mode="json"),
             "attachments": [attachment.model_dump(mode="json") for attachment in attachments],
             "history": history[-6:],
             "remaining_steps": remaining_steps,
-            "openapi_endpoint_hints": self.registry.planner_hints(target_resource=task_analysis.target_resource),
+            "openapi_endpoint_hints": self.registry.planner_hints(prefixes=planner_prefixes, limit=72),
+            "api_method_hints": self.generated_methods.planner_hints(prefixes=planner_prefixes, limit=120),
+            "spec_runtime_hints": planner_runtime_hints(task_analysis),
         }
         logger.info(
-            "planner.step.start model=%s task_family=%s remaining_steps=%s history_entries=%s endpoint_hints=%s",
+            "planner.step.start model=%s task_family=%s remaining_steps=%s history_entries=%s endpoint_hints=%s api_method_hints=%s",
             self.model_name,
             task_analysis.task_family,
             remaining_steps,
             len(history),
             len(payload["openapi_endpoint_hints"]),
+            len(payload["api_method_hints"]),
         )
         response_text = self._generate_json(
             prompt=EXECUTION_PROMPT,
@@ -252,6 +295,15 @@ class VertexAIPlanner(BasePlanner):
                     action.path,
                     task_analysis.target_resource,
                 )
+        elif decision.kind == "method":
+            method_call = decision.method_call
+            if method_call is None:
+                raise PlannerError("Planner returned kind=method without a method_call payload.")
+            logger.info(
+                "planner.step.method method_name=%s arguments=%s",
+                method_call.method_name,
+                sorted((method_call.arguments or {}).keys()),
+            )
         else:
             logger.info("planner.step.finish reason=%r", decision.reason[:240])
 
@@ -273,14 +325,17 @@ class VertexAIPlanner(BasePlanner):
                 )
                 contents.append(binary_part)
 
-        response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=contents,
-            config={
-                "temperature": 0,
-                "response_mime_type": "application/json",
-            },
-        )
+        try:
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=contents,
+                config={
+                    "temperature": 0,
+                    "response_mime_type": "application/json",
+                },
+            )
+        except Exception as exc:
+            raise PlannerError(f"Vertex AI planning request failed: {exc}") from exc
         return getattr(response, "text", "") or ""
 
     def _attachment_part(self, attachment: AttachmentContext) -> Any | None:

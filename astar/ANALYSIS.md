@@ -253,6 +253,8 @@ Live verification on March 20, 2026 confirmed:
 - `GET /astar-island/rounds` works without auth
 - `GET /astar-island/rounds/{round_id}` works without auth
 - `GET /astar-island/budget` returns `401 Missing token` without auth
+- round payloads expose `prediction_window_minutes`, `started_at`, and `closes_at`
+- live rounds so far have used `165` minute windows, but automation should still trust the API timestamps rather than hard-coding cadence
 
 The scaffold should therefore treat public reads separately from team-authenticated actions.
 
@@ -276,10 +278,17 @@ The scaffold should provide:
 2. token-gated budget, simulate, and submit handling
 3. `.env`-driven configuration
 4. artifact capture for round detail, budgets, simulations, predictions, and submit responses
-5. an observation planner so the budget is usable immediately
+5. a budget-aware observation planner so the round-level query cap is usable immediately
+   Current default strategy: tile each `40x40` map once with `9` windows before using repeats.
 6. a simple observation-informed posterior update
-7. optional GCS artifact upload
-8. Cloud Run Job deployment support for automated round execution
+7. history-cache sync and reuse from `/analysis`
+8. an offline scorer and repeatable evaluation loop on cached completed rounds
+9. a dataset builder for later model work
+10. explicit local validation before submission
+11. optional GCS artifact upload
+12. Cloud Run Job deployment support for automated round execution
+13. a default round flow that ingests newly completed rounds into training before predicting the next active round
+14. a looped watcher that records official server round scores and automatically processes each new active round
 
 ## 9. What Still Remains A Real Modeling Problem
 

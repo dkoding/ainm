@@ -27,11 +27,6 @@ def parse_args() -> argparse.Namespace:
         help="Fetch per-seed /analysis payloads for completed rounds. Requires authentication.",
     )
     parser.add_argument(
-        "--round-limit",
-        type=int,
-        help="Optional limit on how many completed rounds to refresh, newest first.",
-    )
-    parser.add_argument(
         "--cache-prefix",
         default=DEFAULT_HISTORY_CACHE_PREFIX,
         help="Relative cache directory inside --out-dir.",
@@ -50,7 +45,6 @@ def main() -> None:
         client=client,
         artifact_store=artifact_store,
         cache_prefix=args.cache_prefix,
-        round_limit=args.round_limit,
         sync_analysis=args.analysis,
     )
     print(

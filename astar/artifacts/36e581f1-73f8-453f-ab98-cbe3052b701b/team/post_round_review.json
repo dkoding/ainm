@@ -1,0 +1,135 @@
+{
+  "lessons": [
+    "At least one seed scored below 50 in offline replay; inspect the largest-error cells first.",
+    "Coastal and trade-related cells still need better port calibration."
+  ],
+  "mean_seed_score": 46.70828512258937,
+  "round_id": "36e581f1-73f8-453f-ab98-cbe3052b701b",
+  "seed_reports": [
+    {
+      "ground_truth_argmax_counts": {
+        "empty": 1122,
+        "forest": 273,
+        "mountain": 36,
+        "port": 7,
+        "ruin": 0,
+        "settlement": 162
+      },
+      "largest_error_cell": {
+        "abs_error": 1.4159523318909228,
+        "x": 14,
+        "y": 36
+      },
+      "prediction_argmax_counts": {
+        "empty": 1187,
+        "forest": 320,
+        "mountain": 36,
+        "port": 2,
+        "ruin": 1,
+        "settlement": 54
+      },
+      "score": 41.33223184007492,
+      "seed_index": 0
+    },
+    {
+      "ground_truth_argmax_counts": {
+        "empty": 1162,
+        "forest": 245,
+        "mountain": 31,
+        "port": 7,
+        "ruin": 0,
+        "settlement": 155
+      },
+      "largest_error_cell": {
+        "abs_error": 1.4587451061199233,
+        "x": 13,
+        "y": 26
+      },
+      "prediction_argmax_counts": {
+        "empty": 1216,
+        "forest": 293,
+        "mountain": 31,
+        "port": 1,
+        "ruin": 1,
+        "settlement": 58
+      },
+      "score": 47.35594857119536,
+      "seed_index": 1
+    },
+    {
+      "ground_truth_argmax_counts": {
+        "empty": 1133,
+        "forest": 303,
+        "mountain": 23,
+        "port": 6,
+        "ruin": 0,
+        "settlement": 135
+      },
+      "largest_error_cell": {
+        "abs_error": 1.2845729337316505,
+        "x": 24,
+        "y": 21
+      },
+      "prediction_argmax_counts": {
+        "empty": 1162,
+        "forest": 337,
+        "mountain": 23,
+        "port": 2,
+        "ruin": 0,
+        "settlement": 76
+      },
+      "score": 50.28185797149983,
+      "seed_index": 2
+    },
+    {
+      "ground_truth_argmax_counts": {
+        "empty": 1152,
+        "forest": 270,
+        "mountain": 20,
+        "port": 5,
+        "ruin": 0,
+        "settlement": 153
+      },
+      "largest_error_cell": {
+        "abs_error": 1.3950443024933004,
+        "x": 36,
+        "y": 35
+      },
+      "prediction_argmax_counts": {
+        "empty": 1196,
+        "forest": 335,
+        "mountain": 20,
+        "port": 1,
+        "ruin": 0,
+        "settlement": 48
+      },
+      "score": 46.630740914324846,
+      "seed_index": 3
+    },
+    {
+      "ground_truth_argmax_counts": {
+        "empty": 1129,
+        "forest": 293,
+        "mountain": 32,
+        "port": 5,
+        "ruin": 0,
+        "settlement": 141
+      },
+      "largest_error_cell": {
+        "abs_error": 1.3280312228967919,
+        "x": 6,
+        "y": 21
+      },
+      "prediction_argmax_counts": {
+        "empty": 1174,
+        "forest": 334,
+        "mountain": 32,
+        "port": 4,
+        "ruin": 0,
+        "settlement": 56
+      },
+      "score": 47.940646315851914,
+      "seed_index": 4
+    }
+  ]
+}

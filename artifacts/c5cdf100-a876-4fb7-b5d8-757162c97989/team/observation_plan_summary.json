@@ -1,0 +1,11 @@
+{
+  "per_seed_queries_planned": {
+    "0": 11,
+    "1": 5,
+    "2": 2,
+    "3": 1,
+    "4": 1
+  },
+  "total_queries_planned": 20,
+  "total_queries_requested": 20
+}

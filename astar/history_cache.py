@@ -14,12 +14,8 @@ def sync_history_cache(
     client: AstarClient,
     artifact_store: ArtifactStore,
     cache_prefix: str = DEFAULT_HISTORY_CACHE_PREFIX,
-    round_limit: int | None = None,
     sync_analysis: bool = True,
 ) -> dict[str, Any]:
-    if round_limit is not None and round_limit <= 0:
-        raise ValueError("round_limit must be positive when provided.")
-
     cache_root = Path(cache_prefix)
     public_rounds = client.get_rounds()
     completed_rounds = sorted(
@@ -27,8 +23,6 @@ def sync_history_cache(
         key=_round_sort_key,
         reverse=True,
     )
-    if round_limit is not None:
-        completed_rounds = completed_rounds[:round_limit]
 
     artifact_store.write_json(cache_root / "public" / "rounds.json", public_rounds)
 
@@ -39,7 +33,6 @@ def sync_history_cache(
         "analysis_cached_seeds": 0,
         "analysis_enabled": bool(sync_analysis and client.is_authenticated),
         "public_rounds_total": len(public_rounds),
-        "round_limit": round_limit,
         "rounds": [],
     }
 
