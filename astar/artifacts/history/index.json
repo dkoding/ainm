@@ -1,11 +1,41 @@
 {
-  "analysis_cached_seeds": 35,
+  "analysis_cached_seeds": 45,
   "analysis_enabled": true,
   "cache_prefix": "history",
-  "completed_rounds_cached": 7,
-  "generated_at": "2026-03-20T15:05:54.709979+00:00",
-  "public_rounds_total": 8,
+  "completed_rounds_cached": 9,
+  "generated_at": "2026-03-20T21:46:53.423684+00:00",
+  "public_rounds_total": 10,
   "rounds": [
+    {
+      "analysis_cached_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "analysis_errors": [],
+      "event_date": "2026-03-20",
+      "round_id": "2a341ace-0f57-4309-9b89-e59fe0f09179",
+      "round_number": 9,
+      "seeds_count": 5,
+      "status": "completed"
+    },
+    {
+      "analysis_cached_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "analysis_errors": [],
+      "event_date": "2026-03-20",
+      "round_id": "c5cdf100-a876-4fb7-b5d8-757162c97989",
+      "round_number": 8,
+      "seeds_count": 5,
+      "status": "completed"
+    },
     {
       "analysis_cached_seeds": [
         0,

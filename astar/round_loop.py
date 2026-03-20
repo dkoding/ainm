@@ -17,6 +17,7 @@ from config import DEFAULT_AINM_BASE_URL, DEFAULT_OUTPUT_DIR, AstarSettings
 
 STATE_PATH = Path("loop") / "loop_state.json"
 SCORE_HISTORY_PATH = Path("loop") / "team_round_scores.json"
+MISSED_ROUNDS_PATH = Path("loop") / "missed_rounds.json"
 
 
 @dataclass
@@ -110,6 +111,7 @@ def tick(args: argparse.Namespace, client: AstarClient, artifact_store: Artifact
     artifact_store.write_json(Path("loop") / "my_rounds_latest.json", my_rounds)
     artifact_store.write_json(Path("loop") / "leaderboard_latest.json", leaderboard)
     artifact_store.write_json(SCORE_HISTORY_PATH, build_score_history(my_rounds))
+    artifact_store.write_json(MISSED_ROUNDS_PATH, build_missed_rounds_report(my_rounds))
 
     for round_item in rounds:
         round_id = str(round_item["id"])
@@ -130,7 +132,7 @@ def tick(args: argparse.Namespace, client: AstarClient, artifact_store: Artifact
         run_post_round_review(args=args, round_id=round_id, out_dir=args.out_dir)
         state.reviewed_round_ids.append(round_id)
 
-    active_round = next((item for item in rounds if str(item.get("status")).lower() == "active"), None)
+    active_round = choose_active_round(rounds=rounds, my_rounds=my_rounds)
     if not active_round:
         state.last_active_round_id = None
         print("loop: no active round")
@@ -192,6 +194,46 @@ def build_score_history(my_rounds: list[dict[str, Any]]) -> dict[str, Any]:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "rounds": concise,
     }
+
+
+def build_missed_rounds_report(my_rounds: list[dict[str, Any]]) -> dict[str, Any]:
+    missed = []
+    for item in my_rounds:
+        if str(item.get("status")).lower() != "completed":
+            continue
+        if int(item.get("seeds_submitted", 0) or 0) > 0:
+            continue
+        missed.append(
+            {
+                "round_id": item.get("id") or item.get("round_id"),
+                "round_number": item.get("round_number"),
+                "started_at": item.get("started_at"),
+                "closes_at": item.get("closes_at"),
+                "queries_used": item.get("queries_used"),
+                "queries_max": item.get("queries_max"),
+                "seeds_submitted": item.get("seeds_submitted"),
+                "status": item.get("status"),
+            }
+        )
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "missed_rounds": missed,
+    }
+
+
+def choose_active_round(rounds: list[dict[str, Any]], my_rounds: list[dict[str, Any]]) -> dict[str, Any] | None:
+    candidates: dict[str, dict[str, Any]] = {}
+    for item in rounds:
+        if str(item.get("status")).lower() == "active":
+            candidates[str(item["id"])] = item
+    for item in my_rounds:
+        if str(item.get("status")).lower() != "active":
+            continue
+        round_id = str(item.get("id") or item.get("round_id"))
+        candidates.setdefault(round_id, item)
+    if not candidates:
+        return None
+    return max(candidates.values(), key=_round_sort_key)
 
 
 def team_submitted_round(my_rounds: list[dict[str, Any]], round_id: str) -> bool:
@@ -286,6 +328,12 @@ def parse_timestamp(value: Any) -> datetime | None:
         return datetime.fromisoformat(str(value))
     except ValueError:
         return None
+
+
+def _round_sort_key(item: dict[str, Any]) -> tuple[datetime, int]:
+    started_at = parse_timestamp(item.get("started_at")) or datetime.min.replace(tzinfo=timezone.utc)
+    round_number = int(item.get("round_number") or 0)
+    return (started_at, round_number)
 
 
 if __name__ == "__main__":

@@ -58,8 +58,7 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-@app.post("/solve", response_model=SolveResponse)
-def solve(request: SolveRequest, authorization: str | None = Header(default=None)) -> SolveResponse:
+def _handle_solve(request: SolveRequest, authorization: str | None) -> SolveResponse:
     logger.info("solve.request payload=%s", _summarize_solve_request(request, authorization))
     try:
         return solver.solve(request, authorization)
@@ -90,6 +89,16 @@ def solve(request: SolveRequest, authorization: str | None = Header(default=None
     except SolveError as exc:
         logger.exception("SolveError while handling /solve")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/", response_model=SolveResponse, include_in_schema=False)
+def solve_root(request: SolveRequest, authorization: str | None = Header(default=None)) -> SolveResponse:
+    return _handle_solve(request, authorization)
+
+
+@app.post("/solve", response_model=SolveResponse)
+def solve(request: SolveRequest, authorization: str | None = Header(default=None)) -> SolveResponse:
+    return _handle_solve(request, authorization)
 
 
 def _summarize_solve_request(request: SolveRequest, authorization: str | None) -> dict[str, object]:

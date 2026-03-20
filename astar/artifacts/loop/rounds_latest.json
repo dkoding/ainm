@@ -1,5 +1,31 @@
 [
   {
+    "closes_at": "2026-03-20T23:45:58.134788+00:00",
+    "created_at": "2026-03-20T21:00:58.420157+00:00",
+    "event_date": "2026-03-20",
+    "id": "75e625c3-60cb-4392-af3e-c86a98bde8c2",
+    "map_height": 40,
+    "map_width": 40,
+    "prediction_window_minutes": 165,
+    "round_number": 10,
+    "round_weight": 1.6289,
+    "started_at": "2026-03-20T21:00:58.134788+00:00",
+    "status": "active"
+  },
+  {
+    "closes_at": "2026-03-20T20:47:44.869339+00:00",
+    "created_at": "2026-03-20T18:02:45.172392+00:00",
+    "event_date": "2026-03-20",
+    "id": "2a341ace-0f57-4309-9b89-e59fe0f09179",
+    "map_height": 40,
+    "map_width": 40,
+    "prediction_window_minutes": 165,
+    "round_number": 9,
+    "round_weight": 1.5513,
+    "started_at": "2026-03-20T18:02:44.869339+00:00",
+    "status": "completed"
+  },
+  {
     "closes_at": "2026-03-20T17:46:15.123579+00:00",
     "created_at": "2026-03-20T15:01:15.405196+00:00",
     "event_date": "2026-03-20",
@@ -10,7 +36,7 @@
     "round_number": 8,
     "round_weight": 1.4775,
     "started_at": "2026-03-20T15:01:15.123579+00:00",
-    "status": "active"
+    "status": "completed"
   },
   {
     "closes_at": "2026-03-20T14:48:05.337597+00:00",

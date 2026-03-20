@@ -2,3 +2,4 @@
 /astar/.env
 __pycache__/
 /.gcloud/
+/**/*.zip

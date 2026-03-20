@@ -6,6 +6,7 @@ What the docs require:
 
 - Public HTTPS endpoint.
 - `POST /solve` with JSON body containing `prompt`, optional `files`, and `tripletex_credentials`.
+- `POST /` is also accepted as a compatibility alias for the same request contract.
 - 300 second timeout.
 - All Tripletex API calls must go through the provided proxy `base_url`.
 - Auth to Tripletex is Basic Auth with username `0` and password `session_token`.

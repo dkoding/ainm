@@ -1,10 +1,37 @@
 {
+  "backend": "auto",
+  "allow_empty_predictions": true,
   "detection_only": true,
   "confidence_threshold": 0.2,
   "image_size": 1280,
-  "weight_candidates": [
-    "best.pt",
-    "model.pt",
-    "weights/best.pt"
-  ]
+  "max_detections": 300,
+  "class_map_path": "class_map.json",
+  "ultralytics": {
+    "weight_candidates": [
+      "best.pt",
+      "model.pt",
+      "weights/best.pt"
+    ],
+    "half": false
+  },
+  "onnx": {
+    "weight_candidates": [
+      "model.onnx",
+      "weights/model.onnx"
+    ],
+    "providers": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    "input_size": [
+      1280,
+      1280
+    ],
+    "box_format": "cxcywh",
+    "score_mode": "class",
+    "nms_iou_threshold": 0.5,
+    "class_agnostic_nms": false,
+    "output_index": 0,
+    "input_name": null
+  }
 }

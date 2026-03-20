@@ -1,6 +1,6 @@
 # NorgesGruppen Data
 
-This directory contains a submission template for the offline zip task.
+This directory contains a submission scaffold and local tooling for the offline zip task.
 
 What the docs require:
 
@@ -18,26 +18,51 @@ python run.py --input /data/images --output /output/predictions.json
 
 What is included here:
 
-- `submission/run.py`: zip-safe baseline that can use a local Ultralytics `.pt` weight file if you place one next to it.
-- `submission/submission_config.json`: simple JSON config for detection-only mode and confidence threshold.
-- `scripts/check_submission.py`: local validator for zip structure and file limits.
+- `submission/run.py`: submission entry point with `ultralytics` and ONNX backends, class mapping, and configurable fail-fast behavior.
+- `submission/submission_config.json`: JSON config for backend selection, thresholds, class mapping, and smoke-test fallback behavior.
+- `scripts/check_submission.py`: local validator for directories or built zips, including file limits and a lightweight static security scan.
+- `scripts/smoke_submission.py`: local runner that executes `submission/run.py` and validates the output schema.
+- `scripts/build_submission.py`: zip builder that keeps `run.py` at the archive root.
+- `scripts/preflight_submission.py`: one-command local preflight for validate → smoke → build → validate.
+- `scripts/summarize_dataset.py`: COCO dataset summary script.
+- `scripts/make_splits.py`: reproducible train/validation split generator.
+- `scripts/evaluate_local.py`: local hybrid-score approximation.
+- `scripts/train_yolov8.py`: YOLOv8 data prep and training launcher.
+- `scripts/prepare_reference_index.py`: product reference image indexer.
+- `scripts/extract_product_crops.py`: crop extractor for second-stage classification experiments.
 
 Manual blockers:
 
 - The training data and product reference image downloads require your logged-in AINM account. I cannot fetch them from here.
-- You still need to train or choose weights. The included baseline falls back to empty predictions if no supported `.pt` file is present.
+- You still need to download the real datasets and train or choose weights.
 
 Quick start:
 
 ```bash
 cd norgesgruppen-data
-python3 scripts/check_submission.py submission
+python3 scripts/preflight_submission.py submission
 ```
 
-When you have weights ready, place one of these inside `submission/`:
+Dataset workflow:
 
-- `best.pt`
-- `model.pt`
-- `weights/best.pt`
+```bash
+python3 scripts/summarize_dataset.py /path/to/annotations.json --images-dir /path/to/images
+python3 scripts/make_splits.py /path/to/annotations.json --output data/splits/default_split.json
+python3 scripts/train_yolov8.py /path/to/annotations.json /path/to/images --split data/splits/default_split.json --prepare-only
+```
 
-The default config uses `detection_only: true`, which sets all `category_id` values to `0`. That matches the docs for a detection-first baseline and avoids wrong product IDs from generic pretrained weights.
+When you have weights ready, place them inside `submission/` and update `submission/submission_config.json`.
+
+Supported default weight locations:
+
+- Ultralytics:
+  - `best.pt`
+  - `model.pt`
+  - `weights/best.pt`
+- ONNX:
+  - `model.onnx`
+  - `weights/model.onnx`
+
+If your trained model uses class indices that do not match the original COCO `category_id` values, place a generated `class_map.json` next to `run.py`. `scripts/train_yolov8.py` writes one automatically.
+
+The default config still uses `detection_only: true` and `allow_empty_predictions: true`, which is appropriate for smoke testing and initial submission scaffolding. Before real leaderboard submissions, switch to a production config that loads a real model and fails fast if the weights are missing or incompatible.
