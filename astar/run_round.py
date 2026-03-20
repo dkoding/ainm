@@ -10,6 +10,7 @@ from baseline import build_round_predictions
 from config import (
     DEFAULT_AINM_BASE_URL,
     DEFAULT_GCS_ARTIFACTS_PREFIX,
+    DEFAULT_HISTORY_CACHE_PREFIX,
     DEFAULT_OBSERVATION_PRIOR_STRENGTH,
     DEFAULT_OUTPUT_DIR,
     DEFAULT_PREDICTION_FLOOR,
@@ -19,6 +20,7 @@ from config import (
     DEFAULT_VIEWPORT_SIZE,
     AstarSettings,
 )
+from history_cache import summarize_history_cache, sync_history_cache
 from observation_strategy import build_round_viewport_plan
 
 
@@ -68,6 +70,22 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--gcs-bucket", help="Optional GCS bucket for artifact upload.")
     parser.add_argument("--gcs-prefix", default=DEFAULT_GCS_ARTIFACTS_PREFIX, help="Optional GCS prefix for artifact upload.")
+    parser.add_argument(
+        "--sync-history",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Refresh cached completed-round history before running the current round.",
+    )
+    parser.add_argument(
+        "--history-round-limit",
+        type=int,
+        help="Optional limit on how many completed rounds to refresh when --sync-history is enabled.",
+    )
+    parser.add_argument(
+        "--history-cache-prefix",
+        default=DEFAULT_HISTORY_CACHE_PREFIX,
+        help="Relative cache directory inside --out-dir for completed-round history.",
+    )
     return parser.parse_args()
 
 
@@ -78,6 +96,29 @@ def main() -> None:
 
     client = AstarClient(token=args.token, base_url=args.base_url)
     artifact_store = ArtifactStore(root=args.out_dir, gcs_bucket=args.gcs_bucket, gcs_prefix=args.gcs_prefix)
+
+    if args.sync_history:
+        history_summary = sync_history_cache(
+            client=client,
+            artifact_store=artifact_store,
+            cache_prefix=args.history_cache_prefix,
+            round_limit=args.history_round_limit,
+            sync_analysis=client.is_authenticated,
+        )
+        print(
+            "history cache: "
+            f"{history_summary['completed_rounds_cached']} completed rounds, "
+            f"{history_summary['analysis_cached_seeds']} cached analysis seeds"
+        )
+    else:
+        history_summary = summarize_history_cache(root=args.out_dir, cache_prefix=args.history_cache_prefix)
+        if history_summary:
+            print(
+                "history cache: loaded "
+                f"{history_summary['completed_rounds_cached']} completed rounds and "
+                f"{history_summary['analysis_cached_seeds']} analysis seeds "
+                f"from {history_summary['cache_path']}"
+            )
 
     rounds = client.get_rounds()
     round_id = args.round_id or find_active_round_id(rounds)

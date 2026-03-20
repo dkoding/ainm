@@ -41,6 +41,7 @@ These are already present and should usually be extended rather than rewritten:
 - [x] Safe baseline prior plus observation blending in `baseline.py`.
 - [x] Heuristic viewport planner in `observation_strategy.py`.
 - [x] Round runner and artifact writer in `run_round.py` and `artifacts.py`.
+- [x] Completed-round history cache sync in `history_cache.py` and `sync_history_cache.py`.
 - [x] Opinionated Cloud Run Job deployment script in `deploy_cloud_run_job.sh`.
 
 These are not complete yet and are the real remaining work:
@@ -88,7 +89,7 @@ Reference: [ANALYSIS.md](ANALYSIS.md) sections 3, 5.1, and 7; [API.md](API.md) s
 - [ ] Snapshot team state before and after simulation, including budget and current predictions.
 - [ ] Define and document the expected artifact layout for one round so later training code can rely on it.
 - [ ] Add a pass that fetches `/my-predictions/{round_id}` after submission and stores the authoritative server-side state.
-- [ ] Add a post-round ingestion command that fetches `/analysis/{round_id}/{seed_index}` for all five seeds as soon as it becomes available.
+- [x] Add a post-round ingestion command that fetches `/analysis/{round_id}/{seed_index}` for all five seeds as soon as it becomes available.
 - [ ] Normalize and store post-round analysis outputs into a stable dataset format for learning.
 - [ ] Decide whether artifacts should remain JSON-only or whether training datasets should also be materialized as parquet/csv.
 

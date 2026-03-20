@@ -16,9 +16,12 @@ What is included here:
 - `ANALYSIS.md`: task-solving analysis and modeling implications.
 - `API.md`: task-focused API reference.
 - `COMPONENTS.md`: non-duplicative GCP stack analysis for Astar.
+- `TASKS.md`: working project board for the remaining solver work.
 - `astar_client.py`: public/team API wrapper for rounds, budget, simulate, submit, leaderboard, and post-round analysis.
 - `baseline.py`: safe prior generator plus observation-informed posterior blending.
 - `observation_strategy.py`: simple viewport planner for spending simulator budget on high-value cells.
+- `history_cache.py`: completed-round cache sync and cache-loading helpers for `/analysis` data.
+- `sync_history_cache.py`: CLI entrypoint for downloading and caching completed-round history.
 - `run_round.py`: env-driven round runner for public sync, optional simulation, prediction writing, and optional submission.
 - `submit_baseline.py`: compatibility wrapper around `run_round.py`.
 - `artifacts.py`: local JSON artifact writer with optional GCS upload.
@@ -48,6 +51,18 @@ Public dry run without a token:
 python3 run_round.py --no-simulate --no-submit
 ```
 
+Cache completed-round public history without a token:
+
+```bash
+python3 sync_history_cache.py --no-analysis
+```
+
+Cache completed-round `/analysis` payloads locally for later reuse:
+
+```bash
+python3 sync_history_cache.py --token "$AINM_ACCESS_TOKEN"
+```
+
 If there is no active round, rerun with an explicit historical round:
 
 ```bash
@@ -58,6 +73,12 @@ Run a small observation-informed round locally:
 
 ```bash
 python3 run_round.py --token "$AINM_ACCESS_TOKEN" --simulate --queries-per-seed 4 --no-submit
+```
+
+Run the current round and refresh the completed-round cache at startup:
+
+```bash
+python3 run_round.py --token "$AINM_ACCESS_TOKEN" --sync-history --simulate --queries-per-seed 4 --no-submit
 ```
 
 Submit the active round:
@@ -78,6 +99,8 @@ Notes:
 
 - The task docs describe Astar as a direct API task. You submit tensors to the organizer API; you do not need to expose a public `/solve` endpoint for the core task flow.
 - `GET /rounds` and `GET /rounds/{round_id}` are public. Budget, simulate, submit, and team analysis endpoints require a token.
+- Completed-round cache data is written under `artifacts/history/...` by default, with `index.json` summarizing what has been synced.
 - The updated scaffold can spend simulator queries and blend observed outcomes back into the per-cell probability tensor.
+- `sync_history_cache.py` can cache completed-round `/analysis` payloads locally so future startup logic can reuse them without refetching every file first.
 - For deployed Cloud Run Jobs, prefer storing `AINM_ACCESS_TOKEN` in Secret Manager under the fixed name `astar-access-token`.
 - The deployment script derives the active GCP project from `gcloud config` if `GOOGLE_CLOUD_PROJECT` is not exported.

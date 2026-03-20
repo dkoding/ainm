@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
+import time
 from typing import Any
 
 from .openapi_registry import TripletexOpenAPIRegistry
 from .tasking import AttachmentContext, PlannerDecision, TaskAnalysis
+
+logger = logging.getLogger(__name__)
 
 
 ANALYSIS_PROMPT = """You are preparing a deterministic Tripletex API execution.
@@ -62,6 +66,9 @@ Allowed response shapes:
 
 Rules:
 - use only standard Tripletex v2 paths
+- the action.path must match an actual OpenAPI path template, including prefixes like /ledger/ when required
+- do not shorten or rename paths; for example use /ledger/vatType, not /vatType
+- prefer paths listed in openapi_endpoint_hints
 - prefer exact searches before create or update if duplicates are possible
 - keep API calls efficient and minimal
 - reuse earlier responses instead of repeating searches
@@ -139,11 +146,12 @@ class VertexAIPlanner(BasePlanner):
         except ImportError as exc:
             raise PlannerError("google-genai is required for Vertex AI planning.") from exc
 
-        os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
-        os.environ["GOOGLE_CLOUD_LOCATION"] = location
-        os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "True"
-
-        self.client = genai.Client(http_options=HttpOptions(api_version="v1"))
+        self.client = genai.Client(
+            vertexai=True,
+            project=project_id,
+            location=location,
+            http_options=HttpOptions(api_version="v1"),
+        )
         self.part_type = Part
         self.model_name = model_name
         self.registry = TripletexOpenAPIRegistry.from_default_spec()
@@ -154,19 +162,34 @@ class VertexAIPlanner(BasePlanner):
         task_prompt: str,
         attachments: list[AttachmentContext],
     ) -> TaskAnalysis:
+        started_at = time.monotonic()
         payload = {
             "task_prompt": task_prompt,
             "attachments": [attachment.model_dump(mode="json") for attachment in attachments],
             "openapi_endpoint_hints": self.registry.planner_hints(target_resource=None),
         }
+        logger.info(
+            "planner.analysis.start model=%s attachments=%s prompt_chars=%s endpoint_hints=%s",
+            self.model_name,
+            len(attachments),
+            len(task_prompt),
+            len(payload["openapi_endpoint_hints"]),
+        )
         response_text = self._generate_json(
             prompt=ANALYSIS_PROMPT,
             payload=payload,
             attachments=attachments,
         )
+        logger.info(
+            "planner.analysis.response elapsed_ms=%s response_chars=%s preview=%r",
+            round((time.monotonic() - started_at) * 1000, 1),
+            len(response_text),
+            response_text[:400],
+        )
         try:
             return TaskAnalysis.model_validate(_extract_json(response_text))
         except Exception as exc:
+            logger.exception("planner.analysis.parse_failed response_preview=%r", response_text[:1200])
             raise PlannerError(f"Failed to parse task analysis: {response_text!r}") from exc
 
     def next_step(
@@ -177,6 +200,7 @@ class VertexAIPlanner(BasePlanner):
         history: list[dict[str, Any]],
         remaining_steps: int,
     ) -> PlannerDecision:
+        started_at = time.monotonic()
         payload = {
             "task_analysis": task_analysis.model_dump(mode="json"),
             "attachments": [attachment.model_dump(mode="json") for attachment in attachments],
@@ -184,14 +208,29 @@ class VertexAIPlanner(BasePlanner):
             "remaining_steps": remaining_steps,
             "openapi_endpoint_hints": self.registry.planner_hints(target_resource=task_analysis.target_resource),
         }
+        logger.info(
+            "planner.step.start model=%s task_family=%s remaining_steps=%s history_entries=%s endpoint_hints=%s",
+            self.model_name,
+            task_analysis.task_family,
+            remaining_steps,
+            len(history),
+            len(payload["openapi_endpoint_hints"]),
+        )
         response_text = self._generate_json(
             prompt=EXECUTION_PROMPT,
             payload=payload,
             attachments=[],
         )
+        logger.info(
+            "planner.step.response elapsed_ms=%s response_chars=%s preview=%r",
+            round((time.monotonic() - started_at) * 1000, 1),
+            len(response_text),
+            response_text[:400],
+        )
         try:
             decision = PlannerDecision.model_validate(_extract_json(response_text))
         except Exception as exc:
+            logger.exception("planner.step.parse_failed response_preview=%r", response_text[:1200])
             raise PlannerError(f"Failed to parse planner decision: {response_text!r}") from exc
 
         if decision.kind == "action":
@@ -200,6 +239,21 @@ class VertexAIPlanner(BasePlanner):
                 raise PlannerError("Planner returned kind=action without an action payload.")
             if not action.path.startswith("/"):
                 raise PlannerError(f"Planner returned invalid path: {action.path!r}")
+            logger.info(
+                "planner.step.action method=%s path=%s params=%s",
+                action.method,
+                action.path,
+                sorted((action.params or {}).keys()),
+            )
+            if self.registry.match_operation(method=action.method, path=action.path) is None:
+                logger.warning(
+                    "planner.step.action_not_in_spec method=%s path=%s target_resource=%s",
+                    action.method,
+                    action.path,
+                    task_analysis.target_resource,
+                )
+        else:
+            logger.info("planner.step.finish reason=%r", decision.reason[:240])
 
         return decision
 
