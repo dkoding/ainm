@@ -93,7 +93,7 @@ class TripletexOpenAPIRegistry:
         *,
         target_resource: str | None = None,
         prefixes: tuple[str, ...] | None = None,
-        limit: int = 36,
+        limit: int | None = 36,
     ) -> list[dict[str, Any]]:
         selected_prefixes = prefixes or _resource_prefixes(target_resource)
         selected: list[dict[str, Any]] = []
@@ -108,9 +108,9 @@ class TripletexOpenAPIRegistry:
                         continue
                     seen.add(key)
                     selected.append(operation.planner_hint())
-                    if len(selected) >= limit:
+                    if limit is not None and len(selected) >= limit:
                         break
-                if len(selected) >= limit:
+                if limit is not None and len(selected) >= limit:
                     break
 
         if selected:
@@ -123,7 +123,8 @@ class TripletexOpenAPIRegistry:
                 continue
             seen.add(key)
             fallback.append(operation.planner_hint())
-            if len(fallback) >= min(limit, 24):
+            fallback_limit = min(limit, 24) if limit is not None else None
+            if fallback_limit is not None and len(fallback) >= fallback_limit:
                 break
         return fallback
 
@@ -216,87 +217,173 @@ def _normalize_path(path: str) -> str:
     return stripped.rstrip("/") or "/"
 
 
+def _normalized_resource_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", value.casefold())
+
+
+def _split_identifier_words(value: str) -> tuple[str, ...]:
+    cleaned = value.strip().strip("/")
+    if not cleaned:
+        return ()
+    cleaned = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", cleaned)
+    cleaned = re.sub(r"[_:/.\-]+", " ", cleaned)
+    words = [word for word in cleaned.lower().split() if word and not word.startswith("{")]
+    return tuple(words)
+
+
+def _contains_keyword(text: str, keyword: str) -> bool:
+    normalized = keyword.strip().lower()
+    if not normalized:
+        return False
+    return re.search(rf"(?<![a-z0-9]){re.escape(normalized)}(?![a-z0-9])", text) is not None
+
+
+def _contains_any_keyword(text: str, keywords: tuple[str, ...]) -> bool:
+    return any(_contains_keyword(text, keyword) for keyword in keywords)
+
+
+@lru_cache(maxsize=1)
+def _primary_path_prefixes() -> tuple[str, ...]:
+    spec_path = Path(__file__).resolve().parent.parent / "docs" / "openapi.json"
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    paths = spec.get("paths") or {}
+    prefixes: set[str] = set()
+    for template_path in paths:
+        normalized = _normalize_path(str(template_path))
+        for part in normalized.strip("/").split("/"):
+            if not part or part.startswith("{"):
+                continue
+            prefixes.add(f"/{part.lstrip(':>')}")
+            break
+    return tuple(sorted(prefixes))
+
+
+@lru_cache(maxsize=1)
+def _primary_prefix_lookup() -> dict[str, str]:
+    lookup: dict[str, str] = {}
+    for prefix in _primary_path_prefixes():
+        lookup[_normalized_resource_key(prefix.lstrip("/"))] = prefix
+    return lookup
+
+
+@lru_cache(maxsize=1)
+def _spec_resource_keywords() -> dict[str, tuple[str, ...]]:
+    keywords: dict[str, tuple[str, ...]] = {}
+    for prefix in _primary_path_prefixes():
+        segment = prefix.lstrip("/")
+        values = {
+            segment.lower(),
+            _normalized_resource_key(segment),
+        }
+        words = _split_identifier_words(segment)
+        if len(words) == 1:
+            values.add(words[0])
+        elif words:
+            values.add(" ".join(words))
+        keywords[_normalized_resource_key(segment)] = tuple(sorted(value for value in values if value))
+    return keywords
+
+
+def _prefix_bundle(*prefixes: str) -> tuple[str, ...]:
+    available = set(_primary_path_prefixes())
+    selected: list[str] = []
+    seen: set[str] = set()
+    for prefix in prefixes:
+        if prefix not in available or prefix in seen:
+            continue
+        seen.add(prefix)
+        selected.append(prefix)
+    return tuple(selected)
+
+
+SEMANTIC_RESOURCE_PREFIXES: dict[str, tuple[str, ...]] = {
+    "activity": _prefix_bundle("/activity", "/project"),
+    "asset": _prefix_bundle("/asset", "/ledger"),
+    "bank": _prefix_bundle("/bank", "/invoice", "/supplierInvoice", "/incomingInvoice", "/ledger"),
+    "contact": _prefix_bundle("/contact", "/customer", "/supplier"),
+    "customer": _prefix_bundle("/customer", "/deliveryAddress"),
+    "department": _prefix_bundle("/department", "/attestation", "/company"),
+    "documentarchive": _prefix_bundle("/documentArchive"),
+    "employee": _prefix_bundle("/employee"),
+    "event": _prefix_bundle("/event"),
+    "incominginvoice": _prefix_bundle("/incomingInvoice", "/supplier", "/ledger"),
+    "inventory": _prefix_bundle("/inventory", "/product"),
+    "invoice": _prefix_bundle("/invoice", "/incomingInvoice", "/supplierInvoice", "/order"),
+    "ledger": _prefix_bundle("/ledger"),
+    "order": _prefix_bundle("/order", "/invoice"),
+    "product": _prefix_bundle("/product"),
+    "project": _prefix_bundle("/project", "/company"),
+    "purchaseorder": _prefix_bundle("/purchaseOrder", "/supplier", "/product"),
+    "salary": _prefix_bundle("/salary", "/employee"),
+    "supplier": _prefix_bundle("/supplier", "/contact"),
+    "supplierinvoice": _prefix_bundle("/supplierInvoice", "/supplier", "/ledger"),
+    "timesheet": _prefix_bundle("/timesheet", "/activity", "/project", "/employee"),
+    "travelexpense": _prefix_bundle("/travelExpense", "/employee", "/project"),
+    "yearend": _prefix_bundle("/yearEnd", "/ledger"),
+}
+
+
+SEMANTIC_RESOURCE_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "activity": ("activity", "aktivitet", "activite", "actividad", "atividade"),
+    "asset": ("asset", "fixed asset", "anleggsmiddel", "anlagegut"),
+    "bank": ("bank", "bank payment", "payment batch", "betalingsbatch"),
+    "contact": ("contact", "kontakt", "contacto"),
+    "customer": ("customer", "kunde", "client", "cliente", "cliente", "org.nr", "organization number"),
+    "department": ("department", "avdeling", "departamento", "abteilung"),
+    "documentarchive": ("document archive", "dokumentsarkiv", "dokumentarkiv"),
+    "employee": (
+        "employee",
+        "ansatt",
+        "medarbeider",
+        "employe",
+        "empleado",
+        "funcionario",
+        "mitarbeiter",
+        "project manager",
+        "prosjektleiar",
+        "projektleiter",
+    ),
+    "event": ("event", "webhook", "hendelse", "evento"),
+    "incominginvoice": ("incoming invoice", "inngående faktura", "supplier voucher"),
+    "inventory": ("inventory", "stock", "lager", "inventario", "estoque", "bestand"),
+    "invoice": ("invoice", "faktura", "facture", "factura", "fatura", "credit note", "kreditnota", "rechnung"),
+    "ledger": ("ledger", "voucher", "bilag", "posting", "reconciliation", "regnskap", "buchhaltung"),
+    "order": ("order", "ordre", "pedido", "bestellung"),
+    "product": ("product", "produkt", "item", "vare", "producto", "produto", "artikel", "artículo"),
+    "project": ("project", "prosjekt", "projet", "proyecto", "projeto"),
+    "purchaseorder": ("purchase order", "innkjøpsordre", "ordem de compra", "orden de compra"),
+    "salary": ("salary", "payroll", "lønn", "lonn", "nomina", "nómina", "salario", "lohn", "gehalt"),
+    "supplier": ("supplier", "leverandør", "leverandor", "proveedor", "fornecedor", "lieferant"),
+    "supplierinvoice": ("supplier invoice", "leverandørfaktura", "leverandorfaktura"),
+    "timesheet": (
+        "timesheet",
+        "time sheet",
+        "register hours",
+        "record hours",
+        "hour registration",
+        "time registration",
+        "timer",
+        "heures",
+        "hours",
+        "horas",
+        "stunden",
+    ),
+    "travelexpense": ("travel expense", "reise", "travel report", "expense", "reisekost", "despesa", "gasto"),
+    "yearend": ("year end", "årsoppgjør", "arsoppgjor", "jahresabschluss", "cierre anual"),
+}
+
+
 def _resource_prefixes(target_resource: str | None) -> tuple[str, ...]:
-    mapping = {
-        "activity": (
-            "/activity",
-            "/project/activity",
-        ),
-        "employee": (
-            "/employee",
-            "/employee/entitlement",
-        ),
-        "customer": ("/customer", "/deliveryAddress"),
-        "product": ("/product",),
-        "invoice": (
-            "/invoice",
-            "/invoice/paymentType",
-            "/incomingInvoice",
-            "/order",
-            "/supplierInvoice",
-        ),
-        "order": (
-            "/invoice",
-            "/invoice/paymentType",
-            "/order",
-        ),
-        "travelexpense": (
-            "/travelExpense",
-            "/travelExpense/paymentType",
-            "/travelExpense/settings",
-        ),
-        "project": (
-            "/project",
-            "/project/settings",
-            "/company/salesmodules",
-        ),
-        "department": (
-            "/department",
-            "/attestation/companyModules",
-            "/company/salesmodules",
-        ),
-        "timesheet": (
-            "/timesheet",
-            "/activity",
-            "/project",
-            "/employee",
-        ),
-        "ledger": (
-            "/ledger/account",
-            "/ledger/paymentTypeOut",
-            "/ledger/posting",
-            "/ledger/voucher",
-            "/ledger/vatType",
-            "/ledger/vatSettings",
-        ),
-        "other": (
-            "/employee",
-            "/customer",
-            "/product",
-            "/invoice",
-            "/invoice/paymentType",
-            "/incomingInvoice",
-            "/order",
-            "/supplierInvoice",
-            "/travelExpense",
-            "/travelExpense/paymentType",
-            "/travelExpense/settings",
-            "/project",
-            "/project/settings",
-            "/department",
-            "/employee/entitlement",
-            "/company/salesmodules",
-            "/attestation/companyModules",
-            "/ledger/account",
-            "/ledger/paymentTypeOut",
-            "/ledger/posting",
-            "/ledger/voucher",
-            "/ledger/vatType",
-            "/ledger/vatSettings",
-        ),
-    }
-    key = (target_resource or "other").replace("_", "").replace("-", "").lower()
-    return mapping.get(key, mapping["other"])
+    key = _normalized_resource_key(target_resource or "other")
+    if key in {"", "other"}:
+        return _primary_path_prefixes()
+    semantic_prefixes = SEMANTIC_RESOURCE_PREFIXES.get(key)
+    if semantic_prefixes:
+        return semantic_prefixes
+    direct_prefix = _primary_prefix_lookup().get(key)
+    if direct_prefix is not None:
+        return (direct_prefix,)
+    return _primary_path_prefixes()
 
 
 def planner_prefixes_for_task(*, task_prompt: str, task_analysis: TaskAnalysis | None = None) -> tuple[str, ...]:
@@ -332,63 +419,43 @@ def planner_prefixes_for_task(*, task_prompt: str, task_analysis: TaskAnalysis |
     if task_analysis is not None and task_analysis.target_resource:
         add_resource(task_analysis.target_resource)
 
-    if any(token in text for token in ("customer", "kunde", "client", "cliente", "org.nr", "organization number")):
-        add_resource("customer")
-    if any(token in text for token in ("employee", "ansatt", "employe", "medarbeider", "project manager")) or any(
-        key in field_keys for key in ("employeeemail", "employeenumber", "projectmanageremail")
-    ):
+    for resource, keywords in SEMANTIC_RESOURCE_KEYWORDS.items():
+        if _contains_any_keyword(text, keywords):
+            add_resource(resource)
+
+    for resource, keywords in _spec_resource_keywords().items():
+        if _contains_any_keyword(text, keywords):
+            add_resource(resource)
+
+    if any(key in field_keys for key in ("employeeemail", "employeenumber", "projectmanageremail")):
         add_resource("employee")
-    if any(token in text for token in ("department", "avdeling")) or any(
-        key in field_keys for key in ("departmentname", "departmentnumber")
-    ):
+    if any(key in field_keys for key in ("departmentname", "departmentnumber")):
         add_resource("department")
-    if any(token in text for token in ("product", "produkt", "item", "vare")) or any(
-        key.startswith("orderline") for key in field_keys
-    ):
+    if any(key.startswith("orderline") for key in field_keys):
         add_resource("product")
-    if any(token in text for token in ("project", "prosjekt", "projet")) or any(
-        key in field_keys for key in ("projectname", "projectnumber")
-    ):
+        add_resource("order")
+    if any(key in field_keys for key in ("projectname", "projectnumber")):
         add_resource("project")
-    if any(token in text for token in ("activity", "aktivitet", "activite")) or any(
-        key in field_keys for key in ("activityname", "activityid")
-    ):
+    if any(key in field_keys for key in ("activityname", "activityid")):
         add_resource("activity")
-    if any(
-        token in text
-        for token in (
-            "timesheet",
-            "time sheet",
-            "register hours",
-            "record hours",
-            "hour registration",
-            "time registration",
-            "timer",
-            "heures",
-            "hours",
-        )
-    ) or any(key in field_keys for key in ("hours", "hourlyrate", "activityname", "employeeemail", "projectname")):
+    if any(key in field_keys for key in ("hours", "hourlyrate", "activityname", "employeeemail", "projectname")):
         add_resource("timesheet")
         add_resource("activity")
         add_resource("project")
         add_resource("employee")
-    if any(token in text for token in ("invoice", "faktura", "facture", "credit note", "kreditnota")) or any(
-        key in field_keys for key in ("invoicenumber", "createinvoice", "paymenttypeid")
-    ):
+    if any(key in field_keys for key in ("invoicenumber", "createinvoice", "paymenttypeid")):
         add_resource("customer")
         add_resource("order")
         add_resource("invoice")
-    if any(token in text for token in ("payment", "betaling", "paid", "betale")):
-        add_resource("invoice")
-    if any(token in text for token in ("travel expense", "reise", "travel report", "expense")):
-        add_resource("employee")
-        add_resource("project")
-        add_resource("travelexpense")
-    if any(token in text for token in ("ledger", "voucher", "bilag", "posting", "reconciliation", "regnskap")):
+    if any(key in field_keys for key in ("purchaseordernumber", "suppliername", "supplierid")):
+        add_resource("purchaseorder")
+        add_resource("supplier")
+    if any(key in field_keys for key in ("accountnumber", "vattype", "paymenttype", "voucherid")):
         add_resource("ledger")
-        add_resource("customer")
-        add_resource("project")
-        add_resource("department")
+        add_resource("invoice")
+    if any(key in field_keys for key in ("inventoryid", "stock", "countedquantity")):
+        add_resource("inventory")
+        add_resource("product")
 
     if not selected_prefixes:
         add_resource("other")

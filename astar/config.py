@@ -10,10 +10,10 @@ except ImportError:  # pragma: no cover - optional dependency for local convenie
     load_dotenv = None
 
 
-ENV_FILE = Path(__file__).with_name(".env")
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+ASTAR_ROOT = Path(__file__).resolve().parent
+ENV_FILE = ASTAR_ROOT / ".env"
 DEFAULT_AINM_BASE_URL = "https://api.ainm.no"
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "artifacts"
+DEFAULT_OUTPUT_DIR = ASTAR_ROOT / "artifacts"
 DEFAULT_SUBMIT = False
 DEFAULT_SIMULATE = False
 DEFAULT_QUERIES_PER_SEED = 4

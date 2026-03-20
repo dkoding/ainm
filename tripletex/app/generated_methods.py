@@ -23,6 +23,8 @@ class MethodArgumentSpec:
     required: bool
     schema_type: str | None = None
     description: str = ""
+    nested_fields: tuple[str, ...] = ()
+    nested_required_fields: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -55,6 +57,19 @@ class GeneratedMethodSpec:
             "summary": self.summary,
             "required_arguments": required_arguments,
             "optional_arguments": optional_arguments,
+            "argument_schema_types": {
+                argument.name: argument.schema_type for argument in self.arguments if argument.schema_type is not None
+            },
+            "argument_nested_fields": {
+                argument.name: list(argument.nested_fields) for argument in self.arguments if argument.nested_fields
+            },
+            "argument_nested_required_fields": {
+                argument.name: list(argument.nested_required_fields)
+                for argument in self.arguments
+                if argument.nested_required_fields
+            },
+            "request_body_style": self.request_body_style,
+            "request_body_required": self.request_body_required,
             "argument_locations": {
                 argument.name: argument.location for argument in self.arguments
             },
@@ -143,7 +158,7 @@ class GeneratedAPIMethodRegistry:
         *,
         target_resource: str | None = None,
         prefixes: tuple[str, ...] | None = None,
-        limit: int = 80,
+        limit: int | None = 80,
     ) -> list[dict[str, Any]]:
         selected_prefixes = prefixes or _resource_prefixes(target_resource)
         selected: list[dict[str, Any]] = []
@@ -156,12 +171,14 @@ class GeneratedAPIMethodRegistry:
                     if hint in selected:
                         continue
                     selected.append(hint)
-                    if len(selected) >= limit:
+                    if limit is not None and len(selected) >= limit:
                         break
-                if len(selected) >= limit:
+                if limit is not None and len(selected) >= limit:
                     break
         if selected:
             return selected
+        if limit is None:
+            return [method.planner_hint() for method in self.methods]
         return [method.planner_hint() for method in self.methods[: min(limit, 40)]]
 
     def command_for_call(self, *, method_name: str, arguments: dict[str, Any], reason: str) -> TripletexCommand:
@@ -240,12 +257,15 @@ def _parameter_argument_spec(
     components: dict[str, Any],
 ) -> MethodArgumentSpec:
     schema = _resolve_schema(parameter.get("schema"), components)
+    nested_fields, nested_required_fields = _nested_argument_fields(schema, components)
     return MethodArgumentSpec(
         name=str(parameter.get("name") or "").strip(),
         location=location,
         required=bool(parameter.get("required")),
         schema_type=_schema_type(schema),
         description=str(parameter.get("description") or "").strip(),
+        nested_fields=nested_fields,
+        nested_required_fields=nested_required_fields,
     )
 
 
@@ -271,19 +291,33 @@ def _request_body_arguments(
     if properties:
         arguments: list[MethodArgumentSpec] = []
         for name, property_schema in sorted(properties.items()):
+            resolved_property_schema = _resolve_schema(property_schema, components)
+            nested_fields, nested_required_fields = _nested_argument_fields(resolved_property_schema, components)
             arguments.append(
                 MethodArgumentSpec(
                     name=name,
                     location="body",
                     required=request_body_required and name in required_fields,
-                    schema_type=_schema_type(_resolve_schema(property_schema, components)),
+                    schema_type=_schema_type(resolved_property_schema),
                     description=str((property_schema or {}).get("description") or "").strip(),
+                    nested_fields=nested_fields,
+                    nested_required_fields=nested_required_fields,
                 )
             )
         return tuple(arguments), "object", request_body_required
 
+    nested_fields, nested_required_fields = _nested_argument_fields(resolved_schema, components)
     return (
-        (MethodArgumentSpec(name="body", location="body", required=request_body_required),),
+        (
+            MethodArgumentSpec(
+                name="body",
+                location="body",
+                required=request_body_required,
+                schema_type=_schema_type(resolved_schema),
+                nested_fields=nested_fields,
+                nested_required_fields=nested_required_fields,
+            ),
+        ),
         "raw",
         request_body_required,
     )
@@ -338,6 +372,20 @@ def _extract_object_properties(schema: Any, components: dict[str, Any]) -> tuple
         required_fields.update(str(name) for name in resolved["required"])
 
     return properties, required_fields
+
+
+def _nested_argument_fields(schema: Any, components: dict[str, Any]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    resolved = _resolve_schema(schema, components)
+    schema_type = _schema_type(resolved)
+    if schema_type == "object":
+        properties, required_fields = _extract_object_properties(resolved, components)
+        return tuple(sorted(properties)), tuple(sorted(required_fields))
+    if schema_type == "array" and isinstance(resolved, dict):
+        item_schema = _resolve_schema(resolved.get("items"), components)
+        if _schema_type(item_schema) == "object":
+            properties, required_fields = _extract_object_properties(item_schema, components)
+            return tuple(sorted(properties)), tuple(sorted(required_fields))
+    return (), ()
 
 
 def _resolve_schema(schema: Any, components: dict[str, Any], *, _seen: set[str] | None = None) -> Any:

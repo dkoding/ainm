@@ -28,7 +28,7 @@ Produce exactly one JSON object with this shape:
   "missing_required_arguments": ["argumentName"],
   "task_family": "resource.operation style label such as customer.create",
   "operation": "create | update | delete | invoice | register_payment | correct | reverse | search | other",
-  "target_resource": "employee | customer | product | order | invoice | travelExpense | project | department | activity | timesheet | ledger | other",
+  "target_resource": "Tripletex resource family such as employee, customer, product, order, invoice, travelExpense, project, department, activity, timesheet, ledger, purchaseOrder, salary, bank, inventory, asset, yearEnd, documentArchive, or another top-level OpenAPI family",
   "detected_language": "best guess language name or code",
   "search_hints": {"key": "value"},
   "payload_fields": {"key": "value"},
@@ -52,6 +52,7 @@ Rules:
 - mark risk_level=high for destructive or ambiguous tasks
 - do not invent facts that are not supported by the prompt or attachments
 - do not use closest-match curated methods when the request actually requires timesheet registration, project billing from registered hours, ledger correction, reconciliation, or any other extra workflow steps not covered by that curated method
+- target_resource may be any Tripletex OpenAPI resource family, not only the example values above
 """
 
 EXECUTION_PROMPT = """You are a deterministic Tripletex v2 method planner.
@@ -84,11 +85,14 @@ Rules:
 - task_prompt is the authoritative user intent; if task_analysis reflects a rejected curated shortcut or incomplete extraction, recover from task_prompt instead of following the shortcut
 - the task may require combining multiple method calls across different Tripletex resource families; choose the single best next generated method that advances that workflow
 - treat the OpenAPI spec as authoritative; the examples docs may use simplified parameter names or flows
+- api_method_hints may contain the full matched generated-method catalog for the selected resources; absence of a curated shortcut does not imply lack of support
 - do not emit raw HTTP methods, raw paths, or ad-hoc endpoint names
 - do not invent a generic payment method; use the canonical generated invoice or supplier-invoice payment methods
 - when a search method requires a date window, always include the required date arguments
 - use payment-type, entitlement, and module-related methods when the task requires them
 - use timesheet, activity, project, customer, order, invoice, payment, travel, and ledger methods together when the workflow spans those resources
+- when a POST or PUT body references an existing Tripletex object, resolve that object first and use its internal id in the nested body object unless the method hint clearly describes a raw object-creation payload
+- when a method uses a raw or array body, inspect the schema metadata in api_method_hints and build the body accordingly instead of guessing a flat object
 - prefer methods listed in api_method_hints
 - prefer exact searches before create or update if duplicates are possible
 - keep API calls efficient and minimal
@@ -192,8 +196,8 @@ class VertexAIPlanner(BasePlanner):
             "task_prompt": task_prompt,
             "attachments": [attachment.model_dump(mode="json") for attachment in attachments],
             "method_catalog": planner_method_hints(),
-            "openapi_endpoint_hints": self.registry.planner_hints(prefixes=analysis_prefixes, limit=60),
-            "api_method_hints": self.generated_methods.planner_hints(prefixes=analysis_prefixes, limit=80),
+            "openapi_endpoint_hints": self.registry.planner_hints(prefixes=analysis_prefixes, limit=160),
+            "api_method_hints": self.generated_methods.planner_hints(prefixes=analysis_prefixes, limit=None),
             "spec_runtime_hints": planner_runtime_hints(),
         }
         logger.info(
@@ -246,8 +250,8 @@ class VertexAIPlanner(BasePlanner):
             "attachments": [attachment.model_dump(mode="json") for attachment in attachments],
             "history": history[-6:],
             "remaining_steps": remaining_steps,
-            "openapi_endpoint_hints": self.registry.planner_hints(prefixes=planner_prefixes, limit=72),
-            "api_method_hints": self.generated_methods.planner_hints(prefixes=planner_prefixes, limit=120),
+            "openapi_endpoint_hints": self.registry.planner_hints(prefixes=planner_prefixes, limit=200),
+            "api_method_hints": self.generated_methods.planner_hints(prefixes=planner_prefixes, limit=None),
             "spec_runtime_hints": planner_runtime_hints(task_analysis),
         }
         logger.info(

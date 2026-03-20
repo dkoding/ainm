@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Any
+from typing import Any, Callable
 
 from .openapi_registry import OperationSpec, TripletexOpenAPIRegistry
 from .tasking import TaskAnalysis, TripletexCommand
@@ -151,6 +151,24 @@ ENTITLEMENT_TEMPLATES = {
     ),
 }
 
+REFERENCE_RESOLVER_KEYS = {
+    "account": "ledger_account",
+    "activity": "activity",
+    "asset": "asset",
+    "contact": "contact",
+    "currency": "currency",
+    "customer": "customer",
+    "department": "department",
+    "division": "division",
+    "employee": "employee",
+    "paymenttype": "payment_type",
+    "product": "product",
+    "project": "project",
+    "projectmanager": "employee",
+    "supplier": "supplier",
+    "vattype": "vat_type",
+}
+
 
 @dataclass(frozen=True)
 class CommandRepairResult:
@@ -181,6 +199,11 @@ def planner_runtime_hints(task_analysis: TaskAnalysis | None = None) -> dict[str
             "Do not use POST /payment. Outgoing invoice payment uses PUT /invoice/{id}/:payment.",
             "Supplier invoice payment uses POST /supplierInvoice/{invoiceId}/:addPayment.",
             "Incoming invoice or voucher payment uses POST /incomingInvoice/{voucherId}/addPayment.",
+        ],
+        "reference_resolution_rules": [
+            "Tripletex nested DTOs often display many fields, but existing related objects should usually be referenced by internal id only during POST and PUT requests.",
+            "Resolve existing linked entities such as customer, supplier, employee, project, department, activity, product, account, vatType, and paymentType before using them in write payloads.",
+            "If history already contains a unique resolved entity, prefer reusing that id instead of repeating human-readable nested fields in the write body.",
         ],
         "composite_workflow_patterns": [
             {
@@ -226,6 +249,51 @@ def planner_runtime_hints(task_analysis: TaskAnalysis | None = None) -> dict[str
                     "resolve employee and project references if present",
                     "create or update the travel expense",
                     "use payment-type endpoints when reimbursement payment data is required",
+                ],
+            },
+            {
+                "name": "purchase_order",
+                "when": "procurement, supplier ordering, goods receipt, or purchase-order workflows",
+                "steps": [
+                    "resolve supplier and referenced product entities first",
+                    "create or update the purchase order",
+                    "continue with goods receipt or supplier-invoice methods when the task requires receiving or billing the order",
+                ],
+            },
+            {
+                "name": "inventory_control",
+                "when": "stock counts, inventory adjustments, or warehouse inventory workflows",
+                "steps": [
+                    "resolve the relevant products, inventory items, and locations first",
+                    "create or update the inventory counting or adjustment records",
+                    "verify the resulting stock state when the task explicitly asks for confirmation",
+                ],
+            },
+            {
+                "name": "salary_payroll",
+                "when": "salary, payroll, wage, or compensation workflows",
+                "steps": [
+                    "resolve employee and entitlement context first",
+                    "use salary and employee endpoints together rather than forcing the task through generic invoice or ledger flows",
+                    "continue with ledger-side verification only when the task explicitly requires accounting confirmation",
+                ],
+            },
+            {
+                "name": "fixed_assets",
+                "when": "asset register or fixed-asset workflows",
+                "steps": [
+                    "resolve the target asset and related ledger context first",
+                    "create or update the asset record",
+                    "use ledger or year-end methods only when the task explicitly requires accounting follow-up",
+                ],
+            },
+            {
+                "name": "document_archive",
+                "when": "document archive or attachment workflows",
+                "steps": [
+                    "resolve the owning entity first",
+                    "use document-archive endpoints to create, update, or fetch the document artifact",
+                    "link the archived document back to the requested business object when the task requires that association",
                 ],
             },
             {
@@ -297,6 +365,11 @@ def repair_command(
     if synthesized_params != (repaired.params or {}):
         notes.append("required_query_defaults")
         repaired = _replace_command(repaired, params=synthesized_params)
+
+    repaired_body = _repair_body_references(repaired.json_body, task_analysis=task_analysis, history=history)
+    if repaired_body != repaired.json_body:
+        notes.append("body_reference_ids")
+        repaired = _replace_command(repaired, json_body=repaired_body)
 
     return CommandRepairResult(command=repaired, notes=tuple(notes))
 
@@ -566,6 +639,308 @@ def _synthesize_required_params(
             params.setdefault("paymentTypeId", payment_type_id)
 
     return params
+
+
+def _repair_body_references(
+    value: Any,
+    *,
+    task_analysis: TaskAnalysis,
+    history: list[dict[str, Any]],
+    key_hint: str = "",
+) -> Any:
+    if isinstance(value, list):
+        repaired_items = [
+            _repair_body_references(item, task_analysis=task_analysis, history=history, key_hint=key_hint)
+            for item in value
+        ]
+        return repaired_items if repaired_items != value else value
+    if not isinstance(value, dict):
+        return value
+
+    resolver_key = REFERENCE_RESOLVER_KEYS.get(_normalized_body_key(key_hint))
+    if resolver_key is not None:
+        resolved_id = _resolve_reference_id(resolver_key, value, task_analysis=task_analysis, history=history)
+        if resolved_id not in {None, ""}:
+            return {"id": resolved_id}
+
+    repaired: dict[str, Any] = {}
+    changed = False
+    for key, nested_value in value.items():
+        repaired_value = _repair_body_references(
+            nested_value,
+            task_analysis=task_analysis,
+            history=history,
+            key_hint=str(key),
+        )
+        repaired[key] = repaired_value
+        changed = changed or repaired_value != nested_value
+
+    if resolver_key is not None and repaired.get("id") not in {None, ""}:
+        return {"id": repaired["id"]}
+    return repaired if changed else value
+
+
+def _resolve_reference_id(
+    resolver_key: str,
+    value: dict[str, Any],
+    *,
+    task_analysis: TaskAnalysis,
+    history: list[dict[str, Any]],
+) -> Any | None:
+    if value.get("id") not in {None, ""}:
+        return value["id"]
+    resolver = _REFERENCE_ID_RESOLVERS.get(resolver_key)
+    if resolver is None:
+        return None
+    return resolver(value, task_analysis, history)
+
+
+def _normalized_body_key(value: str) -> str:
+    return "".join(character for character in str(value).casefold() if character.isalnum())
+
+
+def _mapping_value(mapping: dict[str, Any], *keys: str) -> Any | None:
+    for key in keys:
+        if key in mapping and mapping[key] not in {None, ""}:
+            return mapping[key]
+    lowered = {str(key).lower(): value for key, value in mapping.items()}
+    for key in keys:
+        value = lowered.get(key.lower())
+        if value not in {None, ""}:
+            return value
+    return None
+
+
+def _normalized_text(value: Any) -> str | None:
+    if value in {None, ""}:
+        return None
+    text = " ".join(str(value).strip().casefold().split())
+    return text or None
+
+
+def _candidate_id(candidate: dict[str, Any]) -> Any | None:
+    value = candidate.get("id")
+    if value in {None, ""}:
+        return None
+    return value
+
+
+def _candidate_full_name(candidate: dict[str, Any]) -> str | None:
+    explicit_name = _normalized_text(candidate.get("name") or candidate.get("displayName"))
+    if explicit_name:
+        return explicit_name
+    first_name = _normalized_text(candidate.get("firstName"))
+    last_name = _normalized_text(candidate.get("lastName"))
+    joined = " ".join(part for part in (first_name, last_name) if part)
+    return joined or None
+
+
+def _history_candidates(history: list[dict[str, Any]], *base_paths: str) -> list[dict[str, Any]]:
+    candidates: list[dict[str, Any]] = []
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        path = str(request.get("path") or "")
+        method = str(request.get("method") or "").upper()
+        if method not in {"GET", "POST", "PUT"}:
+            continue
+        if not any(path == base_path or path.startswith(f"{base_path}/") for base_path in base_paths):
+            continue
+        if isinstance(response.get("value"), dict):
+            candidates.append(response["value"])
+        values = response.get("values") or []
+        if isinstance(values, list):
+            candidates.extend(candidate for candidate in values if isinstance(candidate, dict))
+    return candidates
+
+
+def _resolve_customer_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
+    target_org = _mapping_value(ref, "organizationNumber", "customerOrganizationNumber")
+    target_name = _mapping_value(ref, "name", "customerName")
+    target_org = str(target_org) if target_org not in {None, ""} else None
+    target_name = _normalized_text(target_name)
+    for candidate in _history_candidates(history, "/customer"):
+        if target_org and str(candidate.get("organizationNumber")) == target_org and _candidate_id(candidate) is not None:
+            return _candidate_id(candidate)
+        if target_name and _normalized_text(candidate.get("name")) == target_name and _candidate_id(candidate) is not None:
+            return _candidate_id(candidate)
+    fallback = resolved_customer_from_history(history, task_analysis)
+    return _candidate_id(fallback) if isinstance(fallback, dict) else None
+
+
+def _resolve_supplier_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
+    target_org = _mapping_value(ref, "organizationNumber")
+    target_name = _normalized_text(_mapping_value(ref, "name", "supplierName"))
+    for candidate in _history_candidates(history, "/supplier"):
+        if target_org not in {None, ""} and str(candidate.get("organizationNumber")) == str(target_org):
+            return _candidate_id(candidate)
+        if target_name and _normalized_text(candidate.get("name")) == target_name:
+            return _candidate_id(candidate)
+    return None
+
+
+def _resolve_employee_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
+    target_email = _normalized_text(_mapping_value(ref, "email", "employeeEmail", "projectManagerEmail"))
+    target_number = _mapping_value(ref, "employeeNumber", "number")
+    target_name = _normalized_text(
+        _mapping_value(ref, "name")
+        or " ".join(
+            part
+            for part in (
+                str(_mapping_value(ref, "firstName") or "").strip(),
+                str(_mapping_value(ref, "lastName") or "").strip(),
+            )
+            if part
+        )
+    )
+    for candidate in _history_candidates(history, "/employee"):
+        if target_email and _normalized_text(candidate.get("email")) == target_email:
+            return _candidate_id(candidate)
+        if target_number not in {None, ""} and str(candidate.get("employeeNumber") or candidate.get("number")) == str(target_number):
+            return _candidate_id(candidate)
+        if target_name and _candidate_full_name(candidate) == target_name:
+            return _candidate_id(candidate)
+    return None
+
+
+def _resolve_project_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
+    target_number = _mapping_value(ref, "projectNumber", "number")
+    target_name = _normalized_text(_mapping_value(ref, "name", "projectName"))
+    for candidate in _history_candidates(history, "/project"):
+        if target_number not in {None, ""} and str(candidate.get("projectNumber") or candidate.get("number")) == str(target_number):
+            return _candidate_id(candidate)
+        if target_name and _normalized_text(candidate.get("name")) == target_name:
+            return _candidate_id(candidate)
+    return None
+
+
+def _resolve_department_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
+    target_number = _mapping_value(ref, "departmentNumber", "number")
+    target_name = _normalized_text(_mapping_value(ref, "name", "departmentName"))
+    for candidate in _history_candidates(history, "/department"):
+        if target_number not in {None, ""} and str(candidate.get("departmentNumber") or candidate.get("number")) == str(target_number):
+            return _candidate_id(candidate)
+        if target_name and _normalized_text(candidate.get("name")) == target_name:
+            return _candidate_id(candidate)
+    return None
+
+
+def _resolve_activity_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
+    target_number = _mapping_value(ref, "activityNumber", "number")
+    target_name = _normalized_text(_mapping_value(ref, "name", "activityName", "displayName"))
+    for candidate in _history_candidates(history, "/activity", "/project/activity"):
+        if target_number not in {None, ""} and str(candidate.get("number") or candidate.get("activityNumber")) == str(target_number):
+            return _candidate_id(candidate)
+        candidate_name = _normalized_text(candidate.get("name") or candidate.get("displayName"))
+        if target_name and candidate_name == target_name:
+            return _candidate_id(candidate)
+    return None
+
+
+def _resolve_product_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
+    target_number = _mapping_value(ref, "productNumber", "number")
+    target_name = _normalized_text(_mapping_value(ref, "name", "description"))
+    for candidate in _history_candidates(history, "/product"):
+        if target_number not in {None, ""} and str(candidate.get("number") or candidate.get("productNumber")) == str(target_number):
+            return _candidate_id(candidate)
+        if target_name and _normalized_text(candidate.get("name") or candidate.get("description")) == target_name:
+            return _candidate_id(candidate)
+    return None
+
+
+def _resolve_payment_type_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
+    target_description = _normalized_text(_mapping_value(ref, "description", "displayName", "name"))
+    for candidate in _history_candidates(history, "/invoice/paymentType", "/travelExpense/paymentType", "/ledger/paymentTypeOut"):
+        if target_description and _normalized_text(candidate.get("description") or candidate.get("displayName")) == target_description:
+            return _candidate_id(candidate)
+    return best_effort_payment_type_id(task_analysis, history)
+
+
+def _resolve_ledger_account_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
+    target_number = _mapping_value(ref, "accountNumber", "number")
+    target_name = _normalized_text(_mapping_value(ref, "name", "displayName"))
+    for candidate in _history_candidates(history, "/ledger/account"):
+        if target_number not in {None, ""} and str(candidate.get("number") or candidate.get("accountNumber")) == str(target_number):
+            return _candidate_id(candidate)
+        if target_name and _normalized_text(candidate.get("name") or candidate.get("displayName")) == target_name:
+            return _candidate_id(candidate)
+    return None
+
+
+def _resolve_vat_type_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
+    target_code = _mapping_value(ref, "code", "number", "vatCode")
+    target_name = _normalized_text(_mapping_value(ref, "name", "description", "displayName"))
+    for candidate in _history_candidates(history, "/ledger/vatType"):
+        if target_code not in {None, ""} and str(candidate.get("code") or candidate.get("number")) == str(target_code):
+            return _candidate_id(candidate)
+        if target_name and _normalized_text(candidate.get("description") or candidate.get("displayName")) == target_name:
+            return _candidate_id(candidate)
+    return None
+
+
+def _resolve_contact_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
+    target_email = _normalized_text(_mapping_value(ref, "email"))
+    target_name = _normalized_text(_mapping_value(ref, "name", "displayName"))
+    for candidate in _history_candidates(history, "/contact"):
+        if target_email and _normalized_text(candidate.get("email")) == target_email:
+            return _candidate_id(candidate)
+        if target_name and _candidate_full_name(candidate) == target_name:
+            return _candidate_id(candidate)
+    return None
+
+
+def _resolve_division_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
+    target_number = _mapping_value(ref, "number", "divisionNumber")
+    target_name = _normalized_text(_mapping_value(ref, "name", "displayName"))
+    for candidate in _history_candidates(history, "/division"):
+        if target_number not in {None, ""} and str(candidate.get("number") or candidate.get("divisionNumber")) == str(target_number):
+            return _candidate_id(candidate)
+        if target_name and _normalized_text(candidate.get("name") or candidate.get("displayName")) == target_name:
+            return _candidate_id(candidate)
+    return None
+
+
+def _resolve_currency_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
+    target_code = _normalized_text(_mapping_value(ref, "code", "currencyCode", "isoCode"))
+    target_name = _normalized_text(_mapping_value(ref, "name", "displayName", "description"))
+    for candidate in _history_candidates(history, "/currency"):
+        candidate_code = _normalized_text(candidate.get("code") or candidate.get("currencyCode") or candidate.get("isoCode"))
+        if target_code and candidate_code == target_code:
+            return _candidate_id(candidate)
+        if target_name and _normalized_text(candidate.get("name") or candidate.get("displayName")) == target_name:
+            return _candidate_id(candidate)
+    return None
+
+
+def _resolve_asset_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
+    target_number = _mapping_value(ref, "number", "assetNumber")
+    target_name = _normalized_text(_mapping_value(ref, "name", "displayName"))
+    for candidate in _history_candidates(history, "/asset"):
+        if target_number not in {None, ""} and str(candidate.get("number") or candidate.get("assetNumber")) == str(target_number):
+            return _candidate_id(candidate)
+        if target_name and _normalized_text(candidate.get("name") or candidate.get("displayName")) == target_name:
+            return _candidate_id(candidate)
+    return None
+
+
+_REFERENCE_ID_RESOLVERS: dict[str, Callable[[dict[str, Any], TaskAnalysis, list[dict[str, Any]]], Any | None]] = {
+    "activity": _resolve_activity_reference,
+    "asset": _resolve_asset_reference,
+    "contact": _resolve_contact_reference,
+    "currency": _resolve_currency_reference,
+    "customer": _resolve_customer_reference,
+    "department": _resolve_department_reference,
+    "division": _resolve_division_reference,
+    "employee": _resolve_employee_reference,
+    "ledger_account": _resolve_ledger_account_reference,
+    "payment_type": _resolve_payment_type_reference,
+    "product": _resolve_product_reference,
+    "project": _resolve_project_reference,
+    "supplier": _resolve_supplier_reference,
+    "vat_type": _resolve_vat_type_reference,
+}
 
 
 def _replace_command(

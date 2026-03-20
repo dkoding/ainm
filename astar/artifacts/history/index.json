@@ -1,11 +1,26 @@
 {
-  "analysis_cached_seeds": 30,
+  "analysis_cached_seeds": 35,
   "analysis_enabled": true,
   "cache_prefix": "history",
-  "completed_rounds_cached": 6,
-  "generated_at": "2026-03-20T14:17:56.431878+00:00",
-  "public_rounds_total": 7,
+  "completed_rounds_cached": 7,
+  "generated_at": "2026-03-20T15:05:54.709979+00:00",
+  "public_rounds_total": 8,
   "rounds": [
+    {
+      "analysis_cached_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "analysis_errors": [],
+      "event_date": "2026-03-20",
+      "round_id": "36e581f1-73f8-453f-ab98-cbe3052b701b",
+      "round_number": 7,
+      "seeds_count": 5,
+      "status": "completed"
+    },
     {
       "analysis_cached_seeds": [
         0,
