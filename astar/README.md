@@ -1,6 +1,6 @@
 # Astar Island
 
-This directory contains a baseline local client for the Astar Island task.
+This directory contains a documented and automation-ready scaffold for the Astar Island task.
 
 What the docs require:
 
@@ -13,9 +13,17 @@ What the docs require:
 
 What is included here:
 
-- `astar_client.py`: API wrapper for rounds, budget, simulate, and submit.
-- `baseline.py`: safe prior generator from the initial terrain and settlement positions.
-- `submit_baseline.py`: CLI for dry runs or direct submission.
+- `ANALYSIS.md`: task-solving analysis and modeling implications.
+- `API.md`: task-focused API reference.
+- `COMPONENTS.md`: non-duplicative GCP stack analysis for Astar.
+- `astar_client.py`: public/team API wrapper for rounds, budget, simulate, submit, leaderboard, and post-round analysis.
+- `baseline.py`: safe prior generator plus observation-informed posterior blending.
+- `observation_strategy.py`: simple viewport planner for spending simulator budget on high-value cells.
+- `run_round.py`: env-driven round runner for public sync, optional simulation, prediction writing, and optional submission.
+- `submit_baseline.py`: compatibility wrapper around `run_round.py`.
+- `artifacts.py`: local JSON artifact writer with optional GCS upload.
+- `config.py`: `.env`-driven settings loader.
+- `deploy_cloud_run_job.sh`: Cloud Run Job deployment script for automated Astar runs.
 
 Install:
 
@@ -26,20 +34,39 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Dry run:
+Configure local env:
 
 ```bash
-python3 submit_baseline.py --token "$AINM_ACCESS_TOKEN"
+cp .env.example .env
 ```
 
-Submit the baseline for the active round:
+Public dry run without a token:
 
 ```bash
-python3 submit_baseline.py --token "$AINM_ACCESS_TOKEN" --submit
+python3 run_round.py --no-simulate --no-submit
+```
+
+Run a small observation-informed round locally:
+
+```bash
+python3 run_round.py --token "$AINM_ACCESS_TOKEN" --simulate --queries-per-seed 4 --no-submit
+```
+
+Submit the active round:
+
+```bash
+python3 run_round.py --token "$AINM_ACCESS_TOKEN" --simulate --queries-per-seed 4 --submit
+```
+
+Deploy as a Cloud Run Job:
+
+```bash
+./deploy_cloud_run_job.sh
 ```
 
 Notes:
 
 - The task docs describe Astar as a direct API task. You submit tensors to the organizer API; you do not need to expose a public `/solve` endpoint for the core task flow.
-- This baseline does not spend any simulation queries yet. It only uses the public round detail endpoint and initial states.
-- The main manual blocker is the JWT token: you need to copy `access_token` from your browser after logging in.
+- `GET /rounds` and `GET /rounds/{round_id}` are public. Budget, simulate, submit, and team analysis endpoints require a token.
+- The updated scaffold can spend simulator queries and blend observed outcomes back into the per-cell probability tensor.
+- For deployed Cloud Run Jobs, prefer storing `AINM_ACCESS_TOKEN` in Secret Manager and wiring it through `ASTAR_TOKEN_SECRET_NAME`.

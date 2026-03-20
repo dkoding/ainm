@@ -1,2 +1,4 @@
 numpy
 requests
+python-dotenv
+google-cloud-storage

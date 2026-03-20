@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Tripletex API 2.0</title>
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.23.6/swagger-ui.css"
+            integrity="sha256-O3WBPOmqAcumrGlHJtGp6KtuKA4S9sbEu3NCSbacxZ8= sha384-cxoOmCOFJb4rLogOBOvhasLk6veYZbG7YJ2H5GaDdQ9Obb69ThaKI+kVWlOhwsC8 sha512-p3hsH4gMyD50apsMs/E4s/ID0Zw/+pcao+/E+ku5/tKwVbamB3yY6XIeRkuxJvlmRZh+bd5x7RteblERoE+pJQ=="
+            crossorigin="anonymous"
+        />
+        <style>
+            html {
+                box-sizing: border-box;
+                overflow: -moz-scrollbars-vertical;
+                overflow-y: scroll;
+            }
+
+            *,
+            *:before,
+            *:after {
+                box-sizing: inherit;
+            }
+
+            body {
+                margin: 0;
+                background: #fafafa;
+            }
+        </style>
+        <script>
+            function whitelistURLParameters(allowedParams) {
+                const params = new URLSearchParams(location.search);
+                const removeParams = Array.from(params.keys()).filter(
+                    (param) => !allowedParams.includes(param)
+                );
+                removeParams.forEach((param) => params.delete(param));
+                const search = params.size > 0 ? '?' + params.toString() : '';
+
+                window.history.replaceState(
+                    {},
+                    document.title,
+                    location.pathname + search + location.hash
+                );
+            }
+            whitelistURLParameters(['internal']);
+        </script>
+    </head>
+
+    <body>
+        <div id="swagger-ui"></div>
+
+        <script
+            src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.23.6/swagger-ui-bundle.js"
+            integrity="sha256-xpoE2xshYrQRfiToA277aVgOX/Yo0pp3xDEobxc/2Lg= sha384-KKkXriM7GM/0zvXbt0ttOjknlK1r5FC+mwbtQl4EVZFfpIIw9Wioqzudmek0gxm+ sha512-AnnT+/DVnSKyH2nBT0Tkgvi07eJs5xbCK74UodaNBrOC+FB8q1Tytx0zdEOl/mbWxOJOttrUWGRYgT1Cd9/OEA=="
+            crossorigin="anonymous"
+        ></script>
+        <script
+            src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.23.6/swagger-ui-standalone-preset.js"
+            integrity="sha256-INoIJZFPdVt4FmTRpgynEOReDsIMYkEFla99ML2+YmM= sha384-z/VXOloA3CoJO8uNNRCD2j/upTpSyyXg/3+kYqvichype5Xf1iya2rS7ZyqgGDGq sha512-gMRrH4Hqb/yx+19VqkCI99/aTDUMpJ+hkZWRvKHbI3A1fDN3sYVYdVssY8vSdfoMbFLu1JB2HdZ94LaJqKN+SQ=="
+            crossorigin="anonymous"
+        ></script>
+        <script>
+            window.onload = function () {
+                const HideEmptyTagsPlugin = () => {
+                    return {
+                        statePlugins: {
+                            spec: {
+                                wrapSelectors: {
+                                    taggedOperations:
+                                        (ori) =>
+                                        (...args) => {
+                                            return ori(...args).filter(
+                                                (tagMeta) =>
+                                                    tagMeta.get('operations') &&
+                                                    tagMeta.get('operations')
+                                                        .size > 0
+                                            );
+                                        },
+                                },
+                            },
+                        },
+                    };
+                };
+
+                // Build a system
+                const ui = SwaggerUIBundle({
+                    url: '/v2/openapi.json',
+                    dom_id: '#swagger-ui',
+                    deepLinking: true,
+                    presets: [
+                        SwaggerUIBundle.presets.apis,
+                        SwaggerUIStandalonePreset,
+                    ],
+                    plugins: [
+                        SwaggerUIBundle.plugins.DownloadUrl,
+                        HideEmptyTagsPlugin,
+                    ],
+                    layout: 'StandaloneLayout',
+                    docExpansion: 'none',
+                    tagsSorter: 'alpha',
+                    operationsSorter: 'method',
+                    defaultModelRendering: 'model',
+                });
+
+                window.ui = ui;
+            };
+        </script>
+
+        <link
+            rel="stylesheet"
+            href="https://cdn.tripletex.no/google-fonts/material-icons-outlined.css"
+            crossorigin="anonymous"
+        />
+        <link href="tlx-swagger.css" rel="stylesheet" type="text/css" />
+    </body>
+</html>

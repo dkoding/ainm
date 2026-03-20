@@ -1,2 +1,5 @@
 /tripletex/.env
+/astar/.env
+/astar/artifacts/
+__pycache__/
 /.gcloud/

@@ -3,7 +3,7 @@
 This workspace is split into one directory per task:
 
 - `tripletex/`: Cloud Run-ready HTTPS service for the Tripletex `/solve` submission format.
-- `astar/`: Local client and baseline submitter for the Astar Island API task.
+- `astar/`: API task scaffold for Astar Island with docs, batch runner, artifact capture, and Cloud Run Job support.
 - `norgesgruppen-data/`: Submission template and local validator for the offline zip upload task.
 
 Manual steps still required on your side:
