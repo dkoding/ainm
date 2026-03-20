@@ -1,0 +1,10 @@
+{
+  "detection_only": true,
+  "confidence_threshold": 0.2,
+  "image_size": 1280,
+  "weight_candidates": [
+    "best.pt",
+    "model.pt",
+    "weights/best.pt"
+  ]
+}
