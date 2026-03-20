@@ -7,56 +7,67 @@ from typing import Any
 from artifacts import ArtifactStore
 from astar_client import AstarAPIError, AstarClient
 from baseline import build_round_predictions
-from config import AstarSettings
+from config import (
+    DEFAULT_AINM_BASE_URL,
+    DEFAULT_GCS_ARTIFACTS_PREFIX,
+    DEFAULT_OBSERVATION_PRIOR_STRENGTH,
+    DEFAULT_OUTPUT_DIR,
+    DEFAULT_PREDICTION_FLOOR,
+    DEFAULT_QUERIES_PER_SEED,
+    DEFAULT_SIMULATE,
+    DEFAULT_SUBMIT,
+    DEFAULT_VIEWPORT_SIZE,
+    AstarSettings,
+)
 from observation_strategy import build_round_viewport_plan
 
 
 def parse_args() -> argparse.Namespace:
-    defaults = AstarSettings.from_env()
+    secrets = AstarSettings.from_env()
 
     parser = argparse.ArgumentParser(description="Run the Astar Island scaffold for one round.")
-    parser.add_argument("--token", default=defaults.access_token, help="AINM access_token JWT.")
-    parser.add_argument("--base-url", default=defaults.base_url, help="API base URL.")
-    parser.add_argument("--round-id", default=defaults.round_id, help="Specific round ID. Defaults to the active round.")
-    parser.add_argument("--out-dir", default=str(defaults.output_dir), help="Where to write artifacts.")
+    parser.add_argument("--token", default=secrets.access_token, help="AINM access_token JWT.")
+    parser.add_argument("--base-url", default=DEFAULT_AINM_BASE_URL, help="API base URL.")
+    parser.add_argument("--round-id", help="Specific round ID. Defaults to the active round.")
+    parser.add_argument("--out-dir", default=str(DEFAULT_OUTPUT_DIR), help="Where to write artifacts.")
     parser.add_argument(
         "--submit",
         action=argparse.BooleanOptionalAction,
-        default=defaults.submit,
+        default=DEFAULT_SUBMIT,
         help="Whether to POST prediction tensors for all seeds.",
     )
     parser.add_argument(
         "--simulate",
         action=argparse.BooleanOptionalAction,
-        default=defaults.simulate,
+        default=DEFAULT_SIMULATE,
         help="Whether to spend simulate queries before building predictions.",
     )
     parser.add_argument(
         "--queries-per-seed",
         type=int,
-        default=defaults.queries_per_seed,
+        default=DEFAULT_QUERIES_PER_SEED,
         help="How many simulation queries to spend per seed when --simulate is enabled.",
     )
     parser.add_argument(
         "--viewport-size",
         type=int,
-        default=defaults.viewport_size,
+        default=DEFAULT_VIEWPORT_SIZE,
         help="Viewport width and height for the simple observation plan. Must be in [5, 15].",
     )
     parser.add_argument(
         "--floor",
         type=float,
-        default=defaults.prediction_floor,
+        default=DEFAULT_PREDICTION_FLOOR,
         help="Minimum probability floor applied before renormalization.",
     )
     parser.add_argument(
         "--prior-strength",
         type=float,
-        default=defaults.observation_prior_strength,
+        default=DEFAULT_OBSERVATION_PRIOR_STRENGTH,
         help="Pseudo-count strength of the prior before simulation observations are blended in.",
     )
-    parser.add_argument("--gcs-bucket", default=defaults.gcs_artifacts_bucket, help="Optional GCS bucket for artifact upload.")
-    parser.add_argument("--gcs-prefix", default=defaults.gcs_artifacts_prefix, help="Optional GCS prefix for artifact upload.")
+    parser.add_argument("--gcs-bucket", help="Optional GCS bucket for artifact upload.")
+    parser.add_argument("--gcs-prefix", default=DEFAULT_GCS_ARTIFACTS_PREFIX, help="Optional GCS prefix for artifact upload.")
     return parser.parse_args()
 
 
@@ -170,7 +181,14 @@ def find_active_round_id(rounds: list[dict[str, Any]]) -> str:
     for round_item in rounds:
         if round_item.get("status") == "active":
             return str(round_item["id"])
-    raise SystemExit("No active round found.")
+    if rounds:
+        latest_round = max(rounds, key=lambda item: (item.get("event_date", ""), int(item.get("round_number", 0))))
+        raise SystemExit(
+            "No active round found. "
+            f"Pass --round-id explicitly, for example --round-id {latest_round['id']} "
+            f"(latest round status: {latest_round.get('status')})."
+        )
+    raise SystemExit("No active round found and /rounds returned no data.")
 
 
 if __name__ == "__main__":

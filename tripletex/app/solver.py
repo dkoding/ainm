@@ -7,8 +7,11 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from .attachments import prepare_attachments
 from .client import TripletexAPIError, TripletexClient
+from .execution import CommandExecutionError, TripletexCommandExecutor
 from .models import SolveRequest, SolveResponse
+from .openapi_registry import OpenAPIRegistryError, TripletexOpenAPIRegistry
 from .planner import PlannerError, build_planner
 
 
@@ -35,38 +38,42 @@ class TripletexSolver:
             session_token=payload.tripletex_credentials.session_token,
             timeout_seconds=self.timeout_seconds,
         )
+        registry = TripletexOpenAPIRegistry.from_default_spec()
+        executor = TripletexCommandExecutor(client, registry)
 
         with tempfile.TemporaryDirectory(prefix="tripletex-attachments-") as temp_dir:
-            attachments = self._save_attachments(payload, Path(temp_dir))
+            saved_attachments = self._save_attachments(payload, Path(temp_dir))
+            attachments = prepare_attachments(saved_attachments)
+            task_analysis = planner.analyze_task(
+                task_prompt=payload.prompt,
+                attachments=attachments,
+            )
             history: list[dict[str, Any]] = []
 
             for attempt_index in range(self.max_steps):
-                step = planner.next_step(
-                    task_prompt=payload.prompt,
+                decision = planner.next_step(
+                    task_analysis=task_analysis,
                     attachments=attachments,
                     history=history,
                     remaining_steps=self.max_steps - attempt_index,
                 )
-                if step.kind == "finish":
+                if decision.kind == "finish":
                     return SolveResponse(status="completed")
 
-                assert step.method is not None
-                assert step.path is not None
+                try:
+                    command = decision.to_command()
+                except ValueError as exc:
+                    raise PlannerError(str(exc)) from exc
 
-                response_payload = client.request(
-                    step.method,
-                    step.path,
-                    params=step.params,
-                    json_body=step.json_body,
-                )
+                response_payload = executor.execute(command)
                 history.append(
                     {
-                        "reason": step.reason,
+                        "reason": command.reason,
                         "request": {
-                            "method": step.method,
-                            "path": step.path,
-                            "params": step.params,
-                            "json": _trim_payload(step.json_body),
+                            "method": command.method,
+                            "path": command.path,
+                            "params": command.params,
+                            "json": _trim_payload(command.json_body),
                         },
                         "response": _trim_payload(response_payload),
                     }
@@ -120,6 +127,8 @@ def _trim_payload(value: Any, *, max_depth: int = 3, max_items: int = 5) -> Any:
 
 __all__ = [
     "PlannerError",
+    "CommandExecutionError",
+    "OpenAPIRegistryError",
     "SolveError",
     "TripletexAPIError",
     "TripletexSolver",

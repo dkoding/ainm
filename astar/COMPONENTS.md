@@ -135,14 +135,17 @@ Keep it single-task until you have a real reason to shard work.
 
 Store in deployed config:
 
-- `GOOGLE_CLOUD_PROJECT`
-- `GOOGLE_CLOUD_LOCATION`
-- `AINM_BASE_URL`
-- `ASTAR_*` runtime settings
+- the active `gcloud` project or `GOOGLE_CLOUD_PROJECT`
 
 Prefer `Secret Manager` for:
 
 - `AINM_ACCESS_TOKEN`
+
+Prefer hard-coded defaults or CLI flags for:
+
+- stable Astar runtime knobs such as base URL, viewport size, floor, and prior strength
+
+In this scaffold, the Cloud Run Job deployment path intentionally hard-codes the non-secret deployment settings and looks for a fixed Secret Manager secret name, `astar-access-token`.
 
 ### Duplicate to avoid
 
@@ -245,7 +248,10 @@ Recommended layout:
 Use:
 
 - `GCS_ARTIFACTS_BUCKET`
-- `GCS_ARTIFACTS_PREFIX`
+
+`GCS_ARTIFACTS_PREFIX` can stay hard-coded unless you actively need multiple prefixes.
+
+In this scaffold, GCS artifact upload is exposed as an explicit CLI option on the local runner instead of a deployment-time `.env` variable.
 
 Cloud Run and Cloud Shell should authenticate through ADC.
 
@@ -515,6 +521,10 @@ Official Vertex AI SDK docs state:
 - Gemini Developer API and Vertex AI are both supported by the Gen AI SDK
 - the recommended Python SDK is `google-genai`
 - install with `pip install --upgrade google-genai`
+
+Note that the NM i AI Google Cloud services page still shows a `google-cloud-aiplatform`
+install example for Vertex AI. For new Gemini work, the current official Vertex SDK
+guidance points to `google-genai`, so that is the better default for this repo.
 
 ### Usage instructions
 

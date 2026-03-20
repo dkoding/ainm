@@ -11,53 +11,43 @@ if [[ -f "${ENV_FILE}" ]]; then
   set +a
 fi
 
-: "${GOOGLE_CLOUD_PROJECT:?GOOGLE_CLOUD_PROJECT is required}"
+PROJECT="${GOOGLE_CLOUD_PROJECT:-$(gcloud config get-value project 2>/dev/null || true)}"
+: "${PROJECT:?Set an active gcloud project or export GOOGLE_CLOUD_PROJECT.}"
 
-JOB_NAME="${CLOUD_RUN_JOB_NAME:-astar-round-worker}"
-REGION="${CLOUD_RUN_REGION:-europe-north1}"
-LOCATION="${GOOGLE_CLOUD_LOCATION:-europe-north1}"
-CPU="${CLOUD_RUN_JOB_CPU:-1}"
-MEMORY="${CLOUD_RUN_JOB_MEMORY:-1Gi}"
-TASK_TIMEOUT="${CLOUD_RUN_JOB_TASK_TIMEOUT:-900s}"
-SERVICE_ACCOUNT="${CLOUD_RUN_SERVICE_ACCOUNT:-}"
-IMAGE_URI="gcr.io/${GOOGLE_CLOUD_PROJECT}/${JOB_NAME}:latest"
+JOB_NAME="astar-round-worker"
+REGION="europe-north1"
+LOCATION="europe-north1"
+CPU="1"
+MEMORY="1Gi"
+TASK_TIMEOUT="900s"
+SECRET_NAME="astar-access-token"
+IMAGE_URI="gcr.io/${PROJECT}/${JOB_NAME}:latest"
 
 ENV_VARS=(
-  "GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}"
+  "GOOGLE_CLOUD_PROJECT=${PROJECT}"
   "GOOGLE_CLOUD_LOCATION=${LOCATION}"
-  "AINM_BASE_URL=${AINM_BASE_URL:-https://api.ainm.no}"
-  "ASTAR_ROUND_ID=${ASTAR_ROUND_ID:-}"
-  "ASTAR_OUTPUT_DIR=${ASTAR_OUTPUT_DIR:-/tmp/astar-artifacts}"
-  "ASTAR_SUBMIT=${ASTAR_SUBMIT:-false}"
-  "ASTAR_SIMULATE=${ASTAR_SIMULATE:-false}"
-  "ASTAR_QUERIES_PER_SEED=${ASTAR_QUERIES_PER_SEED:-4}"
-  "ASTAR_VIEWPORT_SIZE=${ASTAR_VIEWPORT_SIZE:-15}"
-  "ASTAR_PREDICTION_FLOOR=${ASTAR_PREDICTION_FLOOR:-0.01}"
-  "ASTAR_OBSERVATION_PRIOR_STRENGTH=${ASTAR_OBSERVATION_PRIOR_STRENGTH:-2.0}"
-  "GCS_ARTIFACTS_BUCKET=${GCS_ARTIFACTS_BUCKET:-}"
-  "GCS_ARTIFACTS_PREFIX=${GCS_ARTIFACTS_PREFIX:-astar}"
+  "AINM_BASE_URL=https://api.ainm.no"
 )
 
 SECRET_FLAGS=()
-if [[ -n "${ASTAR_TOKEN_SECRET_NAME:-}" ]]; then
-  SECRET_FLAGS+=(--set-secrets "AINM_ACCESS_TOKEN=${ASTAR_TOKEN_SECRET_NAME}:latest")
+if gcloud secrets describe "${SECRET_NAME}" --project "${PROJECT}" >/dev/null 2>&1; then
+  SECRET_FLAGS+=(--set-secrets "AINM_ACCESS_TOKEN=${SECRET_NAME}:latest")
 elif [[ -n "${AINM_ACCESS_TOKEN:-}" ]]; then
   ENV_VARS+=("AINM_ACCESS_TOKEN=${AINM_ACCESS_TOKEN}")
-fi
-
-SERVICE_ACCOUNT_FLAG=()
-if [[ -n "${SERVICE_ACCOUNT}" ]]; then
-  SERVICE_ACCOUNT_FLAG+=(--service-account "${SERVICE_ACCOUNT}")
+else
+  echo "No Secret Manager secret named ${SECRET_NAME} found and no AINM_ACCESS_TOKEN provided." >&2
+  echo "Set AINM_ACCESS_TOKEN in astar/.env or create the secret ${SECRET_NAME} before deploying." >&2
+  exit 1
 fi
 
 echo "Building ${IMAGE_URI}"
-gcloud --quiet config set project "${GOOGLE_CLOUD_PROJECT}"
+gcloud --quiet config set project "${PROJECT}"
 gcloud builds submit "${ROOT_DIR}" --tag "${IMAGE_URI}"
 
 echo "Deploying Cloud Run Job ${JOB_NAME} to ${REGION}"
 gcloud run jobs deploy "${JOB_NAME}" \
   --quiet \
-  --project "${GOOGLE_CLOUD_PROJECT}" \
+  --project "${PROJECT}" \
   --region "${REGION}" \
   --image "${IMAGE_URI}" \
   --cpu "${CPU}" \
@@ -67,8 +57,7 @@ gcloud run jobs deploy "${JOB_NAME}" \
   --parallelism 1 \
   --max-retries 0 \
   --set-env-vars "$(IFS=,; echo "${ENV_VARS[*]}")" \
-  "${SERVICE_ACCOUNT_FLAG[@]}" \
   "${SECRET_FLAGS[@]}"
 
 echo "To execute now:"
-echo "gcloud run jobs execute ${JOB_NAME} --region ${REGION} --project ${GOOGLE_CLOUD_PROJECT}"
+echo "gcloud run jobs execute ${JOB_NAME} --region ${REGION} --project ${PROJECT}"

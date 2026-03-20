@@ -15,8 +15,12 @@ What is included here:
 
 - `app/main.py`: `/health` and `/solve` endpoints.
 - `app/client.py`: small Tripletex API wrapper.
-- `app/planner.py`: Vertex AI / Gemini planner loop that emits one API action at a time.
-- `app/solver.py`: request validation, attachment persistence, planner execution, and API key protection.
+- `app/attachments.py`: attachment preparation with text and PDF extraction.
+- `app/tasking.py`: normalized task-analysis and command models.
+- `app/openapi_registry.py`: OpenAPI-backed endpoint registry and command validation.
+- `app/planner.py`: Vertex AI / Gemini task analysis plus spec-guided action planning.
+- `app/execution.py`: command-style Tripletex executor with OpenAPI validation.
+- `app/solver.py`: request validation, attachment persistence, planning, execution, and API key protection.
 - `Dockerfile`: Cloud Run deployment image.
 - `.env.example`: local configuration template.
 
@@ -35,7 +39,7 @@ Environment:
 
 - `GOOGLE_CLOUD_PROJECT`: required for Vertex AI planning.
 - `GOOGLE_CLOUD_LOCATION`: defaults to `europe-north1`.
-- `GEMINI_MODEL`: defaults to `gemini-2.0-flash`.
+- `GEMINI_MODEL`: defaults to `gemini-2.5-pro`.
 - `CLOUD_RUN_SERVICE_NAME`: defaults to `tripletex-agent`.
 - `CLOUD_RUN_REGION`: defaults to `europe-north1`.
 - `TRIPLETEX_API_KEY`: optional shared secret checked against `Authorization: Bearer ...`.
@@ -51,6 +55,8 @@ Cloud Run deploy:
 
 Notes:
 
-- The planner scaffold is a starting point, not a finished competition agent. It gives you a working tool loop and request contract.
-- Attachments are saved to a temporary request directory and exposed to the planner as file metadata and local paths.
-- Some Tripletex tasks involve PDFs or images. This scaffold does not yet do OCR or PDF extraction.
+- The current baseline architecture is: normalized task analysis -> Gemini planning -> command executor -> Tripletex API.
+- Planned commands are validated against the saved `docs/openapi.json` spec before execution.
+- Attachments are saved to a temporary request directory, summarized for the planner, and PDFs are text-extracted when possible.
+- PDF and image attachments can also be passed to Gemini through Vertex AI multimodal input.
+- This is still a baseline scaffold, not a completed competition solver.

@@ -40,10 +40,18 @@ Configure local env:
 cp .env.example .env
 ```
 
+The intent is that `.env` only holds secrets. Stable runtime defaults are hard-coded in the scaffold, and non-secret overrides should normally be passed as CLI flags.
+
 Public dry run without a token:
 
 ```bash
 python3 run_round.py --no-simulate --no-submit
+```
+
+If there is no active round, rerun with an explicit historical round:
+
+```bash
+python3 run_round.py --round-id "<round-id>" --no-simulate --no-submit
 ```
 
 Run a small observation-informed round locally:
@@ -64,9 +72,12 @@ Deploy as a Cloud Run Job:
 ./deploy_cloud_run_job.sh
 ```
 
+The deployment script is intentionally opinionated. It hard-codes the job name, region, and runtime settings. For auth it prefers a Secret Manager secret named `astar-access-token`, and falls back to `AINM_ACCESS_TOKEN` from `astar/.env`.
+
 Notes:
 
 - The task docs describe Astar as a direct API task. You submit tensors to the organizer API; you do not need to expose a public `/solve` endpoint for the core task flow.
 - `GET /rounds` and `GET /rounds/{round_id}` are public. Budget, simulate, submit, and team analysis endpoints require a token.
 - The updated scaffold can spend simulator queries and blend observed outcomes back into the per-cell probability tensor.
-- For deployed Cloud Run Jobs, prefer storing `AINM_ACCESS_TOKEN` in Secret Manager and wiring it through `ASTAR_TOKEN_SECRET_NAME`.
+- For deployed Cloud Run Jobs, prefer storing `AINM_ACCESS_TOKEN` in Secret Manager under the fixed name `astar-access-token`.
+- The deployment script derives the active GCP project from `gcloud config` if `GOOGLE_CLOUD_PROJECT` is not exported.
