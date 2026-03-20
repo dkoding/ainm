@@ -15,7 +15,11 @@ class TripletexAPIError(RuntimeError):
         self.method = method
         self.path = path
         self.payload = payload
-        super().__init__(f"Tripletex API call failed: {method} {path} -> {status_code}")
+        detail = _error_detail_suffix(payload)
+        message = f"Tripletex API call failed: {method} {path} -> {status_code}"
+        if detail:
+            message = f"{message} [{detail}]"
+        super().__init__(message)
 
 
 class TripletexClient:
@@ -72,7 +76,51 @@ def _summarize_payload(value: Any) -> Any:
     if value is None:
         return None
     if isinstance(value, dict):
-        return {"type": "dict", "keys": list(value.keys())[:10]}
+        summary: dict[str, Any] = {"type": "dict", "keys": list(value.keys())[:10]}
+        for key in ("status", "code", "message", "developerMessage", "requestId"):
+            if key in value:
+                summary[key] = value.get(key)
+        validation_messages = value.get("validationMessages")
+        if isinstance(validation_messages, list) and validation_messages:
+            summary["validationMessages"] = [
+                _summarize_validation_message(message) for message in validation_messages[:3]
+            ]
+        return summary
     if isinstance(value, list):
         return {"type": "list", "items": len(value)}
     return {"type": type(value).__name__, "value": str(value)[:240]}
+
+
+def _error_detail_suffix(payload: Any) -> str | None:
+    if not isinstance(payload, dict):
+        return None
+    parts: list[str] = []
+    developer_message = payload.get("developerMessage")
+    if developer_message not in {None, ""}:
+        parts.append(str(developer_message))
+    message = payload.get("message")
+    if message not in {None, ""}:
+        parts.append(str(message))
+    validation_messages = payload.get("validationMessages")
+    if isinstance(validation_messages, list):
+        for item in validation_messages[:2]:
+            summarized = _summarize_validation_message(item)
+            if summarized:
+                parts.append(str(summarized))
+    if not parts:
+        return None
+    return "; ".join(parts)[:400]
+
+
+def _summarize_validation_message(value: Any) -> Any:
+    if isinstance(value, dict):
+        summary = {
+            key: value[key]
+            for key in ("field", "path", "message", "developerMessage")
+            if key in value and value[key] not in {None, ""}
+        }
+        if summary:
+            return summary
+    if value in {None, ""}:
+        return None
+    return str(value)[:240]

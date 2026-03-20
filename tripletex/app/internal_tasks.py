@@ -215,7 +215,9 @@ METHOD_SPECS: dict[str, MethodSpec] = {
         required_one_of=(("customerOrganizationNumber", "customerName"),),
         optional_arguments=(
             "orderDate",
+            "deliveryDate",
             "invoiceDate",
+            "invoiceDueDate",
             "paymentDate",
             "paymentTypeDescription",
             "createInvoice",
@@ -247,7 +249,9 @@ METHOD_SPECS: dict[str, MethodSpec] = {
             "date",
             "comment",
             "invoiceDate",
+            "invoiceDueDate",
             "orderDate",
+            "deliveryDate",
         ),
     ),
     "RegisterInvoicePayment": MethodSpec(
@@ -941,7 +945,9 @@ def _sales_payload(task_analysis: TaskAnalysis, *, combined_text: str) -> dict[s
             "customer": _customer_payload(task_analysis),
             "orderLines": order_lines,
             "orderDate": default_action_date(task_analysis, "orderDate", "date"),
+            "deliveryDate": default_action_date(task_analysis, "deliveryDate", "orderDate", "date"),
             "invoiceDate": default_action_date(task_analysis, "invoiceDate", "orderDate", "date"),
+            "invoiceDueDate": default_action_date(task_analysis, "invoiceDueDate", "paymentDate", "invoiceDate", "date"),
             "paymentDate": default_action_date(task_analysis, "paymentDate", "invoiceDate", "date"),
             "paymentTypeDescription": lookup_analysis_value(
                 task_analysis,
@@ -1067,7 +1073,9 @@ def _project_time_invoice_payload(task_analysis: TaskAnalysis) -> dict[str, Any]
             "hourlyRate": method_arguments.get("hourlyRate"),
             "comment": method_arguments.get("comment"),
             "orderDate": method_arguments.get("orderDate"),
+            "deliveryDate": method_arguments.get("deliveryDate") or method_arguments.get("orderDate"),
             "invoiceDate": method_arguments.get("invoiceDate"),
+            "invoiceDueDate": method_arguments.get("invoiceDueDate") or method_arguments.get("invoiceDate"),
             "createInvoice": True,
         }
     )
@@ -1089,6 +1097,7 @@ def _extract_order_lines(task_analysis: TaskAnalysis) -> list[dict[str, Any]]:
                 or entry.get("amount")
             )
             count = entry.get("count") or entry.get("quantity") or 1
+            vat_type = _extract_vat_type_reference(entry)
             order_lines.append(
                 _drop_empty(
                     {
@@ -1097,6 +1106,7 @@ def _extract_order_lines(task_analysis: TaskAnalysis) -> list[dict[str, Any]]:
                         "description": str(description or ""),
                         "unitPriceExcludingVatCurrency": _coerce_number(unit_price),
                         "count": _coerce_number(count) or 1,
+                        "vatType": vat_type,
                     }
                 )
             )
@@ -1117,6 +1127,7 @@ def _extract_order_lines(task_analysis: TaskAnalysis) -> list[dict[str, Any]]:
         product_number = entry.get("productNumber")
         if product_number in {None, ""}:
             continue
+        vat_type = _extract_vat_type_reference(entry)
         order_lines.append(
             _drop_empty(
                 {
@@ -1125,10 +1136,39 @@ def _extract_order_lines(task_analysis: TaskAnalysis) -> list[dict[str, Any]]:
                     "description": str(entry.get("description") or ""),
                     "unitPriceExcludingVatCurrency": _coerce_number(entry.get("unitPrice")),
                     "count": _coerce_number(entry.get("count")) or 1,
+                    "vatType": vat_type,
                 }
             )
         )
     return order_lines
+
+
+def _extract_vat_type_reference(entry: dict[str, Any]) -> dict[str, Any] | None:
+    nested_vat_type = entry.get("vatType")
+    if isinstance(nested_vat_type, dict):
+        return _drop_empty(
+            {
+                "id": nested_vat_type.get("id"),
+                "number": nested_vat_type.get("number") or nested_vat_type.get("code"),
+                "name": nested_vat_type.get("name"),
+                "displayName": nested_vat_type.get("displayName"),
+                "percentage": _coerce_number(
+                    nested_vat_type.get("percentage") or nested_vat_type.get("vatRate") or nested_vat_type.get("rate")
+                ),
+            }
+        ) or None
+
+    return _drop_empty(
+        {
+            "id": entry.get("vatTypeId"),
+            "number": entry.get("vatTypeNumber") or entry.get("vatCode"),
+            "name": entry.get("vatTypeName"),
+            "displayName": entry.get("vatTypeDisplayName"),
+            "percentage": _coerce_number(
+                entry.get("vatRate") or entry.get("vatPercentage") or entry.get("percentage")
+            ),
+        }
+    ) or None
 
 
 def _extract_dimension_values(task_analysis: TaskAnalysis) -> list[str]:

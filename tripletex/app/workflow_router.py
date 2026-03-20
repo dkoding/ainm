@@ -303,7 +303,10 @@ class DeterministicWorkflowRouter:
         create_invoice = bool(internal_task.payload.get("createInvoice"))
         register_payment = bool(internal_task.payload.get("registerPayment"))
 
-        if create_invoice and _has_success(history, method="PUT", path_suffix="/:invoice"):
+        if create_invoice and (
+            _has_success(history, method="PUT", path_suffix="/:invoice")
+            or _has_success_exact(history, method="POST", path="/invoice")
+        ):
             return PlannerDecision(kind="finish", reason="The sales workflow already completed its invoice step.")
         if not create_invoice and _has_success_exact(history, method="POST", path="/order"):
             return PlannerDecision(kind="finish", reason="The order has already been created.")
@@ -342,6 +345,25 @@ class DeterministicWorkflowRouter:
 
         order_lines = list(internal_task.payload.get("orderLines") or [])
         if not order_lines:
+            return None
+
+        vat_lookup_params = _vat_type_lookup_params(
+            order_lines,
+            vat_date=internal_task.payload.get("orderDate") or internal_task.payload.get("deliveryDate"),
+        )
+        if vat_lookup_params is not None and not _all_order_line_vat_types_resolved(history, order_lines):
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/ledger/vatType",
+                predicate=lambda request: _request_contains_params(request, vat_lookup_params),
+            ):
+                return _action(
+                    reason="Resolve outgoing VAT types before creating order lines with explicit VAT rates.",
+                    method="GET",
+                    path="/ledger/vatType",
+                    params=vat_lookup_params,
+                )
             return None
 
         for line in order_lines:
@@ -417,8 +439,14 @@ class DeterministicWorkflowRouter:
         if order_id in {None, ""}:
             return None
 
+        invoice_date = internal_task.payload.get("invoiceDate") or task_analysis.payload_fields.get("invoiceDate")
+        invoice_due_date = (
+            internal_task.payload.get("invoiceDueDate")
+            or internal_task.payload.get("paymentDate")
+            or invoice_date
+        )
         params: dict[str, Any] = {
-            "invoiceDate": internal_task.payload.get("invoiceDate") or task_analysis.payload_fields.get("invoiceDate"),
+            "invoiceDate": invoice_date,
         }
 
         if register_payment:
@@ -447,17 +475,53 @@ class DeterministicWorkflowRouter:
                 if payment_type_id in {None, ""}:
                     return None
 
-            total_amount = _sales_total_amount(internal_task)
+            total_amount = _sales_total_amount(internal_task, history=history)
             if total_amount in {None, ""}:
                 return None
             params["paymentTypeId"] = payment_type_id
             params["paidAmount"] = total_amount
 
+        invoice_action_path = f"/order/{order_id}/:invoice"
+        invoice_action_params = _drop_empty(params)
+        if _has_api_error_exact_where(
+            history,
+            method="PUT",
+            path=invoice_action_path,
+            predicate=lambda request: _request_contains_params(request, invoice_action_params),
+        ):
+            invoice_payload = _build_invoice_payload_from_order(
+                order_id=order_id,
+                customer_id=customer.get("id"),
+                invoice_date=invoice_date,
+                invoice_due_date=invoice_due_date,
+            )
+            invoice_query = _drop_empty(
+                {
+                    "paymentTypeId": invoice_action_params.get("paymentTypeId"),
+                    "paidAmount": invoice_action_params.get("paidAmount"),
+                }
+            )
+            if _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/invoice",
+                predicate=lambda request: _request_contains_params(request, invoice_query)
+                and _request_json_contains(request, invoice_payload),
+            ):
+                return None
+            return _action(
+                reason="Fallback to direct invoice creation from the resolved order after the order invoice action returned a validation error.",
+                method="POST",
+                path="/invoice",
+                params=invoice_query,
+                json=invoice_payload,
+            )
+
         return _action(
             reason="Convert the resolved order into an invoice using the canonical Tripletex action endpoint.",
             method="PUT",
-            path=f"/order/{order_id}/:invoice",
-            params=_drop_empty(params),
+            path=invoice_action_path,
+            params=invoice_action_params,
         )
 
     def _next_project_time_invoice_workflow(
@@ -796,7 +860,11 @@ class DeterministicWorkflowRouter:
                 json=update_entry_payload,
             )
 
-        if _has_success(history, method="PUT", path_suffix="/:invoice"):
+        if _has_success(history, method="PUT", path_suffix="/:invoice") or _has_success_exact(
+            history,
+            method="POST",
+            path="/invoice",
+        ):
             return PlannerDecision(kind="finish", reason="The timesheet and invoice workflow already completed.")
 
         order = _resolved_order_from_history(history)
@@ -828,11 +896,41 @@ class DeterministicWorkflowRouter:
         if order_id in {None, ""}:
             return None
 
+        invoice_date = payload.get("invoiceDate") or entry_date
+        invoice_due_date = payload.get("invoiceDueDate") or invoice_date
+        invoice_action_path = f"/order/{order_id}/:invoice"
+        invoice_action_params = {"invoiceDate": invoice_date}
+        if _has_api_error_exact_where(
+            history,
+            method="PUT",
+            path=invoice_action_path,
+            predicate=lambda request: _request_contains_params(request, invoice_action_params),
+        ):
+            invoice_payload = _build_invoice_payload_from_order(
+                order_id=order_id,
+                customer_id=customer_id,
+                invoice_date=invoice_date,
+                invoice_due_date=invoice_due_date,
+            )
+            if _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/invoice",
+                predicate=lambda request: _request_json_contains(request, invoice_payload),
+            ):
+                return None
+            return _action(
+                reason="Fallback to direct invoice creation from the order after the order invoice action returned a validation error.",
+                method="POST",
+                path="/invoice",
+                json=invoice_payload,
+            )
+
         return _action(
             reason="Invoice the generated order for the logged project hours.",
             method="PUT",
-            path=f"/order/{order_id}/:invoice",
-            params={"invoiceDate": payload.get("invoiceDate") or entry_date},
+            path=invoice_action_path,
+            params=invoice_action_params,
         )
 
     def _next_invoice_payment(
@@ -1424,6 +1522,50 @@ def _resolved_product_by_ref(history: list[dict[str, Any]], ref: dict[str, Any] 
     return None
 
 
+def _resolved_vat_type_by_ref(history: list[dict[str, Any]], ref: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not ref:
+        return None
+    target_id = ref.get("id")
+    target_number = ref.get("number") or ref.get("vatCode") or ref.get("code")
+    target_name = ref.get("displayName") or ref.get("name")
+    target_percentage = ref.get("percentage") or ref.get("vatRate") or ref.get("rate")
+
+    target_id = str(target_id) if not _is_blank(target_id) else None
+    target_number = str(target_number) if not _is_blank(target_number) else None
+    target_name = str(target_name).lower() if not _is_blank(target_name) else None
+    target_percentage = float(target_percentage) if target_percentage not in {None, ""} else None
+
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        method = str(request.get("method") or "").upper()
+        path = str(request.get("path") or "")
+        candidates: list[dict[str, Any]] = []
+        if path == "/ledger/vatType" and method == "GET" and isinstance(response.get("values"), list):
+            candidates = [candidate for candidate in response["values"] if isinstance(candidate, dict)]
+        elif path.startswith("/ledger/vatType/") and method == "GET" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+
+        for candidate in candidates:
+            candidate_id = candidate.get("id")
+            if target_id and candidate_id not in {None, ""} and str(candidate_id) == target_id:
+                return candidate
+            if target_number and str(candidate.get("number") or "") == target_number:
+                return candidate
+            candidate_name = str(candidate.get("displayName") or candidate.get("name") or "").lower()
+            if target_name and candidate_name == target_name:
+                return candidate
+            candidate_percentage = candidate.get("percentage")
+            if target_percentage is not None and candidate_percentage not in {None, ""}:
+                if float(candidate_percentage) == target_percentage:
+                    return candidate
+        if len(candidates) == 1 and not any((target_id, target_number, target_name, target_percentage is not None)):
+            return candidates[0]
+    return None
+
+
 def _resolved_employee_by_ref(history: list[dict[str, Any]], ref: dict[str, Any] | None) -> dict[str, Any] | None:
     if not ref:
         return None
@@ -1701,6 +1843,7 @@ def _build_project_time_invoice_order_payload(
         "customer": {"id": customer_id},
         "project": {"id": project_id},
         "orderDate": order_date,
+        "deliveryDate": order_date,
         "orderLines": [
             {
                 "description": description,
@@ -1709,6 +1852,51 @@ def _build_project_time_invoice_order_payload(
             }
         ],
     }
+
+
+def _build_invoice_payload_from_order(
+    *,
+    order_id: Any,
+    customer_id: Any,
+    invoice_date: Any,
+    invoice_due_date: Any,
+) -> dict[str, Any]:
+    return _drop_empty(
+        {
+            "invoiceDate": invoice_date,
+            "invoiceDueDate": invoice_due_date or invoice_date,
+            "customer": {"id": customer_id},
+            "orders": [{"id": order_id}],
+        }
+    )
+
+
+def _vat_type_lookup_params(
+    order_lines: list[dict[str, Any]],
+    *,
+    vat_date: Any | None,
+) -> dict[str, Any] | None:
+    if not any(isinstance(line.get("vatType"), dict) for line in order_lines):
+        return None
+    return _drop_empty(
+        {
+            "typeOfVat": "OUTGOING",
+            "vatDate": vat_date,
+            "count": 100,
+            "fields": "id,name,displayName,number,percentage",
+        }
+    )
+
+
+def _all_order_line_vat_types_resolved(history: list[dict[str, Any]], order_lines: list[dict[str, Any]]) -> bool:
+    for line in order_lines:
+        vat_type_ref = line.get("vatType")
+        if not isinstance(vat_type_ref, dict):
+            continue
+        resolved = _resolved_vat_type_by_ref(history, vat_type_ref)
+        if resolved is None or resolved.get("id") in {None, ""}:
+            return False
+    return True
 
 
 def _resolved_customer_from_internal(history: list[dict[str, Any]], internal_task: InternalTask) -> dict[str, Any] | None:
@@ -1773,6 +1961,12 @@ def _build_order_payload_from_internal(
             order_line["product"] = {"id": product["id"]}
         if not _is_blank(line.get("description")):
             order_line["description"] = line["description"]
+        vat_type_ref = line.get("vatType")
+        if isinstance(vat_type_ref, dict):
+            vat_type = _resolved_vat_type_by_ref(history, vat_type_ref)
+            if vat_type is None or vat_type.get("id") in {None, ""}:
+                return None
+            order_line["vatType"] = {"id": vat_type["id"]}
         if line.get("unitPriceExcludingVatCurrency") not in {None, ""}:
             order_line["unitPriceExcludingVatCurrency"] = line["unitPriceExcludingVatCurrency"]
         order_lines.append(order_line)
@@ -1783,6 +1977,7 @@ def _build_order_payload_from_internal(
     payload: dict[str, Any] = {
         "customer": {"id": customer_id},
         "orderDate": internal_task.payload.get("orderDate"),
+        "deliveryDate": internal_task.payload.get("deliveryDate") or internal_task.payload.get("orderDate"),
         "orderLines": order_lines,
     }
     project = internal_task.payload.get("project")
@@ -1791,7 +1986,7 @@ def _build_order_payload_from_internal(
     return payload
 
 
-def _sales_total_amount(internal_task: InternalTask) -> float | None:
+def _sales_total_amount(internal_task: InternalTask, *, history: list[dict[str, Any]] | None = None) -> float | None:
     total = 0.0
     order_lines = list(internal_task.payload.get("orderLines") or [])
     if not order_lines:
@@ -1800,7 +1995,18 @@ def _sales_total_amount(internal_task: InternalTask) -> float | None:
         unit_price = line.get("unitPriceExcludingVatCurrency")
         if unit_price in {None, ""}:
             return None
-        total += float(unit_price) * float(line.get("count") or 1)
+        vat_percentage = None
+        vat_type_ref = line.get("vatType")
+        if isinstance(vat_type_ref, dict):
+            vat_percentage = vat_type_ref.get("percentage")
+            if vat_percentage in {None, ""} and history is not None:
+                resolved_vat_type = _resolved_vat_type_by_ref(history, vat_type_ref)
+                if resolved_vat_type is not None:
+                    vat_percentage = resolved_vat_type.get("percentage")
+        multiplier = 1.0
+        if vat_percentage not in {None, ""}:
+            multiplier += float(vat_percentage) / 100.0
+        total += float(unit_price) * float(line.get("count") or 1) * multiplier
     return total
 
 
@@ -2365,6 +2571,30 @@ def _has_success_exact_where(
         if str(request.get("method") or "").upper() != method.upper():
             continue
         if str(request.get("path") or "") != path:
+            continue
+        if predicate is not None and not predicate(request):
+            continue
+        return True
+    return False
+
+
+def _has_api_error_exact_where(
+    history: list[dict[str, Any]],
+    *,
+    method: str,
+    path: str,
+    predicate: Any | None,
+) -> bool:
+    for entry in reversed(history):
+        error = entry.get("error")
+        if not isinstance(error, dict):
+            continue
+        request = entry.get("request") or {}
+        if str(request.get("method") or "").upper() != method.upper():
+            continue
+        if str(request.get("path") or "") != path:
+            continue
+        if error.get("type") != "tripletex_api":
             continue
         if predicate is not None and not predicate(request):
             continue

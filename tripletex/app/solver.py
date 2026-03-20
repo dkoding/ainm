@@ -273,6 +273,33 @@ class TripletexSolver:
                     _trim_payload(command.json_body),
                 )
                 execution_started_at = time.monotonic()
+                duplicate_error = _prior_repeatable_tripletex_error(history, command)
+                if duplicate_error is not None:
+                    logger.warning(
+                        "solve.command.skipped_duplicate_api_failure step=%s method=%s path=%s status=%s",
+                        attempt_index + 1,
+                        command.method,
+                        command.path,
+                        duplicate_error.get("status_code"),
+                    )
+                    history.append(
+                        {
+                            "reason": command.reason,
+                            "request": {
+                                "method": command.method,
+                                "path": command.path,
+                                "params": command.params,
+                                "json": command.json_body,
+                            },
+                            "error": {
+                                "type": "duplicate_tripletex_api",
+                                "message": "Skipped repeating an identical Tripletex API request that already failed with a non-retryable 4xx error.",
+                                "status_code": duplicate_error.get("status_code"),
+                                "payload": duplicate_error.get("payload"),
+                            },
+                        }
+                    )
+                    continue
                 try:
                     executor.validate(command)
                     if api_calls_used >= self.max_api_calls:
@@ -503,6 +530,29 @@ def _compact_task_analysis(task_analysis: Any) -> dict[str, Any]:
         "ambiguity_notes": task_analysis.ambiguity_notes[:6],
         "completion_signals": task_analysis.completion_signals[:6],
     }
+
+
+def _prior_repeatable_tripletex_error(history: list[dict[str, Any]], command: Any) -> dict[str, Any] | None:
+    for entry in reversed(history):
+        error = entry.get("error")
+        if not isinstance(error, dict):
+            continue
+        if error.get("type") != "tripletex_api":
+            continue
+        status_code = error.get("status_code")
+        if not isinstance(status_code, int) or status_code < 400 or status_code >= 500 or status_code == 429:
+            continue
+        request = entry.get("request") or {}
+        if str(request.get("method") or "").upper() != command.method.upper():
+            continue
+        if str(request.get("path") or "") != command.path:
+            continue
+        if request.get("params") != command.params:
+            continue
+        if request.get("json") != command.json_body:
+            continue
+        return error
+    return None
 
 
 __all__ = [

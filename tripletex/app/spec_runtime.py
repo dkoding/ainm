@@ -872,12 +872,25 @@ def _resolve_ledger_account_reference(ref: dict[str, Any], task_analysis: TaskAn
 def _resolve_vat_type_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
     target_code = _mapping_value(ref, "code", "number", "vatCode")
     target_name = _normalized_text(_mapping_value(ref, "name", "description", "displayName"))
+    target_percentage = _safe_float(_mapping_value(ref, "percentage", "vatRate", "rate"))
     for candidate in _history_candidates(history, "/ledger/vatType"):
         if target_code not in {None, ""} and str(candidate.get("code") or candidate.get("number")) == str(target_code):
             return _candidate_id(candidate)
-        if target_name and _normalized_text(candidate.get("description") or candidate.get("displayName")) == target_name:
+        if target_name and _normalized_text(candidate.get("description") or candidate.get("displayName") or candidate.get("name")) == target_name:
+            return _candidate_id(candidate)
+        candidate_percentage = _safe_float(candidate.get("percentage") or candidate.get("vatRate") or candidate.get("rate"))
+        if target_percentage is not None and candidate_percentage is not None and candidate_percentage == target_percentage:
             return _candidate_id(candidate)
     return None
+
+
+def _safe_float(value: Any) -> float | None:
+    if value in {None, ""}:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _resolve_contact_reference(ref: dict[str, Any], task_analysis: TaskAnalysis, history: list[dict[str, Any]]) -> Any | None:
