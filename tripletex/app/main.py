@@ -4,20 +4,38 @@ import logging
 import time
 import uuid
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request, Response
 
 from .client import TripletexAPIError
 from .execution import CommandExecutionError
 from .logging_utils import configure_logging, reset_request_id, set_request_id
 from .models import SolveRequest, SolveResponse
 from .openapi_registry import OpenAPIRegistryError
-from .solver import PlannerError, SolveError, TripletexSolver, UnauthorizedError
+from .solver import PlannerError, SolveError, TaskInputError, TripletexSolver, UnauthorizedError
 
 configure_logging()
 
 app = FastAPI(title="Tripletex Agent")
 solver = TripletexSolver()
 logger = logging.getLogger(__name__)
+
+
+@app.get("/", include_in_schema=False)
+def root() -> dict[str, object]:
+    return {
+        "service": "tripletex-agent",
+        "status": "ok",
+        "endpoints": {
+            "health": "/health",
+            "solve": "/solve",
+            "solve_alias": "/",
+        },
+    }
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon() -> Response:
+    return Response(status_code=204)
 
 
 @app.get("/health")
@@ -65,9 +83,12 @@ def _handle_solve(request: SolveRequest, authorization: str | None) -> SolveResp
     except UnauthorizedError as exc:
         logger.warning("Unauthorized /solve request: %s", exc)
         raise HTTPException(status_code=401, detail=str(exc)) from exc
+    except TaskInputError as exc:
+        logger.warning("TaskInputError while handling /solve: %s", exc)
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except PlannerError as exc:
         logger.exception("PlannerError while handling /solve")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=_planner_status_code(exc), detail=_planner_detail(exc)) from exc
     except CommandExecutionError as exc:
         logger.exception("CommandExecutionError while handling /solve")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -130,3 +151,16 @@ def _redact_base_url(base_url: str) -> str:
     scheme, rest = base_url.split("://", 1)
     host = rest.split("/", 1)[0]
     return f"{scheme}://{host}"
+
+
+def _planner_status_code(exc: PlannerError) -> int:
+    message = str(exc).upper()
+    if "RESOURCE_EXHAUSTED" in message or "429" in message:
+        return 503
+    return 500
+
+
+def _planner_detail(exc: PlannerError) -> str:
+    if _planner_status_code(exc) == 503:
+        return f"Vertex AI planning capacity is temporarily exhausted. Retry later. {exc}"
+    return str(exc)
