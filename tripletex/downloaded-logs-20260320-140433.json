@@ -1,0 +1,150 @@
+[
+  {
+    "insertId": "69bd4376000c7b77bb8a1178",
+    "httpRequest": {
+      "requestMethod": "POST",
+      "requestUrl": "https://tripletex-agent-87381792866.europe-north1.run.app/solve",
+      "requestSize": "837",
+      "status": 500,
+      "responseSize": "195",
+      "userAgent": "python-httpx/0.28.1",
+      "remoteIp": "34.34.240.87",
+      "serverIp": "34.143.73.2",
+      "latency": "62.227927846s",
+      "protocol": "HTTP/1.1"
+    },
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "ai-nm26osl-1720",
+        "location": "europe-north1",
+        "service_name": "tripletex-agent",
+        "revision_name": "tripletex-agent-00003-482",
+        "configuration_name": "tripletex-agent"
+      }
+    },
+    "timestamp": "2026-03-20T12:53:12.584209Z",
+    "severity": "ERROR",
+    "labels": {
+      "instanceId": "00da6cd2c41e068b8e8643991253a0c9e760cc868c37257ba4d95cbc3a69304251bddab20f06a8cba858b4bb6ff0cfb54497a72948270c21047be0e1eca87afc3d79c9c6467ca74b91ac8ad5fd"
+    },
+    "logName": "projects/ai-nm26osl-1720/logs/run.googleapis.com%2Frequests",
+    "trace": "projects/ai-nm26osl-1720/traces/5f589d829370266f1616afe8cb3b5ac6",
+    "receiveTimestamp": "2026-03-20T12:54:14.821588904Z",
+    "spanId": "8eac778bb5342c61",
+    "traceSampled": true
+  },
+  {
+    "textPayload": "Traceback (most recent call last):\n  File \"/app/app/execution.py\", line 34, in _validate\n    self.registry.validate_command(command)\n  File \"/app/app/openapi_registry.py\", line 59, in validate_command\n    raise OpenAPIValidationError(f\"Command does not match any OpenAPI operation: {command.method} {command.path}\")\napp.openapi_registry.OpenAPIValidationError: Command does not match any OpenAPI operation: GET /vatType",
+    "insertId": "69bd4376000c74efd02ac5d7",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "tripletex-agent",
+        "revision_name": "tripletex-agent-00003-482",
+        "service_name": "tripletex-agent",
+        "project_id": "ai-nm26osl-1720",
+        "location": "europe-north1"
+      }
+    },
+    "timestamp": "2026-03-20T12:54:14.816367Z",
+    "severity": "ERROR",
+    "labels": {
+      "instanceId": "00da6cd2c41e068b8e8643991253a0c9e760cc868c37257ba4d95cbc3a69304251bddab20f06a8cba858b4bb6ff0cfb54497a72948270c21047be0e1eca87afc3d79c9c6467ca74b91ac8ad5fd"
+    },
+    "logName": "projects/ai-nm26osl-1720/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-03-20T12:54:15.044659048Z",
+    "errorGroups": [
+      {
+        "id": "CKPu4Yq7j4rTTA"
+      }
+    ]
+  },
+  {
+    "textPayload": "Traceback (most recent call last):\n  File \"/app/app/main.py\", line 65, in solve\n    return solver.solve(request, authorization)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/app/app/solver.py\", line 123, in solve\n    response_payload = executor.execute(command)\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/app/app/execution.py\", line 20, in execute\n    self._validate(command)\n  File \"/app/app/execution.py\", line 36, in _validate\n    raise CommandExecutionError(str(exc)) from exc\napp.execution.CommandExecutionError: Command does not match any OpenAPI operation: GET /vatType",
+    "insertId": "69bd4376000c7502359c1daf",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "europe-north1",
+        "project_id": "ai-nm26osl-1720",
+        "service_name": "tripletex-agent",
+        "revision_name": "tripletex-agent-00003-482",
+        "configuration_name": "tripletex-agent"
+      }
+    },
+    "timestamp": "2026-03-20T12:54:14.816386Z",
+    "severity": "ERROR",
+    "labels": {
+      "instanceId": "00da6cd2c41e068b8e8643991253a0c9e760cc868c37257ba4d95cbc3a69304251bddab20f06a8cba858b4bb6ff0cfb54497a72948270c21047be0e1eca87afc3d79c9c6467ca74b91ac8ad5fd"
+    },
+    "logName": "projects/ai-nm26osl-1720/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-03-20T12:54:15.044659048Z",
+    "errorGroups": [
+      {
+        "id": "CJWn2uG6zcW6XA"
+      }
+    ]
+  },
+  {
+    "insertId": "69bd4596000ed0f2831fc5fc",
+    "httpRequest": {
+      "requestMethod": "POST",
+      "requestUrl": "https://tripletex-agent-87381792866.europe-north1.run.app/solve",
+      "requestSize": "869",
+      "status": 500,
+      "responseSize": "190",
+      "userAgent": "python-httpx/0.28.1",
+      "remoteIp": "34.34.240.133",
+      "serverIp": "34.143.76.2",
+      "latency": "87.559914044s",
+      "protocol": "HTTP/1.1"
+    },
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "tripletex-agent-00004-s7p",
+        "service_name": "tripletex-agent",
+        "configuration_name": "tripletex-agent",
+        "project_id": "ai-nm26osl-1720",
+        "location": "europe-north1"
+      }
+    },
+    "timestamp": "2026-03-20T13:01:51.404900Z",
+    "severity": "ERROR",
+    "labels": {
+      "instanceId": "00da6cd2c476c2ce7f20c9fec1543c1ec9a268104925cedec646d149c900dd83c344be4dcca7d0c32ec158ef88a0e4dd5e37fbb8cb0aaff7c1c7c6b9a0c43c8fe15099197cd036f59318ad36b7"
+    },
+    "logName": "projects/ai-nm26osl-1720/logs/run.googleapis.com%2Frequests",
+    "trace": "projects/ai-nm26osl-1720/traces/3824cc69849acaebb32362906b2a5621",
+    "receiveTimestamp": "2026-03-20T13:03:18.976716555Z",
+    "spanId": "b3d9c98291f741a3",
+    "traceSampled": true
+  },
+  {
+    "textPayload": "Traceback (most recent call last):\n  File \"/app/app/main.py\", line 65, in solve\n    return solver.solve(request, authorization)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/app/app/solver.py\", line 197, in solve\n    raise SolveError(f\"Planner exhausted its {self.max_steps}-step budget before finishing.\")\napp.solver.SolveError: Planner exhausted its 8-step budget before finishing.",
+    "insertId": "69bd4596000ecc843f83a900",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "europe-north1",
+        "project_id": "ai-nm26osl-1720",
+        "service_name": "tripletex-agent",
+        "revision_name": "tripletex-agent-00004-s7p",
+        "configuration_name": "tripletex-agent"
+      }
+    },
+    "timestamp": "2026-03-20T13:03:18.969860Z",
+    "severity": "ERROR",
+    "labels": {
+      "instanceId": "00da6cd2c476c2ce7f20c9fec1543c1ec9a268104925cedec646d149c900dd83c344be4dcca7d0c32ec158ef88a0e4dd5e37fbb8cb0aaff7c1c7c6b9a0c43c8fe15099197cd036f59318ad36b7"
+    },
+    "logName": "projects/ai-nm26osl-1720/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-03-20T13:03:18.983151674Z",
+    "errorGroups": [
+      {
+        "id": "CI7flYa8obfINQ"
+      }
+    ]
+  }
+]

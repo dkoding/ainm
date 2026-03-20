@@ -3,3 +3,5 @@
 __pycache__/
 /.gcloud/
 /**/*.zip
+/norgesgruppen-data/.venv
+/norgesgruppen-data/data

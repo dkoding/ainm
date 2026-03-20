@@ -27,6 +27,9 @@ def main() -> None:
     product_code_counts: Counter[str] = Counter()
     group_counts: Counter[str] = Counter()
     corrected_count = 0
+    corrected_field_count = 0
+    product_code_field_count = 0
+    product_name_field_count = 0
     images_with_annotations = 0
 
     for image_id, image in images_by_id.items():
@@ -37,9 +40,14 @@ def main() -> None:
     for annotation in coco.get("annotations", []):
         category_id = int(annotation["category_id"])
         category_counts[category_id] += 1
-        product_code = str(annotation.get("product_code", "missing"))
-        product_code_counts[product_code] += 1
-        if annotation.get("corrected"):
+        if "product_code" in annotation:
+            product_code_counts[str(annotation["product_code"])] += 1
+            product_code_field_count += 1
+        if "product_name" in annotation:
+            product_name_field_count += 1
+        if "corrected" in annotation:
+            corrected_field_count += 1
+        if annotation.get("corrected") is True:
             corrected_count += 1
 
     missing_images: list[str] = []
@@ -55,8 +63,13 @@ def main() -> None:
         "image_count": len(images_by_id),
         "annotation_count": len(coco.get("annotations", [])),
         "category_count": len(coco.get("categories", [])),
+        "min_category_id": min(category_counts) if category_counts else None,
+        "max_category_id": max(category_counts) if category_counts else None,
         "images_with_annotations": images_with_annotations,
         "corrected_annotation_count": corrected_count,
+        "corrected_field_annotation_count": corrected_field_count,
+        "product_code_field_annotation_count": product_code_field_count,
+        "product_name_field_annotation_count": product_name_field_count,
         "avg_annotations_per_image": round(len(coco.get("annotations", [])) / max(1, len(images_by_id)), 3),
         "group_counts": dict(sorted(group_counts.items())),
         "top_categories": [
@@ -70,7 +83,7 @@ def main() -> None:
         "top_product_codes": [
             {"product_code": product_code, "count": count}
             for product_code, count in product_code_counts.most_common(args.top_k)
-        ],
+        ] if product_code_counts else [],
         "missing_image_count": len(missing_images),
         "missing_images_sample": missing_images[: min(20, len(missing_images))],
     }
@@ -84,8 +97,12 @@ def print_summary(summary: dict) -> None:
     print(f"images={summary['image_count']}")
     print(f"annotations={summary['annotation_count']}")
     print(f"categories={summary['category_count']}")
+    print(f"category_id_range={summary['min_category_id']}..{summary['max_category_id']}")
     print(f"images_with_annotations={summary['images_with_annotations']}")
     print(f"corrected_annotations={summary['corrected_annotation_count']}")
+    print(f"corrected_field_annotations={summary['corrected_field_annotation_count']}")
+    print(f"product_code_field_annotations={summary['product_code_field_annotation_count']}")
+    print(f"product_name_field_annotations={summary['product_name_field_annotation_count']}")
     print(f"avg_annotations_per_image={summary['avg_annotations_per_image']}")
     print(f"missing_image_count={summary['missing_image_count']}")
     print("groups=" + ", ".join(f"{name}:{count}" for name, count in summary["group_counts"].items()))
@@ -95,6 +112,13 @@ def print_summary(summary: dict) -> None:
             f"{entry['category_id']}:{entry['count']}" for entry in summary["top_categories"]
         )
     )
+    if summary["top_product_codes"]:
+        print(
+            "top_product_codes="
+            + ", ".join(
+                f"{entry['product_code']}:{entry['count']}" for entry in summary["top_product_codes"]
+            )
+        )
 
 
 if __name__ == "__main__":

@@ -192,6 +192,7 @@ class UltralyticsPredictor:
         import torch
         from ultralytics import YOLO
 
+        patch_torch_load_for_ultralytics(torch)
         backend_config = config.get("ultralytics", {})
         self.class_mapper = class_mapper
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -231,6 +232,20 @@ class UltralyticsPredictor:
                     )
                 )
         return predictions
+
+
+def patch_torch_load_for_ultralytics(torch_module) -> None:
+    original_load = torch_module.load
+    if getattr(original_load, "_ngd_force_weights_only_false", False):
+        return
+
+    def patched_load(*args, **kwargs):
+        # ultralytics 8.1.0 checkpoints expect the pre-2.6 torch.load behavior.
+        kwargs.setdefault("weights_only", False)
+        return original_load(*args, **kwargs)
+
+    patched_load._ngd_force_weights_only_false = True
+    torch_module.load = patched_load
 
 
 class OnnxPredictor:

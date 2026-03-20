@@ -71,6 +71,7 @@ def main() -> None:
         return
 
     try:
+        patch_torch_load_for_ultralytics()
         from ultralytics import YOLO
     except ImportError as exc:
         raise SystemExit("ultralytics is required to launch training. Re-run with --prepare-only if needed.") from exc
@@ -86,6 +87,22 @@ def main() -> None:
         name=args.name,
         workers=args.workers,
     )
+
+
+def patch_torch_load_for_ultralytics() -> None:
+    import torch
+
+    original_load = torch.load
+    if getattr(original_load, "_ngd_force_weights_only_false", False):
+        return
+
+    def patched_load(*args, **kwargs):
+        # ultralytics 8.1.0 checkpoints rely on full checkpoint deserialization.
+        kwargs.setdefault("weights_only", False)
+        return original_load(*args, **kwargs)
+
+    patched_load._ngd_force_weights_only_false = True
+    torch.load = patched_load
 
 
 def load_split(args: argparse.Namespace, coco: dict) -> dict:
