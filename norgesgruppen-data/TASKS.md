@@ -9,6 +9,7 @@
 - [x] Add `scripts/smoke_submission.py` to run `submission/run.py` locally and validate the output schema.
 - [x] Add `scripts/build_submission.py` to create a correctly structured submission zip.
 - [x] Add `scripts/preflight_submission.py` to chain validation, smoke testing, and zip creation.
+- [x] Add `scripts/score_submission_run.py` to stage trained weights, run the real submission path, and record score/runtime/package metrics.
 - [x] Add `scripts/summarize_dataset.py` to inspect the COCO dataset and emit summary statistics.
 - [x] Add `scripts/make_splits.py` to create reproducible train/validation splits.
 - [x] Add `scripts/evaluate_local.py` to approximate the official hybrid score locally.
@@ -40,4 +41,4 @@ Real-data status:
 - The end-to-end submission artifact was run on the validation split and scored locally.
 - Current local validation result from the staged submission artifact is `0.0`, so the trained baseline is only a smoke baseline, not a competitive model yet.
 - A weighted submission zip was built successfully at `dist/submission_trained.zip`.
-- The current WSL2 environment does not expose a usable CUDA/DirectML/NPU backend to Python. The host reports `AMD Radeon(TM) 880M Graphics`, but local training/inference here ran on CPU.
+- The current training environment is assumed to expose a usable NVIDIA GPU (`NVIDIA RTX 3090`) to Python, so the GPU plan should be executed with CUDA enabled and `device 0`.

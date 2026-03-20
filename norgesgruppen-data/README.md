@@ -24,6 +24,7 @@ What is included here:
 - `scripts/smoke_submission.py`: local runner that executes `submission/run.py` and validates the output schema.
 - `scripts/build_submission.py`: zip builder that keeps `run.py` at the archive root.
 - `scripts/preflight_submission.py`: one-command local preflight for validate → smoke → build → validate.
+- `scripts/score_submission_run.py`: stage a trained checkpoint into `submission/`, run the real submission path, score it locally, and record runtime/package metrics.
 - `scripts/summarize_dataset.py`: COCO dataset summary script.
 - `scripts/make_splits.py`: reproducible train/validation split generator.
 - `scripts/evaluate_local.py`: local hybrid-score approximation.
@@ -57,6 +58,20 @@ python3 scripts/make_splits.py /path/to/annotations.json --output data/splits/de
 python3 scripts/train_yolov8.py /path/to/annotations.json /path/to/images --split data/splits/default_split.json --prepare-only
 ```
 
+GPU scoring workflow:
+
+```bash
+python3 scripts/score_submission_run.py \
+  /path/to/annotations.json \
+  /path/to/val/images \
+  --split data/splits/default_split.json \
+  --weights runs/ngd/yolov8m_960_e100/weights/best.pt \
+  --predictions-output data/reports/yolov8m_960_e100_predictions.json \
+  --output data/reports/yolov8m_960_e100_eval.json \
+  --output-zip dist/yolov8m_960_e100.zip \
+  --fail-on-empty
+```
+
 Example real-data outputs generated in this repository:
 
 - `data/reports/dataset_summary.json`
@@ -81,4 +96,4 @@ Supported default weight locations:
 
 If your trained model uses class indices that do not match the original COCO `category_id` values, place a generated `class_map.json` next to `run.py`. `scripts/train_yolov8.py` writes one automatically.
 
-The default config still uses `detection_only: true` and `allow_empty_predictions: true`, which is appropriate for smoke testing and initial submission scaffolding. Before real leaderboard submissions, switch to a production config that loads a real model and fails fast if the weights are missing or incompatible.
+The checked-in defaults are production-oriented: `detection_only: false` and `allow_empty_predictions: false`. Use `scripts/smoke_submission.py` without `--fail-on-empty` when you only want schema validation on a placeholder scaffold.

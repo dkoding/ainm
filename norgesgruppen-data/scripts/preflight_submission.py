@@ -17,6 +17,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--image-dir", type=Path, help="Optional directory of real images for the smoke test.")
     parser.add_argument("--skip-smoke", action="store_true", help="Skip running the local smoke test.")
+    parser.add_argument(
+        "--fail-on-empty",
+        action="store_true",
+        help="Fail the smoke test if the submission writes zero predictions.",
+    )
     return parser.parse_args()
 
 
@@ -32,6 +37,8 @@ def main() -> None:
         smoke_command = [sys.executable, str(scripts_dir / "smoke_submission.py"), str(submission_dir)]
         if args.image_dir:
             smoke_command.extend(["--image-dir", str(args.image_dir.resolve())])
+        if args.fail_on_empty:
+            smoke_command.append("--fail-on-empty")
         run_step(smoke_command)
 
     run_step([sys.executable, str(scripts_dir / "build_submission.py"), str(submission_dir), "--output", str(output_zip)])

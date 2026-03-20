@@ -4,7 +4,6 @@ import argparse
 import json
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 
@@ -24,30 +23,30 @@ def main() -> None:
     if not run_path.exists():
         raise SystemExit(f"Missing run.py in {submission_dir}")
 
-    with tempfile.TemporaryDirectory(prefix="ngd_smoke_") as temp_dir_name:
-        temp_dir = Path(temp_dir_name)
-        input_dir = args.image_dir.resolve() if args.image_dir else temp_dir / "input"
-        output_json = args.output_json.resolve() if args.output_json else temp_dir / "output" / "predictions.json"
-        if args.image_dir is None:
-            create_placeholder_image(input_dir / "img_00001.jpg")
+    scratch_dir = submission_dir / ".ngd_smoke"
+    scratch_dir.mkdir(parents=True, exist_ok=True)
+    input_dir = args.image_dir.resolve() if args.image_dir else scratch_dir / "input"
+    output_json = args.output_json.resolve() if args.output_json else scratch_dir / "output" / "predictions.json"
+    if args.image_dir is None:
+        create_placeholder_image(input_dir / "img_00001.jpg")
 
-        command = [
-            sys.executable,
-            str(run_path),
-            "--input",
-            str(input_dir),
-            "--output",
-            str(output_json),
-        ]
-        subprocess.run(command, check=True, cwd=submission_dir)
-        predictions = json.loads(output_json.read_text(encoding="utf-8"))
-        validate_predictions(predictions)
+    command = [
+        sys.executable,
+        str(run_path),
+        "--input",
+        str(input_dir),
+        "--output",
+        str(output_json),
+    ]
+    subprocess.run(command, check=True, cwd=submission_dir)
+    predictions = json.loads(output_json.read_text(encoding="utf-8"))
+    validate_predictions(predictions)
 
-        if args.fail_on_empty and not predictions:
-            raise SystemExit("Submission output is valid JSON but contains zero predictions.")
+    if args.fail_on_empty and not predictions:
+        raise SystemExit("Submission output is valid JSON but contains zero predictions.")
 
-        print(f"OK: {output_json}")
-        print(f"predictions={len(predictions)}")
+    print(f"OK: {output_json}")
+    print(f"predictions={len(predictions)}")
 
 
 def create_placeholder_image(path: Path) -> None:

@@ -130,7 +130,7 @@ def load_entries_from_directory(root: Path) -> list[SubmissionEntry]:
 
 def should_ignore_local_artifact(relative_name: str) -> bool:
     parts = PurePosixPath(relative_name).parts
-    return "__pycache__" in parts
+    return "__pycache__" in parts or any(part.startswith(".") for part in parts)
 
 
 def load_entries_from_zip(zip_path: Path) -> list[SubmissionEntry]:

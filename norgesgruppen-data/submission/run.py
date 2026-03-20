@@ -5,8 +5,8 @@ from pathlib import Path
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
 DEFAULT_CONFIG = {
     "backend": "auto",
-    "allow_empty_predictions": True,
-    "detection_only": True,
+    "allow_empty_predictions": False,
+    "detection_only": False,
     "confidence_threshold": 0.2,
     "image_size": 1280,
     "max_detections": 300,

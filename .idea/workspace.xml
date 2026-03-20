@@ -5,10 +5,18 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ac6b219e-15c9-495c-bd28-adaae518ad0e" name="Changes" comment="NG Data WIP">
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/leaderboard_latest.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/leaderboard_latest.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/loop_state.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/loop_state.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/missed_rounds.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/missed_rounds.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/team_round_scores.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/team_round_scores.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/score_submission_run.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/GPUPLAN.md" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/GPUPLAN.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/TASKS.md" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/TASKS.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/check_submission.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/check_submission.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/preflight_submission.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/preflight_submission.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/smoke_submission.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/smoke_submission.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/submission/best.pt" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/submission/best.pt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/submission/run.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/submission/run.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -17,15 +25,16 @@
   </component>
   <component name="CopilotPersistence">
     <persistenceIdMap>
+      <entry key="_C:/work/ainm" value="3BEDeKDteIln4mbS7WrxcBVwMV5" />
       <entry key="_D:/work/ainm" value="3BCkXh5BxZFumnKSOVllJK7ATcO" />
     </persistenceIdMap>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 8
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 8
+}</component>
   <component name="ProjectId" id="3BCkXh5BxZFumnKSOVllJK7ATcO" />
   <component name="ProjectViewState">
     <option name="showLibraryContents" value="true" />
@@ -34,6 +43,7 @@
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
     "SHELLCHECK.PATH": "C:\\Users\\dagko\\AppData\\Roaming\\JetBrains\\IntelliJIdea2025.2\\plugins\\Shell Script\\shellcheck.exe",
     "git-widget-placeholder": "master",
     "kotlin-language-version-configured": "true",
@@ -59,8 +69,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.28238.7" />
-        <option value="bundled-js-predefined-d6986cc7102b-a71380e98a7c-JavaScript-IU-252.28238.7" />
+        <option value="bundled-jdk-9823dce3aa75-fbdcb00ec9e3-intellij.indexing.shared.core-IU-251.28774.11" />
+        <option value="bundled-js-predefined-d6986cc7102b-09060db00ec0-JavaScript-IU-251.28774.11" />
       </set>
     </attachedChunks>
   </component>

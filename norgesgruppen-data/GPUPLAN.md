@@ -50,6 +50,11 @@ Recommended environment location:
 - matplotlib cache: `/tmp/mpl`
 - ultralytics cache/config: `/tmp/ultralytics`
 
+Current host assumption for this repository:
+
+- local training should see `NVIDIA RTX 3090` on CUDA device `0`
+- GPU setup failures should be treated as environment regressions, not as the expected baseline
+
 Install the sandbox-aligned package family:
 
 ```bash
@@ -216,6 +221,8 @@ Track these fields for every run:
 - average inference time
 - `best.pt` size
 - final zip size
+
+The repository now includes `scripts/score_submission_run.py` to automate this staging, scoring, timing, and packaging loop against the real `submission/run.py` path.
 
 The winning model is the one with the best local combined score while still fitting the submission runtime and packaging constraints.
 

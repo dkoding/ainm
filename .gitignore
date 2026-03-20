@@ -5,3 +5,15 @@ __pycache__/
 /**/*.zip
 /norgesgruppen-data/.venv
 /norgesgruppen-data/data
+/norgesgruppen-data/.vendor
+/norgesgruppen-data/.vendor_ultra
+/norgesgruppen-data/.pytest_cache
+/norgesgruppen-data/.mypy_cache
+/norgesgruppen-data/.coverage
+/norgesgruppen-data/.coverage.*
+/norgesgruppen-data/.cache
+/norgesgruppen-data/.eggs
+/norgesgruppen-data/.tox
+/norgesgruppen-data/wheels
+/norgesgruppen-data/runs
+/norgesgruppen-data/.tmp*
