@@ -9,12 +9,6 @@
       <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/loop_state.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/loop_state.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/missed_rounds.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/missed_rounds.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/team_round_scores.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/team_round_scores.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/TASKS.md" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/TASKS.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/submission/submission_config.json" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/submission/submission_config.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/internal_tasks.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/internal_tasks.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/solver.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/solver.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/workflow_router.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/workflow_router.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -77,7 +71,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1774000490808</updated>
-      <workItem from="1774000491924" duration="22449000" />
+      <workItem from="1774000491924" duration="22816000" />
     </task>
     <task id="LOCAL−00001" summary="Initial scaffolding">
       <option name="closed" value="true" />
@@ -156,7 +150,21 @@
       <option name="presentableId" value="LOCAL−00011" />
       <updated>1774044543188</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL−00012" summary="NG Data WIP">
+      <option name="closed" value="true" />
+      <created>1774045236105</created>
+      <option name="number" value="LOCAL−00012" />
+      <option name="presentableId" value="LOCAL−00012" />
+      <updated>1774045236105</updated>
+    </task>
+    <task id="LOCAL−00013" summary="NG Data WIP">
+      <option name="closed" value="true" />
+      <created>1774045241376</created>
+      <option name="number" value="LOCAL−00013" />
+      <option name="presentableId" value="LOCAL−00013" />
+      <updated>1774045241376</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
