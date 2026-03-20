@@ -37,6 +37,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project", default="runs/ngd")
     parser.add_argument("--name", default="yolov8-baseline")
     parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--close-mosaic", type=int, default=10, help="Disable mosaic this many epochs before the end.")
+    parser.add_argument("--single-cls", action="store_true", help="Train as a single-class detector for localization-first experiments.")
+    parser.add_argument("--cache", action="store_true", help="Enable Ultralytics dataset caching.")
+    parser.add_argument("--exist-ok", action="store_true", help="Allow reusing an existing Ultralytics run directory.")
+    parser.add_argument("--disable-amp", action="store_true", help="Disable Automatic Mixed Precision.")
     parser.add_argument("--prepare-only", action="store_true", help="Only prepare the YOLO dataset layout.")
     parser.add_argument("--clean", action="store_true", help="Delete the workspace before preparing data.")
     parser.add_argument(
@@ -77,15 +82,23 @@ def main() -> None:
         raise SystemExit("ultralytics is required to launch training. Re-run with --prepare-only if needed.") from exc
 
     model = YOLO(args.model)
+    project = Path(args.project)
+    if not project.is_absolute():
+        project = project.resolve()
     model.train(
         data=str(prepared["dataset_yaml_path"]),
         epochs=args.epochs,
         imgsz=args.imgsz,
         batch=args.batch,
         device=args.device,
-        project=args.project,
+        project=str(project),
         name=args.name,
         workers=args.workers,
+        close_mosaic=args.close_mosaic,
+        single_cls=args.single_cls,
+        cache=args.cache,
+        exist_ok=args.exist_ok,
+        amp=not args.disable_amp,
     )
 
 
