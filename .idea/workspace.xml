@@ -71,7 +71,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1774000490808</updated>
-      <workItem from="1774000491924" duration="22816000" />
+      <workItem from="1774000491924" duration="23263000" />
     </task>
     <task id="LOCAL−00001" summary="Initial scaffolding">
       <option name="closed" value="true" />
@@ -164,7 +164,14 @@
       <option name="presentableId" value="LOCAL−00013" />
       <updated>1774045241376</updated>
     </task>
-    <option name="localTasksCounter" value="14" />
+    <task id="LOCAL−00014" summary="NG Data WIP">
+      <option name="closed" value="true" />
+      <created>1774045763393</created>
+      <option name="number" value="LOCAL−00014" />
+      <option name="presentableId" value="LOCAL−00014" />
+      <updated>1774045763393</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
