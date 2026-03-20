@@ -36,6 +36,8 @@ Environment:
 - `GOOGLE_CLOUD_PROJECT`: required for Vertex AI planning.
 - `GOOGLE_CLOUD_LOCATION`: defaults to `europe-north1`.
 - `GEMINI_MODEL`: defaults to `gemini-2.0-flash`.
+- `CLOUD_RUN_SERVICE_NAME`: defaults to `tripletex-agent`.
+- `CLOUD_RUN_REGION`: defaults to `europe-north1`.
 - `TRIPLETEX_API_KEY`: optional shared secret checked against `Authorization: Bearer ...`.
 - `TRIPLETEX_MAX_STEPS`: defaults to `8`.
 - `TRIPLETEX_REQUEST_TIMEOUT`: defaults to `30`.
@@ -44,12 +46,7 @@ Environment:
 Cloud Run deploy:
 
 ```bash
-gcloud run deploy tripletex-agent \
-  --source . \
-  --region europe-north1 \
-  --allow-unauthenticated \
-  --memory 1Gi \
-  --timeout 300
+./deploy_cloud_run.sh
 ```
 
 Notes:
