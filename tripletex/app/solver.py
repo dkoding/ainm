@@ -35,6 +35,10 @@ class UnauthorizedError(SolveError):
     pass
 
 
+class TaskInputError(SolveError):
+    pass
+
+
 class TripletexSolver:
     def __init__(self) -> None:
         self.expected_api_key = os.getenv("TRIPLETEX_API_KEY", "").strip()
@@ -109,6 +113,7 @@ class TripletexSolver:
             missing_required_arguments = resolved_missing_required_arguments(
                 task_analysis,
                 method_name=internal_task.method_name,
+                internal_payload=internal_task.payload,
             )
             logger.info(
                 "solve.method.extract method=%s arguments=%s missing_required_arguments=%s flow_kind=%s operation=%s target_resource=%s search=%s payload=%s notes=%s",
@@ -123,11 +128,13 @@ class TripletexSolver:
                 list(internal_task.notes),
             )
             if internal_task.is_supported and missing_required_arguments:
-                raise SolveError(
+                raise TaskInputError(
                     "Method extraction is incomplete. "
                     f"method={internal_task.method_name} "
                     f"missing_required_arguments={missing_required_arguments} "
-                    f"arguments={_trim_payload(task_analysis.method_arguments)}"
+                    f"arguments={_trim_payload(task_analysis.method_arguments)} "
+                    f"payload={_trim_payload(internal_task.payload)} "
+                    f"notes={list(internal_task.notes)}"
                 )
             history: list[dict[str, Any]] = []
             api_calls_used = 0
@@ -151,14 +158,22 @@ class TripletexSolver:
                         history=history,
                     )
                     if decision is None:
-                        raise SolveError(
-                            "Deterministic method routing could not continue. "
-                            "Planner-generated API actions are disabled for supported methods. "
-                            f"method={internal_task.method_name} flow_kind={internal_task.flow_kind.value} "
-                            f"search={_trim_payload(internal_task.search)} "
-                            f"payload={_trim_payload(internal_task.payload)} "
-                            f"notes={list(internal_task.notes)} "
-                            f"history={_summarize_history(history)}"
+                        decision_source = "planner_fallback"
+                        logger.warning(
+                            "solve.step.router_exhausted step=%s method=%s flow_kind=%s history_entries=%s payload=%s notes=%s",
+                            attempt_index + 1,
+                            internal_task.method_name,
+                            internal_task.flow_kind.value,
+                            len(history),
+                            _trim_payload(internal_task.payload),
+                            list(internal_task.notes),
+                        )
+                        decision = planner.next_step(
+                            task_prompt=payload.prompt,
+                            task_analysis=task_analysis,
+                            attachments=attachments,
+                            history=history,
+                            remaining_steps=self.max_planner_steps - attempt_index,
                         )
                 else:
                     decision_source = "planner"

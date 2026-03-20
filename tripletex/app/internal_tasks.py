@@ -18,6 +18,7 @@ from .tasking import TaskAnalysis
 
 class FlowKind(str, Enum):
     SALES_WORKFLOW = "sales.workflow"
+    PROJECT_TIME_INVOICE_WORKFLOW = "project.time_invoice.workflow"
     INVOICE_REGISTER_PAYMENT = "invoice.register_payment"
     EMPLOYEE_ADMIN = "employee.admin"
     EMPLOYEE_UPSERT = "employee.upsert"
@@ -221,6 +222,34 @@ METHOD_SPECS: dict[str, MethodSpec] = {
             "registerPayment",
         ),
     ),
+    "RunProjectTimeInvoiceWorkflow": MethodSpec(
+        name="RunProjectTimeInvoiceWorkflow",
+        flow_kind=FlowKind.PROJECT_TIME_INVOICE_WORKFLOW,
+        operation="invoice",
+        target_resource="invoice",
+        description="Resolve or create the customer, employee, project, and activity; register timesheet hours; then create and invoice an order line from those logged hours.",
+        required_arguments=("hours", "hourlyRate"),
+        required_one_of=(
+            ("customerOrganizationNumber", "customerName"),
+            ("projectName", "projectNumber"),
+            ("activityName", "activityNumber"),
+        ),
+        optional_arguments=(
+            "customerName",
+            "customerOrganizationNumber",
+            "employeeEmail",
+            "employeeFirstName",
+            "employeeLastName",
+            "projectName",
+            "projectNumber",
+            "activityName",
+            "activityNumber",
+            "date",
+            "comment",
+            "invoiceDate",
+            "orderDate",
+        ),
+    ),
     "RegisterInvoicePayment": MethodSpec(
         name="RegisterInvoicePayment",
         flow_kind=FlowKind.INVOICE_REGISTER_PAYMENT,
@@ -238,7 +267,16 @@ METHOD_SPECS: dict[str, MethodSpec] = {
         target_resource="ledger",
         description="Create a free accounting dimension and one or more dimension values.",
         required_arguments=("dimensionName", "dimensionValues"),
-        optional_arguments=("postingAccount", "postingAmount", "postingDimensionValue", "requiresVoucher"),
+        optional_arguments=(
+            "postingAccount",
+            "postingAmount",
+            "postingDimensionValue",
+            "counterAccount",
+            "voucherDate",
+            "voucherDescription",
+            "currencyCode",
+            "requiresVoucher",
+        ),
     ),
 }
 
@@ -283,13 +321,29 @@ def normalize_task_analysis_method_selection(*, task_prompt: str, task_analysis:
     if normalized_method_name != task_analysis.method_name:
         normalized_analysis = normalized_analysis.model_copy(update={"method_name": normalized_method_name})
 
+    combined_text = combine_analysis_text(normalized_analysis)
+    if _looks_like_time_tracking_invoice_request(
+        task_prompt=task_prompt,
+        task_analysis=normalized_analysis,
+        combined_text=combined_text,
+    ) and normalized_method_name in {"UnknownMethod", "RunSalesWorkflow"}:
+        synthesized_arguments = dict(normalized_analysis.method_arguments or {})
+        synthesized_arguments.update(_project_time_invoice_method_arguments(normalized_analysis))
+        normalized_analysis = normalized_analysis.model_copy(
+            update={
+                "method_name": "RunProjectTimeInvoiceWorkflow",
+                "method_arguments": _drop_empty(synthesized_arguments),
+                "missing_required_arguments": [],
+            }
+        )
+        normalized_method_name = "RunProjectTimeInvoiceWorkflow"
+
     method_spec = METHOD_SPECS.get(normalized_method_name)
     if method_spec is None:
         if normalized_method_name != "UnknownMethod":
             return normalized_analysis.model_copy(update={"method_name": "UnknownMethod"})
         return normalized_analysis
 
-    combined_text = combine_analysis_text(normalized_analysis)
     if not _should_reject_supported_method(
         method_name=method_spec.name,
         task_prompt=task_prompt,
@@ -302,17 +356,32 @@ def normalize_task_analysis_method_selection(*, task_prompt: str, task_analysis:
     notes.append(
         "Curated method routing was rejected because the selected supported method does not cover the full requested workflow."
     )
+    fallback_method_name = "UnknownMethod"
+    fallback_arguments: dict[str, Any] = {}
+    if method_spec.name == "RunSalesWorkflow" and _looks_like_time_tracking_invoice_request(
+        task_prompt=task_prompt,
+        task_analysis=normalized_analysis,
+        combined_text=combined_text,
+    ):
+        fallback_method_name = "RunProjectTimeInvoiceWorkflow"
+        fallback_arguments = _project_time_invoice_method_arguments(normalized_analysis)
+
     return normalized_analysis.model_copy(
         update={
-            "method_name": "UnknownMethod",
-            "method_arguments": {},
+            "method_name": fallback_method_name,
+            "method_arguments": _drop_empty(fallback_arguments),
             "missing_required_arguments": [],
             "notes": _dedupe_strings(notes),
         }
     )
 
 
-def resolved_missing_required_arguments(task_analysis: TaskAnalysis, *, method_name: str | None = None) -> list[str]:
+def resolved_missing_required_arguments(
+    task_analysis: TaskAnalysis,
+    *,
+    method_name: str | None = None,
+    internal_payload: dict[str, Any] | None = None,
+) -> list[str]:
     explicit_missing = [value for value in task_analysis.missing_required_arguments if str(value).strip()]
     resolved_method_name = _normalize_method_name(method_name or task_analysis.method_name)
     spec = METHOD_SPECS.get(resolved_method_name)
@@ -322,12 +391,40 @@ def resolved_missing_required_arguments(task_analysis: TaskAnalysis, *, method_n
     missing = list(explicit_missing)
     method_arguments = task_analysis.method_arguments or {}
     for key in spec.required_arguments:
-        if _is_missing_required_argument(_lookup_method_argument(method_arguments, key)):
+        value = _lookup_method_argument(method_arguments, key)
+        if _is_missing_required_argument(value):
+            value = lookup_analysis_value(task_analysis, key)
+        if _is_missing_required_argument(value):
             missing.append(key)
     for group in spec.required_one_of:
         if any(not _is_missing_required_argument(_lookup_method_argument(method_arguments, key)) for key in group):
             continue
+        if any(not _is_missing_required_argument(lookup_analysis_value(task_analysis, key)) for key in group):
+            continue
         missing.append(" | ".join(group))
+    if resolved_method_name == "RunProjectTimeInvoiceWorkflow":
+        employee_email = _lookup_method_argument(method_arguments, "employeeEmail")
+        if _is_missing_required_argument(employee_email):
+            employee_email = lookup_analysis_value(task_analysis, "employeeEmail", "employee_email")
+        employee_first_name = _lookup_method_argument(method_arguments, "employeeFirstName")
+        if _is_missing_required_argument(employee_first_name):
+            employee_first_name = lookup_analysis_value(task_analysis, "employeeFirstName", "firstName", "first_name")
+        employee_last_name = _lookup_method_argument(method_arguments, "employeeLastName")
+        if _is_missing_required_argument(employee_last_name):
+            employee_last_name = lookup_analysis_value(task_analysis, "employeeLastName", "lastName", "last_name")
+        if _is_missing_required_argument(employee_email) and (
+            _is_missing_required_argument(employee_first_name) or _is_missing_required_argument(employee_last_name)
+        ):
+            missing.append("employeeEmail | (employeeFirstName + employeeLastName)")
+    if resolved_method_name == "CreateLedgerDimensionWorkflow" and internal_payload:
+        requires_voucher = bool(internal_payload.get("requiresVoucher"))
+        if requires_voucher:
+            for key in ("postingAccount", "postingAmount", "postingDimensionValue", "counterAccount"):
+                value = internal_payload.get(key)
+                if _is_missing_required_argument(value):
+                    value = lookup_analysis_value(task_analysis, key)
+                if _is_missing_required_argument(value):
+                    missing.append(key)
     return _dedupe_strings(missing)
 
 
@@ -386,13 +483,15 @@ def derive_internal_task(*, task_prompt: str, task_analysis: TaskAnalysis) -> In
     elif flow_kind is FlowKind.SALES_WORKFLOW:
         search = _sales_search(task_analysis)
         payload = _sales_payload(task_analysis, combined_text=combined_text)
+    elif flow_kind is FlowKind.PROJECT_TIME_INVOICE_WORKFLOW:
+        payload = _project_time_invoice_payload(task_analysis)
     elif flow_kind is FlowKind.INVOICE_REGISTER_PAYMENT:
         search = _invoice_payment_search(task_analysis)
         payload = _invoice_payment_payload(task_analysis)
     elif flow_kind is FlowKind.LEDGER_DIMENSION_WORKFLOW:
         payload = _ledger_dimension_payload(task_analysis, combined_text=combined_text)
-        if payload.get("requires_voucher"):
-            notes.append("Voucher creation still requires a fully specified balanced posting payload.")
+        if payload.get("requiresVoucher") and payload.get("counterAccount") in {None, ""}:
+            notes.append("Voucher creation requires a balancing counterAccount so the postings sum to zero.")
 
     return InternalTask(
         method_name=method_name,
@@ -419,6 +518,13 @@ def _infer_flow_kind(*, task_prompt: str, task_analysis: TaskAnalysis, combined_
 
     if is_employee_admin_task(task_analysis, combined_text=text):
         return FlowKind.EMPLOYEE_ADMIN
+
+    if _looks_like_time_tracking_invoice_request(
+        task_prompt=task_prompt,
+        task_analysis=task_analysis,
+        combined_text=combined_text,
+    ):
+        return FlowKind.PROJECT_TIME_INVOICE_WORKFLOW
 
     if (
         resource in {"order", "invoice"}
@@ -591,6 +697,44 @@ def _looks_like_time_tracking_invoice_request(
         )
     )
     return has_time_tracking_markers and has_invoice_markers and has_project_billing_context
+
+
+def _project_time_invoice_method_arguments(task_analysis: TaskAnalysis) -> dict[str, Any]:
+    employee_email = lookup_analysis_value(task_analysis, "employeeEmail", "employee_email", "email")
+    first_name = lookup_analysis_value(task_analysis, "employeeFirstName", "firstName", "first_name")
+    last_name = lookup_analysis_value(task_analysis, "employeeLastName", "lastName", "last_name")
+    if (first_name in {None, ""} or last_name in {None, ""}) and employee_email in {None, ""}:
+        full_name = lookup_analysis_value(task_analysis, "employeeName", "name", "displayName")
+        if full_name not in {None, ""}:
+            parts = str(full_name).strip().split()
+            if len(parts) >= 2:
+                first_name = parts[0]
+                last_name = " ".join(parts[1:])
+
+    return _drop_empty(
+        {
+            "customerName": lookup_analysis_value(task_analysis, "customerName", "customer_name"),
+            "customerOrganizationNumber": lookup_analysis_value(
+                task_analysis,
+                "customerOrganizationNumber",
+                "customer_organizationNumber",
+                "organizationNumber",
+            ),
+            "employeeEmail": employee_email,
+            "employeeFirstName": first_name,
+            "employeeLastName": last_name,
+            "projectName": lookup_analysis_value(task_analysis, "projectName", "project_name"),
+            "projectNumber": lookup_analysis_value(task_analysis, "projectNumber"),
+            "activityName": lookup_analysis_value(task_analysis, "activityName", "activity_name"),
+            "activityNumber": lookup_analysis_value(task_analysis, "activityNumber"),
+            "hours": _coerce_number(lookup_analysis_value(task_analysis, "hours")),
+            "hourlyRate": _coerce_number(lookup_analysis_value(task_analysis, "hourlyRate", "hourly_rate")),
+            "date": default_action_date(task_analysis, "date"),
+            "comment": lookup_analysis_value(task_analysis, "comment"),
+            "invoiceDate": default_action_date(task_analysis, "invoiceDate", "date"),
+            "orderDate": default_action_date(task_analysis, "orderDate", "date"),
+        }
+    )
 
 
 def _customer_search(task_analysis: TaskAnalysis) -> dict[str, Any]:
@@ -865,10 +1009,66 @@ def _ledger_dimension_payload(task_analysis: TaskAnalysis, *, combined_text: str
                 "postingDimensionValue",
                 "dimensionValue",
             ),
+            "counterAccount": lookup_analysis_value(
+                task_analysis,
+                "counterAccount",
+                "offsetAccount",
+                "contraAccount",
+                "creditAccount",
+                "debitAccount",
+            ),
+            "voucherDate": default_action_date(task_analysis, "voucherDate", "date"),
+            "voucherDescription": lookup_analysis_value(task_analysis, "voucherDescription", "description"),
+            "currencyCode": lookup_analysis_value(task_analysis, "currencyCode", "currency", "currencyCodeIso"),
             "requiresVoucher": any(
                 token in combined_text
                 for token in ("voucher", "bilag", "journal entry", "post", "posting")
             ),
+        }
+    )
+
+
+def _project_time_invoice_payload(task_analysis: TaskAnalysis) -> dict[str, Any]:
+    method_arguments = _project_time_invoice_method_arguments(task_analysis)
+    customer_ref = _drop_empty(
+        {
+            "organizationNumber": method_arguments.get("customerOrganizationNumber"),
+            "customerName": method_arguments.get("customerName"),
+        }
+    )
+    employee_ref = _drop_empty(
+        {
+            "email": method_arguments.get("employeeEmail"),
+            "firstName": method_arguments.get("employeeFirstName"),
+            "lastName": method_arguments.get("employeeLastName"),
+        }
+    )
+    project_ref = _drop_empty(
+        {
+            "name": method_arguments.get("projectName"),
+            "number": method_arguments.get("projectNumber"),
+        }
+    )
+    activity_ref = _drop_empty(
+        {
+            "name": method_arguments.get("activityName"),
+            "number": method_arguments.get("activityNumber"),
+        }
+    )
+
+    return _drop_empty(
+        {
+            "customerRef": customer_ref,
+            "employeeRef": employee_ref,
+            "projectRef": project_ref,
+            "activityRef": activity_ref,
+            "date": method_arguments.get("date"),
+            "hours": method_arguments.get("hours"),
+            "hourlyRate": method_arguments.get("hourlyRate"),
+            "comment": method_arguments.get("comment"),
+            "orderDate": method_arguments.get("orderDate"),
+            "invoiceDate": method_arguments.get("invoiceDate"),
+            "createInvoice": True,
         }
     )
 

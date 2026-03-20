@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import date
 from typing import Any
 
 from .internal_tasks import FlowKind, InternalTask
@@ -34,6 +35,12 @@ class DeterministicWorkflowRouter:
 
         if internal_task.flow_kind is FlowKind.SALES_WORKFLOW:
             return self._next_sales_workflow(
+                internal_task=internal_task,
+                task_analysis=task_analysis,
+                history=history,
+            )
+        if internal_task.flow_kind is FlowKind.PROJECT_TIME_INVOICE_WORKFLOW:
+            return self._next_project_time_invoice_workflow(
                 internal_task=internal_task,
                 task_analysis=task_analysis,
                 history=history,
@@ -338,12 +345,17 @@ class DeterministicWorkflowRouter:
             return None
 
         for line in order_lines:
+            product_ref = {
+                "productNumber": line.get("productNumber"),
+                "name": line.get("description"),
+            }
+            if _is_blank(product_ref["productNumber"]) and _is_blank(product_ref["name"]):
+                continue
+            if _is_blank(product_ref["productNumber"]):
+                continue
             product = _resolved_product_by_ref(
                 history,
-                {
-                    "productNumber": line.get("productNumber"),
-                    "name": line.get("description"),
-                },
+                product_ref,
             )
             if product is not None:
                 continue
@@ -446,6 +458,381 @@ class DeterministicWorkflowRouter:
             method="PUT",
             path=f"/order/{order_id}/:invoice",
             params=_drop_empty(params),
+        )
+
+    def _next_project_time_invoice_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        task_analysis: TaskAnalysis,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        payload = dict(internal_task.payload)
+        customer_ref = dict(payload.get("customerRef") or {})
+        employee_ref = dict(payload.get("employeeRef") or {})
+        project_ref = dict(payload.get("projectRef") or {})
+        activity_ref = dict(payload.get("activityRef") or {})
+        entry_date = payload.get("date")
+        hours = payload.get("hours")
+        hourly_rate = payload.get("hourlyRate")
+
+        if entry_date in {None, ""} or hours in {None, ""} or hourly_rate in {None, ""}:
+            return None
+
+        customer = _resolved_customer_by_ref(history, customer_ref)
+        if customer is None:
+            customer_search = _drop_empty(
+                {
+                    "organizationNumber": customer_ref.get("organizationNumber"),
+                    "customerName": customer_ref.get("customerName") or customer_ref.get("name"),
+                    "count": 10,
+                    "fields": "id,name,organizationNumber",
+                }
+            )
+            if customer_search and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/customer",
+                predicate=lambda request: _request_contains_params(request, customer_search),
+            ):
+                return _action(
+                    reason="Resolve the customer before logging project hours and invoicing them.",
+                    method="GET",
+                    path="/customer",
+                    params=customer_search,
+                )
+
+            customer_payload = _drop_empty(
+                {
+                    "name": customer_ref.get("customerName") or customer_ref.get("name"),
+                    "organizationNumber": customer_ref.get("organizationNumber"),
+                }
+            )
+            if not customer_payload:
+                return None
+            if _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/customer",
+                predicate=lambda request: _request_json_contains(request, customer_payload),
+            ):
+                return None
+            return _action(
+                reason="Create the customer because the project-billing workflow needs a billable receiver.",
+                method="POST",
+                path="/customer",
+                json=customer_payload,
+            )
+
+        customer_id = customer.get("id")
+        if customer_id in {None, ""}:
+            return None
+
+        employee = _resolved_employee_by_ref(history, employee_ref)
+        if employee is None:
+            employee_search = _drop_empty(
+                {
+                    "email": employee_ref.get("email"),
+                    "firstName": employee_ref.get("firstName"),
+                    "lastName": employee_ref.get("lastName"),
+                    "count": 10,
+                    "fields": "id,version,firstName,lastName,email",
+                }
+            )
+            if employee_search and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/employee",
+                predicate=lambda request: _request_contains_params(request, employee_search),
+            ):
+                return _action(
+                    reason="Resolve the employee before registering timesheet hours.",
+                    method="GET",
+                    path="/employee",
+                    params=employee_search,
+                )
+
+            employee_payload = _drop_empty(
+                {
+                    "firstName": employee_ref.get("firstName"),
+                    "lastName": employee_ref.get("lastName"),
+                    "email": employee_ref.get("email"),
+                }
+            )
+            if not employee_payload.get("firstName") or not employee_payload.get("lastName"):
+                return None
+            if _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/employee",
+                predicate=lambda request: _request_json_contains(request, employee_payload),
+            ):
+                return None
+            return _action(
+                reason="Create the employee because the requested time registration refers to a missing employee.",
+                method="POST",
+                path="/employee",
+                json=employee_payload,
+            )
+
+        employee_id = employee.get("id")
+        if employee_id in {None, ""}:
+            return None
+
+        project = _resolved_project_by_ref(history, project_ref)
+        if project is None:
+            project_search = _drop_empty(
+                {
+                    "name": project_ref.get("name"),
+                    "number": project_ref.get("number"),
+                    "customerId": customer_id,
+                    "isClosed": False,
+                    "count": 10,
+                    "fields": "id,name,number,isClosed,customer",
+                }
+            )
+            if project_search and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/project",
+                predicate=lambda request: _request_contains_params(request, project_search),
+            ):
+                return _action(
+                    reason="Resolve the project before registering hours and invoicing them.",
+                    method="GET",
+                    path="/project",
+                    params=project_search,
+                )
+
+            project_payload = _drop_empty(
+                {
+                    "name": project_ref.get("name"),
+                    "number": project_ref.get("number"),
+                    "customer": {"id": customer_id},
+                }
+            )
+            if not project_payload.get("name") and not project_payload.get("number"):
+                return None
+            if _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/project",
+                predicate=lambda request: _request_json_contains(request, project_payload),
+            ):
+                return None
+            return _action(
+                reason="Create the project so the requested hours can be registered and billed.",
+                method="POST",
+                path="/project",
+                json=project_payload,
+            )
+
+        project_id = project.get("id")
+        if project_id in {None, ""}:
+            return None
+
+        activity = _resolved_activity_by_ref(history, activity_ref)
+        activity_name = activity_ref.get("name")
+        if activity is None:
+            timesheet_activity_search = _drop_empty(
+                {
+                    "projectId": project_id,
+                    "employeeId": employee_id,
+                    "date": entry_date,
+                    "query": activity_name,
+                    "count": 25,
+                    "fields": "id,name,number,isChargeable,isProjectActivity",
+                }
+            )
+            if timesheet_activity_search and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/activity/>forTimeSheet",
+                predicate=lambda request: _request_contains_params(request, timesheet_activity_search),
+            ):
+                return _action(
+                    reason="Resolve an applicable activity for the employee, project, and date before registering time.",
+                    method="GET",
+                    path="/activity/>forTimeSheet",
+                    params=timesheet_activity_search,
+                )
+
+            generic_activity_search = _drop_empty(
+                {
+                    "name": activity_name,
+                    "number": activity_ref.get("number"),
+                    "isChargeable": True,
+                    "count": 10,
+                    "fields": "id,name,number,isChargeable,isProjectActivity",
+                }
+            )
+            if generic_activity_search and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/activity",
+                predicate=lambda request: _request_contains_params(request, generic_activity_search),
+            ):
+                return _action(
+                    reason="Search the generic activity catalog before creating a new activity.",
+                    method="GET",
+                    path="/activity",
+                    params=generic_activity_search,
+                )
+
+            activity_payload = _drop_empty(
+                {
+                    "name": activity_name,
+                    "number": activity_ref.get("number"),
+                    "isProjectActivity": True,
+                    "isChargeable": True,
+                }
+            )
+            if not activity_payload.get("name"):
+                return None
+            if _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/activity",
+                predicate=lambda request: _request_json_contains(request, activity_payload),
+            ):
+                return None
+            return _action(
+                reason="Create the missing project activity so the requested hours can be logged consistently.",
+                method="POST",
+                path="/activity",
+                json=activity_payload,
+            )
+
+        activity_id = activity.get("id")
+        if activity_id in {None, ""}:
+            return None
+
+        timesheet_search = {
+            "employeeId": employee_id,
+            "projectId": project_id,
+            "activityId": activity_id,
+            "dateFrom": entry_date,
+            "dateTo": entry_date,
+            "count": 10,
+            "fields": "id,version,date,hours,projectChargeableHours,comment,chargeable",
+        }
+        timesheet_entry = _resolved_timesheet_entry_from_history(
+            history,
+            employee_id=employee_id,
+            project_id=project_id,
+            activity_id=activity_id,
+            entry_date=entry_date,
+        )
+        if timesheet_entry is None:
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/timesheet/entry",
+                predicate=lambda request: _request_contains_params(request, timesheet_search),
+            ):
+                return _action(
+                    reason="Search for an existing timesheet entry before creating a duplicate.",
+                    method="GET",
+                    path="/timesheet/entry",
+                    params=timesheet_search,
+                )
+
+            create_entry_payload = _build_timesheet_entry_payload(
+                employee_id=employee_id,
+                project_id=project_id,
+                activity_id=activity_id,
+                entry_date=entry_date,
+                hours=hours,
+                hourly_rate=hourly_rate,
+                comment=payload.get("comment"),
+            )
+            if _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/timesheet/entry",
+                predicate=lambda request: _request_json_contains(request, create_entry_payload),
+            ):
+                return None
+            return _action(
+                reason="Register the requested timesheet hours on the resolved employee, project, and activity.",
+                method="POST",
+                path="/timesheet/entry",
+                json=create_entry_payload,
+            )
+
+        if not _timesheet_entry_matches(
+            timesheet_entry,
+            entry_date=entry_date,
+            hours=hours,
+            hourly_rate=hourly_rate,
+            comment=payload.get("comment"),
+        ):
+            entry_id = timesheet_entry.get("id")
+            entry_version = timesheet_entry.get("version")
+            if entry_id in {None, ""} or entry_version in {None, ""}:
+                return None
+            update_entry_payload = _build_timesheet_entry_payload(
+                employee_id=employee_id,
+                project_id=project_id,
+                activity_id=activity_id,
+                entry_date=entry_date,
+                hours=hours,
+                hourly_rate=hourly_rate,
+                comment=payload.get("comment"),
+                entry_id=entry_id,
+                entry_version=entry_version,
+            )
+            if _has_attempt_exact_where(
+                history,
+                method="PUT",
+                path=f"/timesheet/entry/{entry_id}",
+                predicate=lambda request: _request_json_contains(request, update_entry_payload),
+            ):
+                return None
+            return _action(
+                reason="Update the existing timesheet entry to the requested hours and hourly rate.",
+                method="PUT",
+                path=f"/timesheet/entry/{entry_id}",
+                json=update_entry_payload,
+            )
+
+        if _has_success(history, method="PUT", path_suffix="/:invoice"):
+            return PlannerDecision(kind="finish", reason="The timesheet and invoice workflow already completed.")
+
+        order = _resolved_order_from_history(history)
+        if order is None:
+            order_payload = _build_project_time_invoice_order_payload(
+                customer_id=customer_id,
+                project_id=project_id,
+                order_date=payload.get("orderDate") or entry_date,
+                hours=hours,
+                hourly_rate=hourly_rate,
+                activity_name=activity.get("name") or activity_name,
+                project_name=project.get("name") or project_ref.get("name"),
+            )
+            if _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/order",
+                predicate=lambda request: _request_json_contains(request, order_payload),
+            ):
+                return None
+            return _action(
+                reason="Create an order line from the registered project hours so it can be invoiced immediately.",
+                method="POST",
+                path="/order",
+                json=order_payload,
+            )
+
+        order_id = order.get("id")
+        if order_id in {None, ""}:
+            return None
+
+        return _action(
+            reason="Invoice the generated order for the logged project hours.",
+            method="PUT",
+            path=f"/order/{order_id}/:invoice",
+            params={"invoiceDate": payload.get("invoiceDate") or entry_date},
         )
 
     def _next_invoice_payment(
@@ -714,7 +1101,99 @@ class DeterministicWorkflowRouter:
         if not internal_task.payload.get("requiresVoucher"):
             return PlannerDecision(kind="finish", reason="The accounting dimension workflow is complete.")
 
-        return None
+        posting_account = internal_task.payload.get("postingAccount")
+        counter_account = internal_task.payload.get("counterAccount")
+        posting_amount = internal_task.payload.get("postingAmount")
+        posting_dimension_value = internal_task.payload.get("postingDimensionValue")
+        if posting_account in {None, ""} or counter_account in {None, ""} or posting_amount in {None, ""}:
+            return None
+
+        if posting_dimension_value in {None, ""}:
+            return None
+        dimension_value = _resolved_dimension_value_from_history(
+            history,
+            dimension_index=dimension_index,
+            display_name=str(posting_dimension_value),
+        )
+        if dimension_value is None:
+            return None
+
+        account = _resolved_ledger_account_from_history(history, account_number=posting_account)
+        if account is None:
+            search_params = {"number": posting_account, "count": 10, "fields": "id,number,name"}
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/ledger/account",
+                predicate=lambda request: _request_contains_params(request, search_params),
+            ):
+                return _action(
+                    reason="Resolve the destination ledger account before creating the voucher.",
+                    method="GET",
+                    path="/ledger/account",
+                    params=search_params,
+                )
+            return None
+
+        offset = _resolved_ledger_account_from_history(history, account_number=counter_account)
+        if offset is None:
+            search_params = {"number": counter_account, "count": 10, "fields": "id,number,name"}
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/ledger/account",
+                predicate=lambda request: _request_contains_params(request, search_params),
+            ):
+                return _action(
+                    reason="Resolve the balancing counter account before creating the voucher.",
+                    method="GET",
+                    path="/ledger/account",
+                    params=search_params,
+                )
+            return None
+
+        currency_code = str(internal_task.payload.get("currencyCode") or "NOK")
+        currency = _resolved_currency_from_history(history, code=currency_code)
+        if currency is None:
+            search_params = {"code": currency_code, "count": 5, "fields": "id,code"}
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/currency",
+                predicate=lambda request: _request_contains_params(request, search_params),
+            ):
+                return _action(
+                    reason="Resolve the voucher currency before creating the ledger voucher.",
+                    method="GET",
+                    path="/currency",
+                    params=search_params,
+                )
+            return None
+
+        voucher_payload = _build_ledger_dimension_voucher_payload(
+            dimension_name=str(dimension_name),
+            voucher_date=str(internal_task.payload.get("voucherDate") or ""),
+            voucher_description=internal_task.payload.get("voucherDescription"),
+            amount=float(posting_amount),
+            account_id=account.get("id"),
+            counter_account_id=offset.get("id"),
+            currency_id=currency.get("id"),
+            dimension_index=int(dimension_index),
+            dimension_value_id=dimension_value.get("id"),
+        )
+        if _has_attempt_exact_where(
+            history,
+            method="POST",
+            path="/ledger/voucher",
+            predicate=lambda request: _request_json_contains(request, voucher_payload),
+        ):
+            return None
+        return _action(
+            reason="Create the balanced voucher with the resolved accounting dimension value on the requested posting line.",
+            method="POST",
+            path="/ledger/voucher",
+            json=voucher_payload,
+        )
 
     def _next_simple_upsert(
         self,
@@ -1050,6 +1529,188 @@ def _resolved_project_by_ref(history: list[dict[str, Any]], ref: dict[str, Any] 
     return None
 
 
+def _resolved_activity_by_ref(history: list[dict[str, Any]], ref: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not ref:
+        return None
+    target_number = ref.get("number")
+    target_name = ref.get("name")
+    target_number = str(target_number) if not _is_blank(target_number) else None
+    target_name = str(target_name).lower() if not _is_blank(target_name) else None
+
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        method = str(request.get("method") or "").upper()
+        path = str(request.get("path") or "")
+        candidates: list[dict[str, Any]] = []
+        if path == "/activity" and method == "POST" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+        elif path == "/activity" and method == "GET" and isinstance(response.get("values"), list):
+            candidates = [candidate for candidate in response["values"] if isinstance(candidate, dict)]
+        elif path == "/activity/>forTimeSheet" and method == "GET" and isinstance(response.get("values"), list):
+            candidates = [candidate for candidate in response["values"] if isinstance(candidate, dict)]
+        elif path.startswith("/activity/") and method == "GET" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+
+        for candidate in candidates:
+            if target_number and str(candidate.get("number")) == target_number:
+                return candidate
+            if target_name and str(candidate.get("name") or "").lower() == target_name:
+                return candidate
+        if len(candidates) == 1 and not any((target_number, target_name)):
+            return candidates[0]
+    return None
+
+
+def _resolved_timesheet_entry_from_history(
+    history: list[dict[str, Any]],
+    *,
+    employee_id: Any,
+    project_id: Any,
+    activity_id: Any,
+    entry_date: str,
+) -> dict[str, Any] | None:
+    target_employee_id = str(employee_id)
+    target_project_id = str(project_id)
+    target_activity_id = str(activity_id)
+    target_date = str(entry_date)
+
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        method = str(request.get("method") or "").upper()
+        path = str(request.get("path") or "")
+        candidates: list[dict[str, Any]] = []
+        if path == "/timesheet/entry" and method == "POST" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+        elif path == "/timesheet/entry" and method == "GET" and isinstance(response.get("values"), list):
+            params = request.get("params") or {}
+            if (
+                str(params.get("employeeId") or "") == target_employee_id
+                and str(params.get("projectId") or "") == target_project_id
+                and str(params.get("activityId") or "") == target_activity_id
+                and str(params.get("dateFrom") or "") == target_date
+                and str(params.get("dateTo") or "") == target_date
+                and len(response["values"]) == 1
+                and isinstance(response["values"][0], dict)
+            ):
+                return response["values"][0]
+            candidates = [candidate for candidate in response["values"] if isinstance(candidate, dict)]
+        elif path.startswith("/timesheet/entry/") and method in {"GET", "PUT"} and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+
+        for candidate in candidates:
+            if _timesheet_entry_identity_matches(
+                candidate,
+                employee_id=target_employee_id,
+                project_id=target_project_id,
+                activity_id=target_activity_id,
+                entry_date=target_date,
+            ):
+                return candidate
+    return None
+
+
+def _timesheet_entry_identity_matches(
+    entry: dict[str, Any],
+    *,
+    employee_id: str,
+    project_id: str,
+    activity_id: str,
+    entry_date: str,
+) -> bool:
+    return (
+        str(_entity_id(entry.get("employee"))) == employee_id
+        and str(_entity_id(entry.get("project"))) == project_id
+        and str(_entity_id(entry.get("activity"))) == activity_id
+        and str(entry.get("date") or "") == entry_date
+    )
+
+
+def _timesheet_entry_matches(
+    entry: dict[str, Any],
+    *,
+    entry_date: str,
+    hours: Any,
+    hourly_rate: Any,
+    comment: Any,
+) -> bool:
+    target_hours = float(hours)
+    if str(entry.get("date") or "") != str(entry_date):
+        return False
+    if float(entry.get("hours") or 0) != target_hours:
+        return False
+    chargeable_hours = entry.get("projectChargeableHours")
+    if chargeable_hours not in {None, ""} and float(chargeable_hours) != target_hours:
+        return False
+    if not _is_blank(comment) and str(entry.get("comment") or "") != str(comment):
+        return False
+    return True
+
+
+def _build_timesheet_entry_payload(
+    *,
+    employee_id: Any,
+    project_id: Any,
+    activity_id: Any,
+    entry_date: str,
+    hours: Any,
+    hourly_rate: Any,
+    comment: Any,
+    entry_id: Any | None = None,
+    entry_version: Any | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "employee": {"id": employee_id},
+        "project": {"id": project_id},
+        "activity": {"id": activity_id},
+        "date": entry_date,
+        "hours": float(hours),
+        "projectChargeableHours": float(hours),
+    }
+    if not _is_blank(comment):
+        payload["comment"] = comment
+    if entry_id not in {None, ""}:
+        payload["id"] = entry_id
+    if entry_version not in {None, ""}:
+        payload["version"] = entry_version
+    return payload
+
+
+def _build_project_time_invoice_order_payload(
+    *,
+    customer_id: Any,
+    project_id: Any,
+    order_date: str,
+    hours: Any,
+    hourly_rate: Any,
+    activity_name: Any,
+    project_name: Any,
+) -> dict[str, Any]:
+    description_parts = [str(activity_name).strip() if not _is_blank(activity_name) else ""]
+    if not _is_blank(project_name):
+        description_parts.append(f"Project: {project_name}")
+    description = " - ".join(part for part in description_parts if part)
+    if not description:
+        description = "Project hours"
+    return {
+        "customer": {"id": customer_id},
+        "project": {"id": project_id},
+        "orderDate": order_date,
+        "orderLines": [
+            {
+                "description": description,
+                "count": float(hours),
+                "unitPriceExcludingVatCurrency": float(hourly_rate),
+            }
+        ],
+    }
+
+
 def _resolved_customer_from_internal(history: list[dict[str, Any]], internal_task: InternalTask) -> dict[str, Any] | None:
     return _resolved_customer_by_ref(history, internal_task.search or internal_task.payload)
 
@@ -1096,16 +1757,20 @@ def _build_order_payload_from_internal(
 
     order_lines: list[dict[str, Any]] = []
     for line in internal_task.payload.get("orderLines") or []:
-        product = _resolved_product_by_ref(
-            history,
-            {"productNumber": line.get("productNumber"), "name": line.get("description")},
-        )
-        if product is None or product.get("id") in {None, ""}:
+        product_number = line.get("productNumber")
+        product = None
+        if not _is_blank(product_number):
+            product = _resolved_product_by_ref(
+                history,
+                {"productNumber": product_number, "name": line.get("description")},
+            )
+            if product is None or product.get("id") in {None, ""}:
+                return None
+        if product is None and _is_blank(line.get("description")):
             return None
-        order_line = {
-            "product": {"id": product["id"]},
-            "count": line.get("count") or 1,
-        }
+        order_line = {"count": line.get("count") or 1}
+        if product is not None:
+            order_line["product"] = {"id": product["id"]}
         if not _is_blank(line.get("description")):
             order_line["description"] = line["description"]
         if line.get("unitPriceExcludingVatCurrency") not in {None, ""}:
@@ -1115,11 +1780,15 @@ def _build_order_payload_from_internal(
     if not order_lines:
         return None
 
-    return {
+    payload: dict[str, Any] = {
         "customer": {"id": customer_id},
         "orderDate": internal_task.payload.get("orderDate"),
         "orderLines": order_lines,
     }
+    project = internal_task.payload.get("project")
+    if isinstance(project, dict) and project.get("id") not in {None, ""}:
+        payload["project"] = {"id": project["id"]}
+    return payload
 
 
 def _sales_total_amount(internal_task: InternalTask) -> float | None:
@@ -1191,6 +1860,100 @@ def _resolved_dimension_value_from_history(
             if str(candidate.get("displayName") or "").lower() == target_name:
                 return candidate
     return None
+
+
+def _resolved_ledger_account_from_history(
+    history: list[dict[str, Any]],
+    *,
+    account_number: Any,
+) -> dict[str, Any] | None:
+    target_number = str(account_number)
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        method = str(request.get("method") or "").upper()
+        path = str(request.get("path") or "")
+        candidates: list[dict[str, Any]] = []
+        if path == "/ledger/account" and method == "POST" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+        elif path == "/ledger/account" and method == "GET" and isinstance(response.get("values"), list):
+            candidates = [candidate for candidate in response["values"] if isinstance(candidate, dict)]
+        elif path.startswith("/ledger/account/") and method == "GET" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+
+        for candidate in candidates:
+            if str(candidate.get("number")) == target_number:
+                return candidate
+    return None
+
+
+def _resolved_currency_from_history(history: list[dict[str, Any]], *, code: str) -> dict[str, Any] | None:
+    target_code = str(code).upper()
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        method = str(request.get("method") or "").upper()
+        path = str(request.get("path") or "")
+        candidates: list[dict[str, Any]] = []
+        if path == "/currency" and method == "GET" and isinstance(response.get("values"), list):
+            candidates = [candidate for candidate in response["values"] if isinstance(candidate, dict)]
+        elif path.startswith("/currency/") and method == "GET" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+
+        for candidate in candidates:
+            if str(candidate.get("code") or "").upper() == target_code:
+                return candidate
+    return None
+
+
+def _build_ledger_dimension_voucher_payload(
+    *,
+    dimension_name: str,
+    voucher_date: str,
+    voucher_description: Any,
+    amount: float,
+    account_id: Any,
+    counter_account_id: Any,
+    currency_id: Any,
+    dimension_index: int,
+    dimension_value_id: Any,
+) -> dict[str, Any]:
+    normalized_date = voucher_date or date.today().isoformat()
+    normalized_description = str(voucher_description or f"Manual voucher for {dimension_name}").strip()
+    absolute_amount = round(abs(float(amount)), 2)
+    dimension_key = f"freeAccountingDimension{dimension_index}"
+    posting_with_dimension = {
+        "date": normalized_date,
+        "description": normalized_description,
+        "account": {"id": account_id},
+        "currency": {"id": currency_id},
+        "amountGross": absolute_amount,
+        "amountGrossCurrency": absolute_amount,
+        dimension_key: {"id": dimension_value_id},
+    }
+    balancing_posting = {
+        "date": normalized_date,
+        "description": normalized_description,
+        "account": {"id": counter_account_id},
+        "currency": {"id": currency_id},
+        "amountGross": -absolute_amount,
+        "amountGrossCurrency": -absolute_amount,
+    }
+    return {
+        "date": normalized_date,
+        "description": normalized_description,
+        "postings": [posting_with_dimension, balancing_posting],
+    }
+
+
+def _entity_id(value: Any) -> Any | None:
+    if isinstance(value, dict):
+        return value.get("id")
+    return value
 
 
 def _invoice_search_params(task_analysis: TaskAnalysis) -> dict[str, Any] | None:

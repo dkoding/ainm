@@ -43,6 +43,12 @@ cd norgesgruppen-data
 python3 scripts/preflight_submission.py submission
 ```
 
+When `submission/` contains real model weights that depend on packages like `ultralytics`, `torch`, `onnxruntime`, or `Pillow`, run the tooling from a matching environment instead of bare system Python. The competition sandbox package family is documented on the submission page; locally, the same scripts can be invoked as:
+
+```bash
+/path/to/python scripts/preflight_submission.py submission
+```
+
 Dataset workflow:
 
 ```bash
@@ -50,6 +56,16 @@ python3 scripts/summarize_dataset.py /path/to/annotations.json --images-dir /pat
 python3 scripts/make_splits.py /path/to/annotations.json --output data/splits/default_split.json
 python3 scripts/train_yolov8.py /path/to/annotations.json /path/to/images --split data/splits/default_split.json --prepare-only
 ```
+
+Example real-data outputs generated in this repository:
+
+- `data/reports/dataset_summary.json`
+- `data/splits/default_split.json`
+- `data/reference/reference_index.json`
+- `data/processed/yolov8/`
+- `data/crops/by_category/`
+- `runs/ngd/yolov8n_cpu_e1/`
+- `dist/submission_trained.zip`
 
 When you have weights ready, place them inside `submission/` and update `submission/submission_config.json`.
 

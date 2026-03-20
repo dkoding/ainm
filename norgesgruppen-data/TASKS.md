@@ -26,8 +26,18 @@ Verification note:
 
 ## External / Data-Dependent Work
 
-- [ ] Download `NM_NGD_coco_dataset.zip` from the competition site.
-- [ ] Download `NM_NGD_product_images.zip` from the competition site.
-- [ ] Train real model weights on the downloaded dataset.
-- [ ] Benchmark local validation metrics on real predictions.
+- [x] Download `NM_NGD_coco_dataset.zip` from the competition site.
+- [x] Download `NM_NGD_product_images.zip` from the competition site.
+- [x] Train real model weights on the downloaded dataset.
+- [x] Benchmark local validation metrics on real predictions.
 - [ ] Submit a validated zip to the competition and compare leaderboard results.
+
+Real-data status:
+
+- The real datasets were extracted under `data/raw/`.
+- Real dataset reports, split files, reference index, YOLO workspace, and crop manifest were generated.
+- A one-epoch YOLOv8n baseline was trained on the real dataset and staged into `submission/best.pt`.
+- The end-to-end submission artifact was run on the validation split and scored locally.
+- Current local validation result from the staged submission artifact is `0.0`, so the trained baseline is only a smoke baseline, not a competitive model yet.
+- A weighted submission zip was built successfully at `dist/submission_trained.zip`.
+- The current WSL2 environment does not expose a usable CUDA/DirectML/NPU backend to Python. The host reports `AMD Radeon(TM) 880M Graphics`, but local training/inference here ran on CPU.
