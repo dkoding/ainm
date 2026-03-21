@@ -1,1 +1,1 @@
-# Tripletex application package.
+# Tripletex scaffold package.

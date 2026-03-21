@@ -31,7 +31,12 @@ from evaluate_sklearn_model import evaluate_sklearn_history
 from history_cache import load_history_index, summarize_history_cache, sync_history_cache
 from history_priors import infer_regime_history_prior_model, load_history_prior_model
 from observation_strategy import ViewportRequest, select_next_viewport_request
-from prediction_variants import build_prediction_variants, evaluate_prediction_variants, strategy_signature
+from prediction_variants import (
+    build_prediction_variants,
+    evaluate_prediction_variants,
+    score_prediction_variants_for_live_round,
+    strategy_signature,
+)
 from reporting import build_run_report
 from sklearn_model import (
     load_model_artifact,
@@ -489,11 +494,18 @@ def main() -> None:
         history_prior_strength=args.history_prior_strength,
         sklearn_artifact=sklearn_artifact,
     )
+    live_variant_summary = score_prediction_variants_for_live_round(
+        round_detail=round_detail,
+        prediction_variants=prediction_variants,
+        observations_by_seed=observations_by_seed,
+        strategy_evaluation_summary=strategy_evaluation_summary,
+    )
     selected_variant = select_prediction_variant(
         requested_model=args.prediction_model,
         strategy_evaluation_summary=strategy_evaluation_summary,
         strategy_feedback_summary=strategy_feedback_summary,
         prediction_variants=prediction_variants,
+        live_variant_summary=live_variant_summary,
     )
     predictions = prediction_variants[selected_variant]
     prediction_model_used = selected_variant
@@ -526,6 +538,7 @@ def main() -> None:
         sklearn_evaluation_summary=sklearn_evaluation_summary,
         strategy_evaluation_summary=strategy_evaluation_summary,
         strategy_feedback_summary=strategy_feedback_summary,
+        live_variant_summary=live_variant_summary,
         regime_summary=regime_summary,
         tuning_summary=tuning_summary,
         observation_plan=observation_plan_payload,
@@ -938,6 +951,7 @@ def select_prediction_variant(
     strategy_evaluation_summary: dict[str, Any] | None,
     strategy_feedback_summary: dict[str, Any] | None,
     prediction_variants: dict[str, list[Any]],
+    live_variant_summary: dict[str, Any] | None = None,
 ) -> str:
     if requested_model == "sklearn" and "sklearn" in prediction_variants:
         return "sklearn"
@@ -947,13 +961,21 @@ def select_prediction_variant(
                 return variant_name
         raise SystemExit("Baseline prediction variant was requested but is unavailable.")
 
+    blocked_variants = set((strategy_feedback_summary or {}).get("blocked_variants", []))
+    if live_variant_summary is not None:
+        for variant_item in live_variant_summary.get("variants", []):
+            variant_name = str(variant_item.get("variant"))
+            if variant_name in blocked_variants:
+                continue
+            if variant_name in prediction_variants:
+                return variant_name
+
     if strategy_evaluation_summary is not None:
         ranked_variants = sorted(
             strategy_evaluation_summary.get("summary", {}).get("variants", []),
             key=lambda item: float(item.get("mean_round_score", 0.0)),
             reverse=True,
         )
-        blocked_variants = set((strategy_feedback_summary or {}).get("blocked_variants", []))
         for variant_item in ranked_variants:
             variant_name = str(variant_item.get("variant"))
             if variant_name in blocked_variants:

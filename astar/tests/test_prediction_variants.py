@@ -9,7 +9,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 try:
     import numpy as np
-    from prediction_variants import apply_observation_conditioning_to_prediction_set, strategy_signature
+    from prediction_variants import (
+        apply_observation_conditioning_to_prediction_set,
+        score_prediction_variants_for_live_round,
+        strategy_signature,
+    )
     from run_round import load_cached_strategy_evaluation, load_strategy_feedback_summary, select_prediction_variant
 except ImportError as exc:  # pragma: no cover - environment guard
     raise unittest.SkipTest(f"missing runtime dependency: {exc}") from exc
@@ -148,6 +152,64 @@ class PredictionVariantTests(unittest.TestCase):
                 prediction_variants={"sklearn": [], "ensemble_sklearn_75": []},
             )
             self.assertEqual(selected, "ensemble_sklearn_75")
+
+    def test_live_variant_ranking_prefers_better_observation_fit(self) -> None:
+        round_detail = {
+            "initial_states": [
+                {
+                    "grid": [
+                        [11, 11, 11],
+                        [11, 11, 11],
+                        [11, 11, 11],
+                    ],
+                    "settlements": [{"x": 1, "y": 1, "has_port": False}],
+                }
+            ]
+        }
+        observations = {
+            0: [
+                {
+                    "grid": [[1, 1], [1, 1]],
+                    "settlements": [{"x": 1, "y": 1, "has_port": False, "alive": True, "owner_id": "a"}],
+                    "viewport": {"x": 0, "y": 0, "w": 2, "h": 2},
+                    "width": 3,
+                    "height": 3,
+                }
+            ]
+        }
+        weak = np.full((3, 3, 6), 1.0 / 6.0, dtype=float)
+        strong = np.full((3, 3, 6), 1.0 / 6.0, dtype=float)
+        strong[:, :, 1] = 0.55
+        strong[:, :, 0] = 0.15
+        strong[:, :, 2] = 0.10
+        strong[:, :, 3] = 0.05
+        strong[:, :, 4] = 0.10
+        strong[:, :, 5] = 0.05
+        strong /= strong.sum(axis=-1, keepdims=True)
+        live = score_prediction_variants_for_live_round(
+            round_detail=round_detail,
+            prediction_variants={"weak": [weak], "strong": [strong]},
+            observations_by_seed=observations,
+            strategy_evaluation_summary=None,
+        )
+        self.assertIsNotNone(live)
+        assert live is not None
+        self.assertEqual(live["best_variant"], "strong")
+
+    def test_live_variant_ranking_respects_blocked_variants(self) -> None:
+        selected = select_prediction_variant(
+            requested_model="auto",
+            strategy_evaluation_summary=None,
+            strategy_feedback_summary={"blocked_variants": ["strong"]},
+            prediction_variants={"strong": [], "weak": []},
+            live_variant_summary={
+                "variants": [
+                    {"variant": "strong", "live_score": 1.0},
+                    {"variant": "weak", "live_score": 0.5},
+                ]
+            },
+        )
+        self.assertEqual(selected, "weak")
 
 
 if __name__ == "__main__":

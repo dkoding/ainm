@@ -1,48 +1,65 @@
 from __future__ import annotations
 
 import logging
-import time
-import uuid
+import os
+from typing import Any
 
-from fastapi import FastAPI, Header, HTTPException, Request, Response
+import requests
+from fastapi import FastAPI, Header, HTTPException, status
+from pydantic import BaseModel, ConfigDict, Field
 
-from .client import TripletexAPIError
-from .execution import CommandExecutionError
-from .logging_utils import configure_logging, reset_request_id, set_request_id
-from .models import SolveRequest, SolveResponse
-from .openapi_registry import OpenAPIRegistryError
-from .solver import (
-    PlannerError,
-    SolveError,
-    TaskInputError,
-    TaskPreconditionError,
-    TripletexSolver,
-    UnauthorizedError,
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+REQUEST_TIMEOUT = float(os.getenv("TRIPLETEX_REQUEST_TIMEOUT", "30"))
+EXPECTED_API_KEY = os.getenv("TRIPLETEX_API_KEY", "").strip()
+WHO_AM_I_FIELDS = os.getenv("TRIPLETEX_WHOAMI_FIELDS", "").strip()
+
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
+logger = logging.getLogger("tripletex_scaffold")
 
-configure_logging()
+app = FastAPI(title="Tripletex Scaffold")
 
-app = FastAPI(title="Tripletex Agent")
-solver = TripletexSolver()
-logger = logging.getLogger(__name__)
+
+class SolveFile(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    filename: str = Field(min_length=1)
+    content_base64: str = Field(min_length=1)
+    mime_type: str = Field(min_length=1)
+
+
+class TripletexCredentials(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    base_url: str = Field(min_length=1)
+    session_token: str = Field(min_length=1)
+
+
+class SolveRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    prompt: str = Field(min_length=1)
+    files: list[SolveFile] = Field(default_factory=list)
+    tripletex_credentials: TripletexCredentials
+
+
+class SolveResponse(BaseModel):
+    status: str = "completed"
 
 
 @app.get("/", include_in_schema=False)
-def root() -> dict[str, object]:
+def root() -> dict[str, Any]:
     return {
-        "service": "tripletex-agent",
+        "service": "tripletex-scaffold",
         "status": "ok",
         "endpoints": {
             "health": "/health",
             "solve": "/solve",
-            "solve_alias": "/",
         },
     }
-
-
-@app.get("/favicon.ico", include_in_schema=False)
-def favicon() -> Response:
-    return Response(status_code=204)
 
 
 @app.get("/health")
@@ -50,128 +67,69 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:12]
-    token = set_request_id(request_id)
-    started_at = time.monotonic()
-    logger.info(
-        "http.request.start method=%s path=%s client=%s user_agent=%r",
-        request.method,
-        request.url.path,
-        request.client.host if request.client else "-",
-        request.headers.get("user-agent", "-"),
-    )
-    try:
-        response = await call_next(request)
-    except Exception:
-        elapsed_ms = round((time.monotonic() - started_at) * 1000, 1)
-        logger.exception("http.request.exception path=%s elapsed_ms=%s", request.url.path, elapsed_ms)
-        reset_request_id(token)
-        raise
-
-    elapsed_ms = round((time.monotonic() - started_at) * 1000, 1)
-    response.headers["x-request-id"] = request_id
-    logger.info(
-        "http.request.end method=%s path=%s status=%s elapsed_ms=%s",
-        request.method,
-        request.url.path,
-        response.status_code,
-        elapsed_ms,
-    )
-    reset_request_id(token)
-    return response
-
-
-def _handle_solve(request: SolveRequest, authorization: str | None) -> SolveResponse:
-    logger.info("solve.request payload=%s", _summarize_solve_request(request, authorization))
-    try:
-        return solver.solve(request, authorization)
-    except UnauthorizedError as exc:
-        logger.warning("Unauthorized /solve request: %s", exc)
-        raise HTTPException(status_code=401, detail=str(exc)) from exc
-    except TaskInputError as exc:
-        logger.warning("TaskInputError while handling /solve: %s", exc)
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except TaskPreconditionError as exc:
-        logger.warning("TaskPreconditionError while handling /solve: %s", exc)
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except PlannerError as exc:
-        logger.exception("PlannerError while handling /solve")
-        raise HTTPException(status_code=_planner_status_code(exc), detail=_planner_detail(exc)) from exc
-    except CommandExecutionError as exc:
-        logger.exception("CommandExecutionError while handling /solve")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    except OpenAPIRegistryError as exc:
-        logger.exception("OpenAPIRegistryError while handling /solve")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    except TripletexAPIError as exc:
-        logger.exception("TripletexAPIError while handling /solve")
-        raise HTTPException(
-            status_code=502,
-            detail={
-                "error": str(exc),
-                "status_code": exc.status_code,
-                "method": exc.method,
-                "path": exc.path,
-                "payload": exc.payload,
-            },
-        ) from exc
-    except SolveError as exc:
-        logger.exception("SolveError while handling /solve")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-
-@app.post("/", response_model=SolveResponse, include_in_schema=False)
-def solve_root(request: SolveRequest, authorization: str | None = Header(default=None)) -> SolveResponse:
-    return _handle_solve(request, authorization)
-
-
 @app.post("/solve", response_model=SolveResponse)
 def solve(request: SolveRequest, authorization: str | None = Header(default=None)) -> SolveResponse:
-    return _handle_solve(request, authorization)
+    _require_api_key(authorization)
+    _probe_tripletex(request.tripletex_credentials)
+    logger.info(
+        "solve.completed prompt_chars=%s files=%s base_url=%s",
+        len(request.prompt),
+        len(request.files),
+        _redact_base_url(request.tripletex_credentials.base_url),
+    )
+    return SolveResponse()
 
 
-def _summarize_solve_request(request: SolveRequest, authorization: str | None) -> dict[str, object]:
-    prompt = request.prompt
-    return {
-        "prompt": prompt[:2000],
-        "prompt_chars": len(prompt),
-        "files": [
-            {
-                "filename": file.filename,
-                "mime_type": file.mime_type,
-                "content_base64_chars": len(file.content_base64),
-            }
-            for file in request.files
-        ],
-        "tripletex_credentials": {
-            "base_url": _redact_base_url(request.tripletex_credentials.base_url),
-            "session_token_chars": len(request.tripletex_credentials.session_token),
-            "session_token_present": bool(request.tripletex_credentials.session_token),
-        },
-        "authorization_present": bool(authorization),
-        "authorization_scheme": authorization.split(" ", 1)[0] if authorization else None,
-    }
+def _require_api_key(authorization: str | None) -> None:
+    if not EXPECTED_API_KEY:
+        return
+    if not authorization:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token.")
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or token != EXPECTED_API_KEY:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid bearer token.")
+
+
+def _probe_tripletex(credentials: TripletexCredentials) -> None:
+    base_url = credentials.base_url.rstrip("/")
+    url = f"{base_url}/token/session/>whoAmI"
+    try:
+        params = {"fields": WHO_AM_I_FIELDS} if WHO_AM_I_FIELDS else None
+        response = requests.get(
+            url,
+            auth=("0", credentials.session_token),
+            params=params,
+            timeout=REQUEST_TIMEOUT,
+        )
+    except requests.RequestException as exc:
+        logger.exception("tripletex.connectivity_error base_url=%s", _redact_base_url(base_url))
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to reach the Tripletex proxy.",
+        ) from exc
+
+    if response.status_code >= 400:
+        logger.warning(
+            "tripletex.error status=%s base_url=%s body=%r",
+            response.status_code,
+            _redact_base_url(base_url),
+            response.text[:1000],
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "message": "Tripletex proxy rejected the credentials or request.",
+                "tripletex_status_code": response.status_code,
+                "tripletex_body": response.text[:1000],
+            },
+        )
+
+    logger.info("tripletex.probe_ok base_url=%s", _redact_base_url(base_url))
 
 
 def _redact_base_url(base_url: str) -> str:
-    base_url = str(base_url)
     if "://" not in base_url:
         return base_url[:120]
     scheme, rest = base_url.split("://", 1)
     host = rest.split("/", 1)[0]
     return f"{scheme}://{host}"
-
-
-def _planner_status_code(exc: PlannerError) -> int:
-    message = str(exc).upper()
-    if "RESOURCE_EXHAUSTED" in message or "429" in message:
-        return 503
-    return 500
-
-
-def _planner_detail(exc: PlannerError) -> str:
-    if _planner_status_code(exc) == 503:
-        return f"Vertex AI planning capacity is temporarily exhausted. Retry later. {exc}"
-    return str(exc)

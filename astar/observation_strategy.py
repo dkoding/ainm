@@ -167,6 +167,7 @@ def select_next_viewport_request(
             scored = score_viewport_request(
                 state=state,
                 request=request,
+                prediction_tensor=current_prediction,
                 entropy_grid=entropy_grid,
                 observation_summary=observation_summary,
                 repeat_count=repeat_count,
@@ -248,6 +249,7 @@ def score_viewport_request(
     *,
     state: dict[str, Any],
     request: ViewportRequest,
+    prediction_tensor: np.ndarray,
     entropy_grid: np.ndarray,
     observation_summary: dict[str, Any],
     repeat_count: int,
@@ -262,12 +264,14 @@ def score_viewport_request(
     y1 = y0 + request.viewport_h
 
     patch = grid[y0:y1, x0:x1]
+    prediction_patch = prediction_tensor[y0:y1, x0:x1]
     entropy_patch = entropy_grid[y0:y1, x0:x1]
     observed_counts = observation_summary["cell_observation_counts"][y0:y1, x0:x1]
     observation_entropy = observation_summary["cell_entropy"]
 
     unobserved_fraction = float(np.mean(observed_counts == 0))
     predicted_entropy_mean = float(entropy_patch.mean())
+    predicted_dynamic_mass = float(np.mean(prediction_patch[..., 1] + prediction_patch[..., 2] + prediction_patch[..., 3]))
     historical_volatility = float(np.mean(_terrain_volatility_proxy(patch)))
     settlement_importance = _settlement_importance(settlements=settlements, request=request)
     coastline_importance = _coastline_importance(grid=grid, request=request)
@@ -286,6 +290,13 @@ def score_viewport_request(
     observed_uncertainty_mean = (
         float(observed_uncertainty_sum / observed_uncertainty_cells) if observed_uncertainty_cells > 0 else 0.0
     )
+    observed_activity_mass = _observed_activity_mass(
+        summary=observation_summary,
+        x0=x0,
+        y0=y0,
+        x1=x1,
+        y1=y1,
+    )
 
     coverage_bonus = 1.0 / float(seed_unique_coverage + 1)
     repeat_penalty = 1.0 / float(repeat_count + 1)
@@ -294,6 +305,7 @@ def score_viewport_request(
         score = (
             2.0 * unobserved_fraction
             + 1.6 * predicted_entropy_mean
+            + 0.45 * predicted_dynamic_mass
             + 0.8 * historical_volatility
             + 0.45 * settlement_importance
             + 0.25 * coastline_importance
@@ -305,21 +317,25 @@ def score_viewport_request(
         phase_boost = 0.0
         score = (
             2.2 * observed_uncertainty_mean
-            + 1.0 * predicted_entropy_mean
+            + 1.1 * predicted_entropy_mean
+            + 1.2 * predicted_dynamic_mass
+            + 1.0 * observed_activity_mass
             + 0.5 * historical_volatility
             + 0.30 * settlement_importance
             + 0.20 * coastline_importance
-            + 0.25 * frontier_importance
-            + 0.25 * regime_disagreement
+            + 0.40 * frontier_importance
+            + 0.35 * regime_disagreement
         ) * repeat_penalty
 
     return {
         "score": float(score),
         "score_components": {
             "predicted_entropy_mean": predicted_entropy_mean,
+            "predicted_dynamic_mass": predicted_dynamic_mass,
             "historical_volatility": historical_volatility,
             "unobserved_fraction": unobserved_fraction,
             "observed_uncertainty_mean": observed_uncertainty_mean,
+            "observed_activity_mass": observed_activity_mass,
             "settlement_importance": settlement_importance,
             "coastline_importance": coastline_importance,
             "frontier_importance": frontier_importance,
@@ -384,6 +400,27 @@ def _terrain_volatility_proxy(patch: np.ndarray) -> np.ndarray:
     volatility[np.isin(patch, [0, 11])] = 0.55
     volatility[np.isin(patch, [1, 2, 3])] = 0.85
     return volatility
+
+
+def _observed_activity_mass(
+    *,
+    summary: dict[str, Any],
+    x0: int,
+    y0: int,
+    x1: int,
+    y1: int,
+) -> float:
+    totals = np.zeros(6, dtype=float)
+    observed = 0
+    for (y, x), counts in summary["cell_class_counts"].items():
+        if not (x0 <= int(x) < x1 and y0 <= int(y) < y1):
+            continue
+        totals += np.asarray(counts, dtype=float)
+        observed += 1
+    if observed <= 0 or float(totals.sum()) <= 0:
+        return 0.0
+    probs = totals / totals.sum()
+    return float(probs[1] + probs[2] + probs[3])
 
 
 def _settlement_importance(settlements: list[dict[str, Any]], request: ViewportRequest) -> float:

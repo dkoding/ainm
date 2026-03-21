@@ -432,16 +432,21 @@ def summarize_observed_round_behavior(observations_by_seed: dict[int, list[dict[
     class_probs = class_counts / total_cells if total_cells > 0 else np.full(CLASS_COUNT, 1.0 / CLASS_COUNT, dtype=float)
     settlement_strength = _saturating_signal(np.mean(population_values) + np.mean(food_values) + np.mean(wealth_values)) if population_values else 0.0
     conflict_pressure = _saturating_signal(np.mean(defense_values)) if defense_values else 0.0
+    wealth_signal = _saturating_signal(np.mean(wealth_values)) if wealth_values else 0.0
+    food_stress = _inverse_saturating_signal(np.mean(food_values)) if food_values else 0.0
     owner_diversity = float(np.mean(owner_diversity_values)) if owner_diversity_values else 0.0
     port_ratio = float(port_total / settlement_total) if settlement_total > 0 else 0.0
+    alive_ratio = float(alive_total / settlement_total) if settlement_total > 0 else 0.0
     development_signal = float(np.clip(class_probs[1] + class_probs[2] + 0.20 * settlement_strength, 0.0, 1.0))
     conflict_signal = float(np.clip(class_probs[3] + 0.25 * conflict_pressure + 0.20 * owner_diversity, 0.0, 1.0))
     forest_signal = float(class_probs[4])
+    trade_signal = float(np.clip(class_probs[2] + 0.45 * port_ratio + 0.20 * wealth_signal, 0.0, 1.0))
+    harshness_signal = float(np.clip((1.0 - alive_ratio) + 0.45 * food_stress + 0.25 * class_probs[3], 0.0, 1.0))
     return {
         "observed_cells": int(total_cells),
         "observed_settlements": int(settlement_total),
         "observed_ports": int(port_total),
-        "alive_ratio": float(alive_total / settlement_total) if settlement_total > 0 else 0.0,
+        "alive_ratio": alive_ratio,
         "owner_diversity": owner_diversity,
         "mean_population": float(np.mean(population_values)) if population_values else 0.0,
         "mean_food": float(np.mean(food_values)) if food_values else 0.0,
@@ -451,6 +456,8 @@ def summarize_observed_round_behavior(observations_by_seed: dict[int, list[dict[
         "development_signal": development_signal,
         "conflict_signal": conflict_signal,
         "port_signal": port_ratio,
+        "trade_signal": trade_signal,
+        "harshness_signal": harshness_signal,
         "forest_signal": forest_signal,
     }
 
@@ -458,6 +465,8 @@ def summarize_observed_round_behavior(observations_by_seed: dict[int, list[dict[
 def _build_round_summary_features(global_class_probs: np.ndarray, settlement_counts: dict[bool, int]) -> dict[str, float]:
     settlement_total = float(sum(int(value) for value in settlement_counts.values()))
     port_ratio = float(settlement_counts.get(True, 0) / settlement_total) if settlement_total > 0 else 0.0
+    trade_mass = float(np.clip(global_class_probs[2] + 0.35 * port_ratio, 0.0, 1.0))
+    harshness_mass = float(np.clip(global_class_probs[3] + 0.25 * global_class_probs[4], 0.0, 1.0))
     return {
         "development_mass": float(global_class_probs[1] + global_class_probs[2]),
         "conflict_mass": float(global_class_probs[3]),
@@ -465,6 +474,8 @@ def _build_round_summary_features(global_class_probs: np.ndarray, settlement_cou
         "forest_mass": float(global_class_probs[4]),
         "mountain_mass": float(global_class_probs[5]),
         "port_ratio": port_ratio,
+        "trade_mass": trade_mass,
+        "harshness_mass": harshness_mass,
     }
 
 
@@ -472,9 +483,22 @@ def _round_summary_alignment(observed_summary: dict[str, float], round_summary: 
     development_gap = abs(float(observed_summary.get("development_signal", 0.0)) - float(round_summary.get("development_mass", 0.0)))
     conflict_gap = abs(float(observed_summary.get("conflict_signal", 0.0)) - float(round_summary.get("conflict_mass", 0.0)))
     port_gap = abs(float(observed_summary.get("port_signal", 0.0)) - float(round_summary.get("port_ratio", 0.0)))
+    trade_gap = abs(float(observed_summary.get("trade_signal", 0.0)) - float(round_summary.get("trade_mass", 0.0)))
+    harshness_gap = abs(float(observed_summary.get("harshness_signal", 0.0)) - float(round_summary.get("harshness_mass", 0.0)))
     forest_gap = abs(float(observed_summary.get("forest_signal", 0.0)) - float(round_summary.get("forest_mass", 0.0)))
-    return float(-1.3 * development_gap - 1.1 * conflict_gap - 0.6 * port_gap - 0.3 * forest_gap)
+    return float(
+        -1.3 * development_gap
+        - 1.1 * conflict_gap
+        - 0.8 * trade_gap
+        - 0.6 * harshness_gap
+        - 0.4 * port_gap
+        - 0.3 * forest_gap
+    )
 
 
 def _saturating_signal(value: float) -> float:
     return float(1.0 - np.exp(-max(float(value), 0.0) / 100.0))
+
+
+def _inverse_saturating_signal(value: float) -> float:
+    return float(np.exp(-max(float(value), 0.0) / 100.0))

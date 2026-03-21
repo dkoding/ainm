@@ -99,6 +99,8 @@ class ObservationStrategyTests(unittest.TestCase):
         self.assertIsNotNone(selection)
         assert selection is not None
         self.assertEqual(selection["phase"], "exploit")
+        self.assertIn("predicted_dynamic_mass", selection["score_components"])
+        self.assertIn("observed_activity_mass", selection["score_components"])
 
     def test_regime_disagreement_is_reported_in_selection(self) -> None:
         round_detail = self._round_detail()

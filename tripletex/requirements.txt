@@ -1,5 +1,3 @@
 fastapi
-google-genai
-pypdf
 requests
 uvicorn[standard]

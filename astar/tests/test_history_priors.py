@@ -78,6 +78,8 @@ class HistoryPriorTests(unittest.TestCase):
         self.assertGreater(summary["development_signal"], 0.0)
         self.assertGreater(summary["owner_diversity"], 0.0)
         self.assertGreater(summary["mean_population"], 0.0)
+        self.assertIn("trade_signal", summary)
+        self.assertIn("harshness_signal", summary)
 
     def test_regime_inference_reweights_toward_better_matching_round(self) -> None:
         round_detail = {
