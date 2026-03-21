@@ -1,0 +1,4961 @@
+{
+  "commandCount": 78,
+  "commands": {
+    "company.sales_modules.activate": {
+      "allowsBodyPassthrough": true,
+      "commandName": "company.sales_modules.activate",
+      "conformancePolicyKey": "department_module_activation",
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "cost_start_date": {
+          "targetName": "costStartDate",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "name": {
+          "targetName": "name",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        }
+      },
+      "inputSpec": "`name`, `cost_start_date?`",
+      "inputs": [
+        "name",
+        "cost_start_date"
+      ],
+      "notes": [
+        "`name` is an enum in the spec, including values such as `SMART`, `KOMPLETT`, `PROJECT`, `API_V2`, `WAGE`, `FIXED_ASSETS_REGISTER`, `ZTL`."
+      ],
+      "operationId": "CompanySalesmodules_post",
+      "purpose": "activate a named sales module.",
+      "rawMethod": "POST",
+      "rawPath": "/company/salesmodules",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "company.salesmodules.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "department.enable_accounting_module"
+      ]
+    },
+    "company.sales_modules.list": {
+      "allowsBodyPassthrough": false,
+      "commandName": "company.sales_modules.list",
+      "conformancePolicyKey": "department_module_activation",
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "CompanySalesmodules_get",
+      "purpose": "inspect which purchasable/activated sales modules are already active.",
+      "rawMethod": "GET",
+      "rawPath": "/company/salesmodules",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "company.salesmodules.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "department.enable_accounting_module"
+      ]
+    },
+    "currency.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "currency.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "code": {
+          "targetName": "code",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `code?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "code",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "Currency_search",
+      "purpose": "resolve currency IDs from codes such as `NOK`, `EUR`, `USD`.",
+      "rawMethod": "GET",
+      "rawPath": "/currency",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "currency.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "product create/update",
+        "invoice",
+        "voucher",
+        "travel",
+        "supplier-invoice payment."
+      ]
+    },
+    "customer.create": {
+      "allowsBodyPassthrough": true,
+      "commandName": "customer.create",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "account_manager_ref": {
+          "targetName": "accountManager",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "department_ref": {
+          "targetName": "department",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "email": {
+          "targetName": "email",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "invoice_email": {
+          "targetName": "invoiceEmail",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "is_supplier": {
+          "targetName": "isSupplier",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "language": {
+          "targetName": "language",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "name": {
+          "targetName": "name",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "organization_number": {
+          "targetName": "organizationNumber",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "phone_number": {
+          "targetName": "phoneNumber",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "phone_number_mobile": {
+          "targetName": "phoneNumberMobile",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`name`, `organization_number?`, `email?`, `invoice_email?`, `phone_number?`, `phone_number_mobile?`, `department_ref?`, `account_manager_ref?`, `language?`, `is_supplier?`, address fields as needed.",
+      "inputs": [
+        "name",
+        "organization_number",
+        "email",
+        "invoice_email",
+        "phone_number",
+        "phone_number_mobile",
+        "department_ref",
+        "account_manager_ref",
+        "language",
+        "is_supplier"
+      ],
+      "notes": [],
+      "operationId": "Customer_post",
+      "purpose": "create a customer and optional related addresses.",
+      "rawMethod": "POST",
+      "rawPath": "/customer",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "customer.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "customer.create_or_update"
+      ]
+    },
+    "customer.delete": {
+      "allowsBodyPassthrough": false,
+      "commandName": "customer.delete",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`",
+      "inputs": [
+        "id"
+      ],
+      "notes": [
+        "beta endpoint. Prefer non-destructive correction flows when the customer is already linked into accounting artifacts."
+      ],
+      "operationId": "Customer_delete",
+      "purpose": "delete a customer when the business task explicitly requires deletion and the object is deletable.",
+      "rawMethod": "DELETE",
+      "rawPath": "/customer/{id}",
+      "safetyClass": "destructive",
+      "technicalFlowFamily": "customer.delete",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields",
+        "confirm unique target before dispatch"
+      ],
+      "workflowMembership": [
+        "deletion/correction flows."
+      ]
+    },
+    "customer.get": {
+      "allowsBodyPassthrough": false,
+      "commandName": "customer.get",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `fields?`",
+      "inputs": [
+        "id",
+        "fields"
+      ],
+      "notes": [],
+      "operationId": "Customer_get",
+      "purpose": "fetch one customer by ID.",
+      "rawMethod": "GET",
+      "rawPath": "/customer/{id}",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "customer.read",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "update",
+        "verification",
+        "linking."
+      ]
+    },
+    "customer.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "customer.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "account_manager_id": {
+          "targetName": "accountManagerId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "customer_account_number": {
+          "targetName": "customerAccountNumber",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "email": {
+          "targetName": "email",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "invoice_email": {
+          "targetName": "invoiceEmail",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "name": {
+          "targetName": "customerName",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "organization_number": {
+          "targetName": "organizationNumber",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `customer_account_number?`, `organization_number?`, `email?`, `invoice_email?`, `name?`, `account_manager_id?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "customer_account_number",
+        "organization_number",
+        "email",
+        "invoice_email",
+        "name",
+        "account_manager_id",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [
+        "wrapper input `name` should map to raw query parameter `customerName`."
+      ],
+      "operationId": "Customer_search",
+      "purpose": "resolve a customer before create/update/link/delete.",
+      "rawMethod": "GET",
+      "rawPath": "/customer",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "customer.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "customer flows",
+        "invoice flows",
+        "project flows",
+        "voucher flows."
+      ]
+    },
+    "customer.update": {
+      "allowsBodyPassthrough": true,
+      "commandName": "customer.update",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "version": {
+          "targetName": "version",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, customer payload, `version?`",
+      "inputs": [
+        "id",
+        "version"
+      ],
+      "notes": [],
+      "operationId": "Customer_put",
+      "purpose": "update an existing customer.",
+      "rawMethod": "PUT",
+      "rawPath": "/customer/{id}",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "customer.update",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "customer.create_or_update"
+      ]
+    },
+    "department.create": {
+      "allowsBodyPassthrough": true,
+      "commandName": "department.create",
+      "conformancePolicyKey": "department_module_activation",
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "department_manager_ref": {
+          "targetName": "departmentManager",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "department_number": {
+          "targetName": "departmentNumber",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "name": {
+          "targetName": "name",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        }
+      },
+      "inputSpec": "`name`, `department_number?`, `department_manager_ref?`",
+      "inputs": [
+        "name",
+        "department_number",
+        "department_manager_ref"
+      ],
+      "notes": [],
+      "operationId": "Department_post",
+      "purpose": "create a department.",
+      "rawMethod": "POST",
+      "rawPath": "/department",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "department.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "department.create_with_manager",
+        "department.enable_accounting_module"
+      ]
+    },
+    "department.delete": {
+      "allowsBodyPassthrough": false,
+      "commandName": "department.delete",
+      "conformancePolicyKey": "department_module_activation",
+      "inputBindings": {
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`",
+      "inputs": [
+        "id"
+      ],
+      "notes": [],
+      "operationId": "Department_delete",
+      "purpose": "delete a department if explicitly requested and safe.",
+      "rawMethod": "DELETE",
+      "rawPath": "/department/{id}",
+      "safetyClass": "destructive",
+      "technicalFlowFamily": "department.delete",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields",
+        "confirm unique target before dispatch"
+      ],
+      "workflowMembership": [
+        "correction flows."
+      ]
+    },
+    "department.get": {
+      "allowsBodyPassthrough": false,
+      "commandName": "department.get",
+      "conformancePolicyKey": "department_module_activation",
+      "inputBindings": {
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `fields?`",
+      "inputs": [
+        "id",
+        "fields"
+      ],
+      "notes": [],
+      "operationId": "Department_get",
+      "purpose": "fetch one department by ID.",
+      "rawMethod": "GET",
+      "rawPath": "/department/{id}",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "department.read",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "update",
+        "verification",
+        "linking."
+      ]
+    },
+    "department.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "department.search",
+      "conformancePolicyKey": "department_module_activation",
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "department_manager_id": {
+          "targetName": "departmentManagerId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "department_number": {
+          "targetName": "departmentNumber",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "name": {
+          "targetName": "name",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `name?`, `department_number?`, `department_manager_id?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "name",
+        "department_number",
+        "department_manager_id",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "Department_search",
+      "purpose": "resolve a department before create/update/link/delete.",
+      "rawMethod": "GET",
+      "rawPath": "/department",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "department.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "department flows",
+        "employee/project/customer/product linking."
+      ]
+    },
+    "department.update": {
+      "allowsBodyPassthrough": true,
+      "commandName": "department.update",
+      "conformancePolicyKey": "department_module_activation",
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "version": {
+          "targetName": "version",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, department payload, `version?`",
+      "inputs": [
+        "id",
+        "version"
+      ],
+      "notes": [],
+      "operationId": "Department_put",
+      "purpose": "update an existing department.",
+      "rawMethod": "PUT",
+      "rawPath": "/department/{id}",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "department.update",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "department.create_with_manager"
+      ]
+    },
+    "employee.create": {
+      "allowsBodyPassthrough": true,
+      "commandName": "employee.create",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "department_ref": {
+          "targetName": "department",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "email": {
+          "targetName": "email",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "first_name": {
+          "targetName": "firstName",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "last_name": {
+          "targetName": "lastName",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "phone_number_mobile": {
+          "targetName": "phoneNumberMobile",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "user_type": {
+          "targetName": "userType",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`first_name`, `last_name`, `email?`, `phone_number_mobile?`, `department_ref?`, `user_type?`, other employee payload fields when needed.",
+      "inputs": [
+        "first_name",
+        "last_name",
+        "email",
+        "phone_number_mobile",
+        "department_ref",
+        "user_type"
+      ],
+      "notes": [
+        "`user_type` enum is `STANDARD`, `EXTENDED`, `NO_ACCESS`."
+      ],
+      "operationId": "Employee_post",
+      "purpose": "create a new employee.",
+      "rawMethod": "POST",
+      "rawPath": "/employee",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "employee.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "employee.create_basic",
+        "employee.create_with_access"
+      ]
+    },
+    "employee.entitlements.grant_client_template": {
+      "allowsBodyPassthrough": false,
+      "commandName": "employee.entitlements.grant_client_template",
+      "conformancePolicyKey": "employee_access_mapping",
+      "inputBindings": {
+        "add_to_existing": {
+          "targetName": "addToExisting",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "customer_id": {
+          "targetName": "customerId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "employee_id": {
+          "targetName": "employeeId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "template": {
+          "targetName": "template",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`employee_id`, `customer_id`, `template`, `add_to_existing?`",
+      "inputs": [
+        "employee_id",
+        "customer_id",
+        "template",
+        "add_to_existing"
+      ],
+      "notes": [],
+      "operationId": "EmployeeEntitlementGrantClientEntitlementsByTemplate_grantClientEntitlementsByTemplate",
+      "purpose": "grant client-account entitlements in accountant-style setups.",
+      "rawMethod": "PUT",
+      "rawPath": "/employee/entitlement/:grantClientEntitlementsByTemplate",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "employee.entitlement.grant_client_entitlements_by_template",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "advanced or accountant-specific flows",
+        "not core competition bootstrap."
+      ]
+    },
+    "employee.entitlements.grant_template": {
+      "allowsBodyPassthrough": false,
+      "commandName": "employee.entitlements.grant_template",
+      "conformancePolicyKey": "employee_access_mapping",
+      "inputBindings": {
+        "employee_id": {
+          "targetName": "employeeId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "template": {
+          "targetName": "template",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`employee_id`, `template`",
+      "inputs": [
+        "employee_id",
+        "template"
+      ],
+      "notes": [
+        "allowed templates are `NONE_PRIVILEGES`, `ALL_PRIVILEGES`, `INVOICING_MANAGER`, `PERSONELL_MANAGER`, `ACCOUNTANT`, `AUDITOR`, `DEPARTMENT_LEADER`. This is one of the main commands for admin-like access, but the exact mapping from natural-language roles to templates should be validated in sandbox."
+      ],
+      "operationId": "EmployeeEntitlementGrantEntitlementsByTemplate_grantEntitlementsByTemplate",
+      "purpose": "apply a coarse entitlement template to an employee.",
+      "rawMethod": "PUT",
+      "rawPath": "/employee/entitlement/:grantEntitlementsByTemplate",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "employee.entitlement.grant_entitlements_by_template",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "employee.create_with_access"
+      ]
+    },
+    "employee.entitlements.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "employee.entitlements.search",
+      "conformancePolicyKey": "employee_access_mapping",
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "employee_id": {
+          "targetName": "employeeId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`employee_id?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "employee_id",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "EmployeeEntitlement_search",
+      "purpose": "inspect current entitlements for an employee.",
+      "rawMethod": "GET",
+      "rawPath": "/employee/entitlement",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "employee.entitlement.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "employee.create_with_access"
+      ]
+    },
+    "employee.get": {
+      "allowsBodyPassthrough": false,
+      "commandName": "employee.get",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `fields?`",
+      "inputs": [
+        "id",
+        "fields"
+      ],
+      "notes": [],
+      "operationId": "Employee_get",
+      "purpose": "fetch one employee by ID for confirmation or version-aware update.",
+      "rawMethod": "GET",
+      "rawPath": "/employee/{id}",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "employee.read",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "employee.update_contact"
+      ]
+    },
+    "employee.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "employee.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "department_id": {
+          "targetName": "departmentId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "email": {
+          "targetName": "email",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "employee_number": {
+          "targetName": "employeeNumber",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "first_name": {
+          "targetName": "firstName",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "has_system_access": {
+          "targetName": "hasSystemAccess",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "last_name": {
+          "targetName": "lastName",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "only_project_managers": {
+          "targetName": "onlyProjectManagers",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `first_name?`, `last_name?`, `employee_number?`, `email?`, `department_id?`, `has_system_access?`, `only_project_managers?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "first_name",
+        "last_name",
+        "employee_number",
+        "email",
+        "department_id",
+        "has_system_access",
+        "only_project_managers",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "Employee_search",
+      "purpose": "resolve employees before create/update/link operations.",
+      "rawMethod": "GET",
+      "rawPath": "/employee",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "employee.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "employee flows",
+        "department/project manager resolution",
+        "travel-expense employee resolution."
+      ]
+    },
+    "employee.update": {
+      "allowsBodyPassthrough": true,
+      "commandName": "employee.update",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "version": {
+          "targetName": "version",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, employee payload including changed fields, `version?`",
+      "inputs": [
+        "id",
+        "version"
+      ],
+      "notes": [],
+      "operationId": "Employee_put",
+      "purpose": "update an employee after target resolution.",
+      "rawMethod": "PUT",
+      "rawPath": "/employee/{id}",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "employee.update",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "employee.update_contact",
+        "employee.create_with_access"
+      ]
+    },
+    "incoming_invoice.add_payment": {
+      "allowsBodyPassthrough": true,
+      "commandName": "incoming_invoice.add_payment",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "amount_currency": {
+          "targetName": "amountCurrency",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "creditor_iban_or_bban": {
+          "targetName": "creditorIbanOrBban",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "kid_or_receiver_reference": {
+          "targetName": "kidOrReceiverReference",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "partial_payment": {
+          "targetName": "partialPayment",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "payment_date": {
+          "targetName": "paymentDate",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payment_type_client_uuid": {
+          "targetName": "paymentTypeClientUUId",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "use_default_payment_type": {
+          "targetName": "useDefaultPaymentType",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "voucher_id": {
+          "targetName": "voucherId",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`voucher_id`, `payment_type_client_uuid?`, `amount_currency?`, `payment_date?`, `creditor_iban_or_bban?`, `kid_or_receiver_reference?`, `use_default_payment_type?`, `partial_payment?`",
+      "inputs": [
+        "voucher_id",
+        "payment_type_client_uuid",
+        "amount_currency",
+        "payment_date",
+        "creditor_iban_or_bban",
+        "kid_or_receiver_reference",
+        "use_default_payment_type",
+        "partial_payment"
+      ],
+      "notes": [
+        "restricted API for pilot customers."
+      ],
+      "operationId": "IncomingInvoiceAddPayment_addPayment",
+      "purpose": "create payment on an incoming invoice.",
+      "rawMethod": "POST",
+      "rawPath": "/incomingInvoice/{voucherId}/addPayment",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "incoming_invoice.add_payment.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "advanced/pilot vendor-invoice flows."
+      ]
+    },
+    "incoming_invoice.get": {
+      "allowsBodyPassthrough": false,
+      "commandName": "incoming_invoice.get",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "voucher_id": {
+          "targetName": "voucherId",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`voucher_id`, `fields?`",
+      "inputs": [
+        "voucher_id",
+        "fields"
+      ],
+      "notes": [
+        "restricted API for pilot customers."
+      ],
+      "operationId": "IncomingInvoice_get",
+      "purpose": "fetch an incoming invoice by voucher ID.",
+      "rawMethod": "GET",
+      "rawPath": "/incomingInvoice/{voucherId}",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "incoming_invoice.read",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "advanced/pilot vendor-invoice flows."
+      ]
+    },
+    "incoming_invoice.update": {
+      "allowsBodyPassthrough": true,
+      "commandName": "incoming_invoice.update",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "invoice_header": {
+          "targetName": "invoiceHeader",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "order_lines": {
+          "targetName": "orderLines",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "send_to": {
+          "targetName": "sendTo",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "version": {
+          "targetName": "version",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "voucher_id": {
+          "targetName": "voucherId",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`voucher_id`, `send_to?`, `version?`, `invoice_header?`, `order_lines[]?`",
+      "inputs": [
+        "voucher_id",
+        "send_to",
+        "version",
+        "invoice_header",
+        "order_lines"
+      ],
+      "notes": [
+        "restricted API for pilot customers."
+      ],
+      "operationId": "IncomingInvoice_put",
+      "purpose": "update an incoming invoice aggregate.",
+      "rawMethod": "PUT",
+      "rawPath": "/incomingInvoice/{voucherId}",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "incoming_invoice.update",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "advanced/pilot vendor-invoice flows."
+      ]
+    },
+    "invoice.create": {
+      "allowsBodyPassthrough": true,
+      "commandName": "invoice.create",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "comment": {
+          "targetName": "comment",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "customer_ref": {
+          "targetName": "customer",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "invoice_comment": {
+          "targetName": "comment",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "invoice_date": {
+          "targetName": "invoiceDate",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "invoice_due_date": {
+          "targetName": "invoiceDueDate",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "orders": {
+          "targetName": "orders",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "paid_amount": {
+          "targetName": "paidAmount",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "payment_type_id": {
+          "targetName": "paymentTypeId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`invoice_date`, `invoice_due_date?`, `customer_ref`, `orders[]?`, `payment_type_id?`, `paid_amount?`, `invoice_comment?`, `comment?`",
+      "inputs": [
+        "invoice_date",
+        "invoice_due_date",
+        "customer_ref",
+        "orders",
+        "payment_type_id",
+        "paid_amount",
+        "invoice_comment",
+        "comment"
+      ],
+      "notes": [
+        "the reliable create shape is usually `Invoice -> orders -> orderLines`. The top-level `Invoice.orderLines` property is read-only in the schema."
+      ],
+      "operationId": "Invoice_post",
+      "purpose": "create an invoice directly.",
+      "rawMethod": "POST",
+      "rawPath": "/invoice",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "invoice.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "invoice.direct"
+      ]
+    },
+    "invoice.create_credit_note": {
+      "allowsBodyPassthrough": false,
+      "commandName": "invoice.create_credit_note",
+      "conformancePolicyKey": "invoice_credit_note",
+      "inputBindings": {
+        "comment": {
+          "targetName": "comment",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "credit_note_email": {
+          "targetName": "creditNoteEmail",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "date": {
+          "targetName": "date",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        },
+        "send_to_customer": {
+          "targetName": "sendToCustomer",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "send_type": {
+          "targetName": "sendType",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `date`, `comment?`, `credit_note_email?`, `send_to_customer?`, `send_type?`",
+      "inputs": [
+        "id",
+        "date",
+        "comment",
+        "credit_note_email",
+        "send_to_customer",
+        "send_type"
+      ],
+      "notes": [
+        "this is the preferred correction path for already issued outgoing invoices."
+      ],
+      "operationId": "InvoiceCreateCreditNote_createCreditNote",
+      "purpose": "create a credit note that nullifies an existing invoice.",
+      "rawMethod": "PUT",
+      "rawPath": "/invoice/{id}/:createCreditNote",
+      "safetyClass": "high_risk",
+      "technicalFlowFamily": "invoice.create_credit_note",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields",
+        "confirm unique target before dispatch"
+      ],
+      "workflowMembership": [
+        "invoice.credit_note"
+      ]
+    },
+    "invoice.get": {
+      "allowsBodyPassthrough": false,
+      "commandName": "invoice.get",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `fields?`",
+      "inputs": [
+        "id",
+        "fields"
+      ],
+      "notes": [],
+      "operationId": "Invoice_get",
+      "purpose": "fetch one invoice by ID.",
+      "rawMethod": "GET",
+      "rawPath": "/invoice/{id}",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "invoice.read",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "invoice.register_payment",
+        "invoice.credit_note"
+      ]
+    },
+    "invoice.register_payment": {
+      "allowsBodyPassthrough": false,
+      "commandName": "invoice.register_payment",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        },
+        "paid_amount": {
+          "targetName": "paidAmount",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "paid_amount_currency": {
+          "targetName": "paidAmountCurrency",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "payment_date": {
+          "targetName": "paymentDate",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "payment_type_id": {
+          "targetName": "paymentTypeId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `payment_date`, `payment_type_id`, `paid_amount`, `paid_amount_currency?`",
+      "inputs": [
+        "id",
+        "payment_date",
+        "payment_type_id",
+        "paid_amount",
+        "paid_amount_currency"
+      ],
+      "notes": [],
+      "operationId": "InvoicePayment_payment",
+      "purpose": "register payment on an outgoing invoice.",
+      "rawMethod": "PUT",
+      "rawPath": "/invoice/{id}/:payment",
+      "safetyClass": "state_change",
+      "technicalFlowFamily": "invoice.payment",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "invoice.register_payment"
+      ]
+    },
+    "invoice.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "invoice.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "customer_id": {
+          "targetName": "customerId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "invoice_date_from": {
+          "targetName": "invoiceDateFrom",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "invoice_date_to": {
+          "targetName": "invoiceDateTo",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "invoice_number": {
+          "targetName": "invoiceNumber",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "kid": {
+          "targetName": "kid",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "voucher_id": {
+          "targetName": "voucherId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `invoice_number?`, `kid?`, `voucher_id?`, `customer_id?`, `invoice_date_from`, `invoice_date_to`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "invoice_number",
+        "kid",
+        "voucher_id",
+        "customer_id",
+        "invoice_date_from",
+        "invoice_date_to",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [
+        "this search covers charged outgoing invoices."
+      ],
+      "operationId": "Invoice_search",
+      "purpose": "resolve an existing outgoing invoice.",
+      "rawMethod": "GET",
+      "rawPath": "/invoice",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "invoice.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "invoice.register_payment",
+        "invoice.credit_note"
+      ]
+    },
+    "invoice_payment_type.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "invoice_payment_type.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "description": {
+          "targetName": "description",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "query": {
+          "targetName": "query",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `description?`, `query?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "description",
+        "query",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "InvoicePaymentType_search",
+      "purpose": "resolve outgoing-invoice payment type IDs.",
+      "rawMethod": "GET",
+      "rawPath": "/invoice/paymentType",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "invoice.payment_type.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "invoice.register_payment",
+        "invoice.order_first",
+        "invoice.direct"
+      ]
+    },
+    "ledger.account.create": {
+      "allowsBodyPassthrough": true,
+      "commandName": "ledger.account.create",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "bank_account_number": {
+          "targetName": "bankAccountNumber",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "currency_ref": {
+          "targetName": "currency",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "department_ref": {
+          "targetName": "department",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "description": {
+          "targetName": "description",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "is_bank_account": {
+          "targetName": "isBankAccount",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "ledger_type": {
+          "targetName": "ledgerType",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "name": {
+          "targetName": "name",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "number": {
+          "targetName": "number",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "vat_type_ref": {
+          "targetName": "vatType",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        }
+      },
+      "inputSpec": "`number`, `name`, `description?`, `ledger_type?`, `vat_type_ref?`, `currency_ref?`, `is_bank_account?`, `bank_account_number?`, `department_ref?`",
+      "inputs": [
+        "number",
+        "name",
+        "description",
+        "ledger_type",
+        "vat_type_ref",
+        "currency_ref",
+        "is_bank_account",
+        "bank_account_number",
+        "department_ref"
+      ],
+      "notes": [],
+      "operationId": "LedgerAccount_post",
+      "purpose": "create a new ledger account.",
+      "rawMethod": "POST",
+      "rawPath": "/ledger/account",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "ledger.account.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "voucher.manual_adjustment"
+      ]
+    },
+    "ledger.account.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "ledger.account.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_applicable_for_supplier_invoice": {
+          "targetName": "isApplicableForSupplierInvoice",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_balance_account": {
+          "targetName": "isBalanceAccount",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_bank_account": {
+          "targetName": "isBankAccount",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_inactive": {
+          "targetName": "isInactive",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "ledger_type": {
+          "targetName": "ledgerType",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "number": {
+          "targetName": "number",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "saft_code": {
+          "targetName": "saftCode",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `number?`, `is_bank_account?`, `is_inactive?`, `is_applicable_for_supplier_invoice?`, `ledger_type?`, `is_balance_account?`, `saft_code?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "number",
+        "is_bank_account",
+        "is_inactive",
+        "is_applicable_for_supplier_invoice",
+        "ledger_type",
+        "is_balance_account",
+        "saft_code",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "LedgerAccount_search",
+      "purpose": "resolve account IDs and account rules before voucher or product creation.",
+      "rawMethod": "GET",
+      "rawPath": "/ledger/account",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "ledger.account.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "product.create_or_update",
+        "voucher.manual_adjustment",
+        "ledger.verify_effect"
+      ]
+    },
+    "ledger.posting.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "ledger.posting.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "account_id": {
+          "targetName": "accountId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "account_number_from": {
+          "targetName": "accountNumberFrom",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "account_number_to": {
+          "targetName": "accountNumberTo",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "customer_id": {
+          "targetName": "customerId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "date_from": {
+          "targetName": "dateFrom",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "date_to": {
+          "targetName": "dateTo",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "department_id": {
+          "targetName": "departmentId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "employee_id": {
+          "targetName": "employeeId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "open_postings": {
+          "targetName": "openPostings",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "product_id": {
+          "targetName": "productId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "project_id": {
+          "targetName": "projectId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "supplier_id": {
+          "targetName": "supplierId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "type": {
+          "targetName": "type",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`date_from`, `date_to`, `open_postings?`, `account_id?`, `supplier_id?`, `customer_id?`, `employee_id?`, `department_id?`, `project_id?`, `product_id?`, `account_number_from?`, `account_number_to?`, `type?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "date_from",
+        "date_to",
+        "open_postings",
+        "account_id",
+        "supplier_id",
+        "customer_id",
+        "employee_id",
+        "department_id",
+        "project_id",
+        "product_id",
+        "account_number_from",
+        "account_number_to",
+        "type",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "LedgerPosting_search",
+      "purpose": "search postings to verify accounting effects or find targets for correction.",
+      "rawMethod": "GET",
+      "rawPath": "/ledger/posting",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "ledger.posting.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "ledger.verify_effect",
+        "voucher.reverse_or_correct"
+      ]
+    },
+    "ledger.voucher_type.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "ledger.voucher_type.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "name": {
+          "targetName": "name",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`name?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "name",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "LedgerVoucherType_search",
+      "purpose": "resolve voucher-type IDs before manual voucher creation.",
+      "rawMethod": "GET",
+      "rawPath": "/ledger/voucherType",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "ledger.voucher_type.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "voucher.manual_adjustment",
+        "voucher.reverse_or_correct"
+      ]
+    },
+    "order.create": {
+      "allowsBodyPassthrough": true,
+      "commandName": "order.create",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "currency_ref": {
+          "targetName": "currency",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "customer_ref": {
+          "targetName": "customer",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "department_ref": {
+          "targetName": "department",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "invoice_comment": {
+          "targetName": "invoiceComment",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "invoices_due_in": {
+          "targetName": "invoicesDueIn",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "invoices_due_in_type": {
+          "targetName": "invoicesDueInType",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "order_date": {
+          "targetName": "orderDate",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "order_lines": {
+          "targetName": "orderLines",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "project_ref": {
+          "targetName": "project",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        }
+      },
+      "inputSpec": "`customer_ref`, `order_date`, `project_ref?`, `department_ref?`, `invoice_comment?`, `currency_ref?`, `invoices_due_in?`, `invoices_due_in_type?`, `order_lines[]?`",
+      "inputs": [
+        "customer_ref",
+        "order_date",
+        "project_ref",
+        "department_ref",
+        "invoice_comment",
+        "currency_ref",
+        "invoices_due_in",
+        "invoices_due_in_type",
+        "order_lines"
+      ],
+      "notes": [
+        "`Order.orderLines` can embed new lines. This is usually the preferred way to create invoiceable sales data."
+      ],
+      "operationId": "Order_post",
+      "purpose": "create an order, optionally with embedded order lines.",
+      "rawMethod": "POST",
+      "rawPath": "/order",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "order.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "invoice.order_first"
+      ]
+    },
+    "order.delete": {
+      "allowsBodyPassthrough": false,
+      "commandName": "order.delete",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`",
+      "inputs": [
+        "id"
+      ],
+      "notes": [],
+      "operationId": "Order_delete",
+      "purpose": "delete an order if the task explicitly asks for deletion and the order has not moved too far downstream.",
+      "rawMethod": "DELETE",
+      "rawPath": "/order/{id}",
+      "safetyClass": "destructive",
+      "technicalFlowFamily": "order.delete",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields",
+        "confirm unique target before dispatch"
+      ],
+      "workflowMembership": [
+        "correction flows."
+      ]
+    },
+    "order.get": {
+      "allowsBodyPassthrough": false,
+      "commandName": "order.get",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `fields?`",
+      "inputs": [
+        "id",
+        "fields"
+      ],
+      "notes": [],
+      "operationId": "Order_get",
+      "purpose": "fetch one order by ID.",
+      "rawMethod": "GET",
+      "rawPath": "/order/{id}",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "order.read",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "invoice conversion",
+        "update",
+        "verification."
+      ]
+    },
+    "order.invoice": {
+      "allowsBodyPassthrough": false,
+      "commandName": "order.invoice",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "amount_on_account": {
+          "targetName": "amountOnAccount",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "create_backorder": {
+          "targetName": "createBackorder",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "create_on_account": {
+          "targetName": "createOnAccount",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        },
+        "invoice_date": {
+          "targetName": "invoiceDate",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "invoice_id_if_is_credit_note": {
+          "targetName": "invoiceIdIfIsCreditNote",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "on_account_comment": {
+          "targetName": "onAccountComment",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "override_email_address": {
+          "targetName": "overrideEmailAddress",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "paid_amount": {
+          "targetName": "paidAmount",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "paid_amount_account_currency": {
+          "targetName": "paidAmountAccountCurrency",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "payment_type_id": {
+          "targetName": "paymentTypeId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "send_to_customer": {
+          "targetName": "sendToCustomer",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "send_type": {
+          "targetName": "sendType",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `invoice_date`, `send_to_customer?`, `send_type?`, `payment_type_id?`, `paid_amount?`, `paid_amount_account_currency?`, `create_on_account?`, `amount_on_account?`, `on_account_comment?`, `create_backorder?`, `invoice_id_if_is_credit_note?`, `override_email_address?`",
+      "inputs": [
+        "id",
+        "invoice_date",
+        "send_to_customer",
+        "send_type",
+        "payment_type_id",
+        "paid_amount",
+        "paid_amount_account_currency",
+        "create_on_account",
+        "amount_on_account",
+        "on_account_comment",
+        "create_backorder",
+        "invoice_id_if_is_credit_note",
+        "override_email_address"
+      ],
+      "notes": [
+        "this is one of the most important action commands in the API. Prefer it over manually reconstructing an invoice from an already-created order."
+      ],
+      "operationId": "OrderInvoice_invoice",
+      "purpose": "convert an existing order into an invoice.",
+      "rawMethod": "PUT",
+      "rawPath": "/order/{id}/:invoice",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "order.invoice",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "invoice.order_first"
+      ]
+    },
+    "order.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "order.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "customer_id": {
+          "targetName": "customerId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_closed": {
+          "targetName": "isClosed",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "number": {
+          "targetName": "number",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "order_date_from": {
+          "targetName": "orderDateFrom",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "order_date_to": {
+          "targetName": "orderDateTo",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `number?`, `customer_id?`, `order_date_from`, `order_date_to`, `is_closed?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "number",
+        "customer_id",
+        "order_date_from",
+        "order_date_to",
+        "is_closed",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "Order_search",
+      "purpose": "resolve an existing order.",
+      "rawMethod": "GET",
+      "rawPath": "/order",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "order.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "invoice.order_first"
+      ]
+    },
+    "order.update": {
+      "allowsBodyPassthrough": true,
+      "commandName": "order.update",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "update_lines_and_groups": {
+          "targetName": "updateLinesAndGroups",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "version": {
+          "targetName": "version",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, order payload, `version?`, `update_lines_and_groups?`",
+      "inputs": [
+        "id",
+        "version",
+        "update_lines_and_groups"
+      ],
+      "notes": [],
+      "operationId": "Order_put",
+      "purpose": "update an existing order.",
+      "rawMethod": "PUT",
+      "rawPath": "/order/{id}",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "order.update",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "order correction before invoicing."
+      ]
+    },
+    "product.create": {
+      "allowsBodyPassthrough": true,
+      "commandName": "product.create",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "account_ref": {
+          "targetName": "account",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "currency_ref": {
+          "targetName": "currency",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "department_ref": {
+          "targetName": "department",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "description": {
+          "targetName": "description",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "name": {
+          "targetName": "name",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "number": {
+          "targetName": "number",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "order_line_description": {
+          "targetName": "orderLineDescription",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "price_excluding_vat_currency": {
+          "targetName": "priceExcludingVatCurrency",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "price_including_vat_currency": {
+          "targetName": "priceIncludingVatCurrency",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "product_unit_ref": {
+          "targetName": "productUnit",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "vat_type_ref": {
+          "targetName": "vatType",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        }
+      },
+      "inputSpec": "`name`, `number?`, `description?`, `order_line_description?`, `price_excluding_vat_currency?`, `price_including_vat_currency?`, `vat_type_ref?`, `department_ref?`, `account_ref?`, `product_unit_ref?`, `currency_ref?`",
+      "inputs": [
+        "name",
+        "number",
+        "description",
+        "order_line_description",
+        "price_excluding_vat_currency",
+        "price_including_vat_currency",
+        "vat_type_ref",
+        "department_ref",
+        "account_ref",
+        "product_unit_ref",
+        "currency_ref"
+      ],
+      "notes": [],
+      "operationId": "Product_post",
+      "purpose": "create a product/service record.",
+      "rawMethod": "POST",
+      "rawPath": "/product",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "product.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "product.create_or_update"
+      ]
+    },
+    "product.delete": {
+      "allowsBodyPassthrough": false,
+      "commandName": "product.delete",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`",
+      "inputs": [
+        "id"
+      ],
+      "notes": [],
+      "operationId": "Product_delete",
+      "purpose": "delete a product when the task explicitly requires removal and the product is not in use.",
+      "rawMethod": "DELETE",
+      "rawPath": "/product/{id}",
+      "safetyClass": "destructive",
+      "technicalFlowFamily": "product.delete",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields",
+        "confirm unique target before dispatch"
+      ],
+      "workflowMembership": [
+        "deletion/correction flows."
+      ]
+    },
+    "product.get": {
+      "allowsBodyPassthrough": false,
+      "commandName": "product.get",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `fields?`",
+      "inputs": [
+        "id",
+        "fields"
+      ],
+      "notes": [],
+      "operationId": "Product_get",
+      "purpose": "fetch one product by ID.",
+      "rawMethod": "GET",
+      "rawPath": "/product/{id}",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "product.read",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "update",
+        "verification",
+        "linking."
+      ]
+    },
+    "product.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "product.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "account_id": {
+          "targetName": "accountId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "department_id": {
+          "targetName": "departmentId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "ean": {
+          "targetName": "ean",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "name": {
+          "targetName": "name",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "number": {
+          "targetName": "number",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "product_number": {
+          "targetName": "productNumber",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "supplier_id": {
+          "targetName": "supplierId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "vat_type_id": {
+          "targetName": "vatTypeId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`number?`, `product_number?`, `name?`, `ean?`, `supplier_id?`, `vat_type_id?`, `department_id?`, `account_id?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "number",
+        "product_number",
+        "name",
+        "ean",
+        "supplier_id",
+        "vat_type_id",
+        "department_id",
+        "account_id",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "Product_search",
+      "purpose": "resolve a product before create/update/use in order lines.",
+      "rawMethod": "GET",
+      "rawPath": "/product",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "product.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "product.create_or_update",
+        "invoice.order_first",
+        "invoice.direct"
+      ]
+    },
+    "product.update": {
+      "allowsBodyPassthrough": true,
+      "commandName": "product.update",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "version": {
+          "targetName": "version",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, product payload, `version?`",
+      "inputs": [
+        "id",
+        "version"
+      ],
+      "notes": [],
+      "operationId": "Product_put",
+      "purpose": "update an existing product.",
+      "rawMethod": "PUT",
+      "rawPath": "/product/{id}",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "product.update",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "product.create_or_update"
+      ]
+    },
+    "product_unit.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "product_unit.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "common_code": {
+          "targetName": "commonCode",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "name": {
+          "targetName": "name",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "name_short": {
+          "targetName": "nameShort",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `name?`, `name_short?`, `common_code?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "name",
+        "name_short",
+        "common_code",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "ProductUnit_search",
+      "purpose": "resolve product-unit IDs such as pieces, hours, days.",
+      "rawMethod": "GET",
+      "rawPath": "/product/unit",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "product.unit.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "product.create_or_update"
+      ]
+    },
+    "project.create": {
+      "allowsBodyPassthrough": true,
+      "commandName": "project.create",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "currency_ref": {
+          "targetName": "currency",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "customer_ref": {
+          "targetName": "customer",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "department_ref": {
+          "targetName": "department",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "description": {
+          "targetName": "description",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "end_date": {
+          "targetName": "endDate",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "fixedprice": {
+          "targetName": "fixedprice",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "invoice_comment": {
+          "targetName": "invoiceComment",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "invoice_receiver_email": {
+          "targetName": "invoiceReceiverEmail",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "is_fixed_price": {
+          "targetName": "isFixedPrice",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "is_internal": {
+          "targetName": "isInternal",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "is_offer": {
+          "targetName": "isOffer",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "name": {
+          "targetName": "name",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "number": {
+          "targetName": "number",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "project_manager_ref": {
+          "targetName": "projectManager",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "start_date": {
+          "targetName": "startDate",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`name`, `number?`, `description?`, `project_manager_ref?`, `department_ref?`, `customer_ref?`, `start_date?`, `end_date?`, `is_internal?`, `is_offer?`, `is_fixed_price?`, `fixedprice?`, `invoice_comment?`, `invoice_receiver_email?`, `currency_ref?`",
+      "inputs": [
+        "name",
+        "number",
+        "description",
+        "project_manager_ref",
+        "department_ref",
+        "customer_ref",
+        "start_date",
+        "end_date",
+        "is_internal",
+        "is_offer",
+        "is_fixed_price",
+        "fixedprice",
+        "invoice_comment",
+        "invoice_receiver_email",
+        "currency_ref"
+      ],
+      "notes": [],
+      "operationId": "Project_post",
+      "purpose": "create a project.",
+      "rawMethod": "POST",
+      "rawPath": "/project",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "project.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "project.create_for_customer"
+      ]
+    },
+    "project.delete": {
+      "allowsBodyPassthrough": false,
+      "commandName": "project.delete",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`",
+      "inputs": [
+        "id"
+      ],
+      "notes": [
+        "beta endpoint."
+      ],
+      "operationId": "Project_delete",
+      "purpose": "delete a project if explicitly requested.",
+      "rawMethod": "DELETE",
+      "rawPath": "/project/{id}",
+      "safetyClass": "destructive",
+      "technicalFlowFamily": "project.delete",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields",
+        "confirm unique target before dispatch"
+      ],
+      "workflowMembership": [
+        "correction flows."
+      ]
+    },
+    "project.get": {
+      "allowsBodyPassthrough": false,
+      "commandName": "project.get",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `fields?`",
+      "inputs": [
+        "id",
+        "fields"
+      ],
+      "notes": [],
+      "operationId": "Project_get",
+      "purpose": "fetch one project by ID.",
+      "rawMethod": "GET",
+      "rawPath": "/project/{id}",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "project.read",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "update",
+        "verification",
+        "linking."
+      ]
+    },
+    "project.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "project.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "customer_id": {
+          "targetName": "customerId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "department_id": {
+          "targetName": "departmentId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "end_date_from": {
+          "targetName": "endDateFrom",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "end_date_to": {
+          "targetName": "endDateTo",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_closed": {
+          "targetName": "isClosed",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_fixed_price": {
+          "targetName": "isFixedPrice",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "name": {
+          "targetName": "name",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "number": {
+          "targetName": "number",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "project_manager_id": {
+          "targetName": "projectManagerId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "start_date_from": {
+          "targetName": "startDateFrom",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "start_date_to": {
+          "targetName": "startDateTo",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `name?`, `number?`, `project_manager_id?`, `department_id?`, `customer_id?`, `is_closed?`, `is_fixed_price?`, `start_date_from?`, `start_date_to?`, `end_date_from?`, `end_date_to?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "name",
+        "number",
+        "project_manager_id",
+        "department_id",
+        "customer_id",
+        "is_closed",
+        "is_fixed_price",
+        "start_date_from",
+        "start_date_to",
+        "end_date_from",
+        "end_date_to",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "Project_search",
+      "purpose": "resolve a project before create/update/link/delete.",
+      "rawMethod": "GET",
+      "rawPath": "/project",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "project.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "project flows",
+        "order/invoice linking",
+        "travel-expense linking",
+        "voucher dimensions."
+      ]
+    },
+    "project.update": {
+      "allowsBodyPassthrough": true,
+      "commandName": "project.update",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "version": {
+          "targetName": "version",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, project payload, `version?`",
+      "inputs": [
+        "id",
+        "version"
+      ],
+      "notes": [
+        "beta endpoint."
+      ],
+      "operationId": "Project_put",
+      "purpose": "update a project.",
+      "rawMethod": "PUT",
+      "rawPath": "/project/{id}",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "project.update",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "project.create_for_customer"
+      ]
+    },
+    "session.who_am_i": {
+      "allowsBodyPassthrough": false,
+      "commandName": "session.who_am_i",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`fields?`",
+      "inputs": [
+        "fields"
+      ],
+      "notes": [],
+      "operationId": "TokenSessionWhoAmI_whoAmI",
+      "purpose": "resolve the logged-in employee and company for the current credentials.",
+      "rawMethod": "GET",
+      "rawPath": "/token/session/>whoAmI",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "token.session.who_am_i",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "bootstrap.inspect_context"
+      ]
+    },
+    "supplier_invoice.add_payment": {
+      "allowsBodyPassthrough": false,
+      "commandName": "supplier_invoice.add_payment",
+      "conformancePolicyKey": "supplier_invoice_payment",
+      "inputBindings": {
+        "amount": {
+          "targetName": "amount",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "bban": {
+          "targetName": "bban",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "invoice_id": {
+          "targetName": "invoiceId",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        },
+        "kid_or_receiver_reference": {
+          "targetName": "kidOrReceiverReference",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "partial_payment": {
+          "targetName": "partialPayment",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "payment_date": {
+          "targetName": "paymentDate",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "payment_type": {
+          "targetName": "paymentType",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "use_default_payment_type": {
+          "targetName": "useDefaultPaymentType",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`invoice_id`, `payment_type`, `amount?`, `kid_or_receiver_reference?`, `bban?`, `payment_date?`, `use_default_payment_type?`, `partial_payment?`",
+      "inputs": [
+        "invoice_id",
+        "payment_type",
+        "amount",
+        "kid_or_receiver_reference",
+        "bban",
+        "payment_date",
+        "use_default_payment_type",
+        "partial_payment"
+      ],
+      "notes": [
+        "the spec explicitly says this requires payment-type setup done by Tripletex."
+      ],
+      "operationId": "SupplierInvoiceAddPayment_addPayment",
+      "purpose": "register payment on a supplier invoice.",
+      "rawMethod": "POST",
+      "rawPath": "/supplierInvoice/{invoiceId}/:addPayment",
+      "safetyClass": "state_change",
+      "technicalFlowFamily": "supplier_invoice.add_payment",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "supplier_invoice.register_payment"
+      ]
+    },
+    "supplier_invoice.get": {
+      "allowsBodyPassthrough": false,
+      "commandName": "supplier_invoice.get",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `fields?`",
+      "inputs": [
+        "id",
+        "fields"
+      ],
+      "notes": [],
+      "operationId": "SupplierInvoice_get",
+      "purpose": "fetch one supplier invoice by ID.",
+      "rawMethod": "GET",
+      "rawPath": "/supplierInvoice/{id}",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "supplier_invoice.read",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "payment registration",
+        "verification."
+      ]
+    },
+    "supplier_invoice.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "supplier_invoice.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "invoice_date_from": {
+          "targetName": "invoiceDateFrom",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "invoice_date_to": {
+          "targetName": "invoiceDateTo",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "invoice_number": {
+          "targetName": "invoiceNumber",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "kid": {
+          "targetName": "kid",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "supplier_id": {
+          "targetName": "supplierId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "voucher_id": {
+          "targetName": "voucherId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `invoice_number?`, `kid?`, `voucher_id?`, `supplier_id?`, `invoice_date_from`, `invoice_date_to`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "invoice_number",
+        "kid",
+        "voucher_id",
+        "supplier_id",
+        "invoice_date_from",
+        "invoice_date_to",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "SupplierInvoice_search",
+      "purpose": "resolve an existing supplier invoice.",
+      "rawMethod": "GET",
+      "rawPath": "/supplierInvoice",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "supplier_invoice.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "supplier_invoice.register_payment"
+      ]
+    },
+    "travel_cost_category.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "travel_cost_category.search",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "description": {
+          "targetName": "description",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_inactive": {
+          "targetName": "isInactive",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "query": {
+          "targetName": "query",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "show_on_employee_expenses": {
+          "targetName": "showOnEmployeeExpenses",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `description?`, `show_on_employee_expenses?`, `is_inactive?`, `query?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "description",
+        "show_on_employee_expenses",
+        "is_inactive",
+        "query",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "TravelExpenseCostCategory_search",
+      "purpose": "resolve cost-category IDs before creating travel-expense cost rows.",
+      "rawMethod": "GET",
+      "rawPath": "/travelExpense/costCategory",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "travel_expense.cost_category.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "travel_expense.create_with_rows"
+      ]
+    },
+    "travel_expense.accommodation.create": {
+      "allowsBodyPassthrough": true,
+      "commandName": "travel_expense.accommodation.create",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "address": {
+          "targetName": "address",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "location": {
+          "targetName": "location",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "rate_category_ref": {
+          "targetName": "rateCategory",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "rate_type_ref": {
+          "targetName": "rateType",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "travel_expense_ref": {
+          "targetName": "travelExpense",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "zone": {
+          "targetName": "zone",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`travel_expense_ref`, `rate_type_ref`, `rate_category_ref`, `zone?`, `location`, `address?`, `count`",
+      "inputs": [
+        "travel_expense_ref",
+        "rate_type_ref",
+        "rate_category_ref",
+        "zone",
+        "location",
+        "address",
+        "count"
+      ],
+      "notes": [],
+      "operationId": "TravelExpenseAccommodationAllowance_post",
+      "purpose": "add an accommodation allowance row.",
+      "rawMethod": "POST",
+      "rawPath": "/travelExpense/accommodationAllowance",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "travel_expense.accommodation_allowance.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "travel_expense.create_with_rows"
+      ]
+    },
+    "travel_expense.approve": {
+      "allowsBodyPassthrough": false,
+      "commandName": "travel_expense.approve",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "override_approval_flow": {
+          "targetName": "overrideApprovalFlow",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id` or list-like `id` query representation, `override_approval_flow?`",
+      "inputs": [
+        "id",
+        "id",
+        "override_approval_flow"
+      ],
+      "notes": [],
+      "operationId": "TravelExpenseApprove_approve",
+      "purpose": "approve one or more travel expenses.",
+      "rawMethod": "PUT",
+      "rawPath": "/travelExpense/:approve",
+      "safetyClass": "state_change",
+      "technicalFlowFamily": "travel_expense.approval",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "travel_expense.finalize_to_accounting"
+      ]
+    },
+    "travel_expense.cost.create": {
+      "allowsBodyPassthrough": true,
+      "commandName": "travel_expense.cost.create",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "amount_currency_inc_vat": {
+          "targetName": "amountCurrencyIncVat",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "comments": {
+          "targetName": "comments",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "cost_category_ref": {
+          "targetName": "costCategory",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "date": {
+          "targetName": "date",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "is_chargeable": {
+          "targetName": "isChargeable",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "payment_type_ref": {
+          "targetName": "paymentType",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "travel_expense_ref": {
+          "targetName": "travelExpense",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "vat_type_ref": {
+          "targetName": "vatType",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        }
+      },
+      "inputSpec": "`travel_expense_ref`, `cost_category_ref`, `payment_type_ref?`, `date`, `comments?`, `amount_currency_inc_vat`, `vat_type_ref?`, `is_chargeable?`",
+      "inputs": [
+        "travel_expense_ref",
+        "cost_category_ref",
+        "payment_type_ref",
+        "date",
+        "comments",
+        "amount_currency_inc_vat",
+        "vat_type_ref",
+        "is_chargeable"
+      ],
+      "notes": [],
+      "operationId": "TravelExpenseCost_post",
+      "purpose": "add one reimbursable or chargeable cost row to an existing travel expense.",
+      "rawMethod": "POST",
+      "rawPath": "/travelExpense/cost",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "travel_expense.cost.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "travel_expense.create_with_rows"
+      ]
+    },
+    "travel_expense.create": {
+      "allowsBodyPassthrough": true,
+      "commandName": "travel_expense.create",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "costs": {
+          "targetName": "costs",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "department_ref": {
+          "targetName": "department",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "employee_ref": {
+          "targetName": "employee",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "per_diem_compensations": {
+          "targetName": "perDiemCompensations",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "project_ref": {
+          "targetName": "project",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "title": {
+          "targetName": "title",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "travel_details": {
+          "targetName": "travelDetails",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`employee_ref`, `project_ref?`, `department_ref?`, `title?`, `travel_details`, `costs[]?`, `per_diem_compensations[]?`",
+      "inputs": [
+        "employee_ref",
+        "project_ref",
+        "department_ref",
+        "title",
+        "travel_details",
+        "costs",
+        "per_diem_compensations"
+      ],
+      "notes": [
+        "use this to create the container. Add mileage, accommodation, and most detailed travel rows through dedicated commands."
+      ],
+      "operationId": "TravelExpense_post",
+      "purpose": "create the base travel-expense object.",
+      "rawMethod": "POST",
+      "rawPath": "/travelExpense",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "travel_expense.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "travel_expense.create_basic",
+        "travel_expense.create_with_rows"
+      ]
+    },
+    "travel_expense.create_vouchers": {
+      "allowsBodyPassthrough": false,
+      "commandName": "travel_expense.create_vouchers",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "date": {
+          "targetName": "date",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id` or list-like `id` query representation, `date`",
+      "inputs": [
+        "id",
+        "id",
+        "date"
+      ],
+      "notes": [],
+      "operationId": "TravelExpenseCreateVouchers_createVouchers",
+      "purpose": "generate vouchers from one or more travel expenses.",
+      "rawMethod": "PUT",
+      "rawPath": "/travelExpense/:createVouchers",
+      "safetyClass": "state_change",
+      "technicalFlowFamily": "travel_expense.create_vouchers",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "travel_expense.finalize_to_accounting"
+      ]
+    },
+    "travel_expense.delete": {
+      "allowsBodyPassthrough": false,
+      "commandName": "travel_expense.delete",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`",
+      "inputs": [
+        "id"
+      ],
+      "notes": [],
+      "operationId": "TravelExpense_delete",
+      "purpose": "delete a travel expense.",
+      "rawMethod": "DELETE",
+      "rawPath": "/travelExpense/{id}",
+      "safetyClass": "destructive",
+      "technicalFlowFamily": "travel_expense.delete",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields",
+        "confirm unique target before dispatch"
+      ],
+      "workflowMembership": [
+        "travel_expense.delete"
+      ]
+    },
+    "travel_expense.deliver": {
+      "allowsBodyPassthrough": false,
+      "commandName": "travel_expense.deliver",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id` or list-like `id` query representation",
+      "inputs": [
+        "id",
+        "id"
+      ],
+      "notes": [],
+      "operationId": "TravelExpenseDeliver_deliver",
+      "purpose": "move one or more travel expenses into delivered state.",
+      "rawMethod": "PUT",
+      "rawPath": "/travelExpense/:deliver",
+      "safetyClass": "state_change",
+      "technicalFlowFamily": "travel_expense.approval",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "travel_expense.finalize_to_accounting"
+      ]
+    },
+    "travel_expense.get": {
+      "allowsBodyPassthrough": false,
+      "commandName": "travel_expense.get",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `fields?`",
+      "inputs": [
+        "id",
+        "fields"
+      ],
+      "notes": [],
+      "operationId": "TravelExpense_get",
+      "purpose": "fetch one travel expense by ID.",
+      "rawMethod": "GET",
+      "rawPath": "/travelExpense/{id}",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "travel_expense.read",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "update",
+        "finalize",
+        "verification."
+      ]
+    },
+    "travel_expense.mileage.create": {
+      "allowsBodyPassthrough": true,
+      "commandName": "travel_expense.mileage.create",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "date": {
+          "targetName": "date",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "departure_location": {
+          "targetName": "departureLocation",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "destination": {
+          "targetName": "destination",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "is_company_car": {
+          "targetName": "isCompanyCar",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "km": {
+          "targetName": "km",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "rate_category_ref": {
+          "targetName": "rateCategory",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "rate_type_ref": {
+          "targetName": "rateType",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "travel_expense_ref": {
+          "targetName": "travelExpense",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        }
+      },
+      "inputSpec": "`travel_expense_ref`, `rate_type_ref`, `rate_category_ref`, `date`, `departure_location`, `destination`, `km`, `is_company_car?`",
+      "inputs": [
+        "travel_expense_ref",
+        "rate_type_ref",
+        "rate_category_ref",
+        "date",
+        "departure_location",
+        "destination",
+        "km",
+        "is_company_car"
+      ],
+      "notes": [],
+      "operationId": "TravelExpenseMileageAllowance_post",
+      "purpose": "add a mileage allowance row.",
+      "rawMethod": "POST",
+      "rawPath": "/travelExpense/mileageAllowance",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "travel_expense.mileage_allowance.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "travel_expense.create_with_rows"
+      ]
+    },
+    "travel_expense.per_diem.create": {
+      "allowsBodyPassthrough": true,
+      "commandName": "travel_expense.per_diem.create",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "address": {
+          "targetName": "address",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "country_code": {
+          "targetName": "countryCode",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "is_deduction_for_breakfast": {
+          "targetName": "isDeductionForBreakfast",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "is_deduction_for_dinner": {
+          "targetName": "isDeductionForDinner",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "is_deduction_for_lunch": {
+          "targetName": "isDeductionForLunch",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "location": {
+          "targetName": "location",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "overnight_accommodation": {
+          "targetName": "overnightAccommodation",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "rate_category_ref": {
+          "targetName": "rateCategory",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "rate_type_ref": {
+          "targetName": "rateType",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "travel_expense_ref": {
+          "targetName": "travelExpense",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "travel_expense_zone_id": {
+          "targetName": "travelExpenseZoneId",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`travel_expense_ref`, `rate_type_ref`, `rate_category_ref`, `country_code?`, `travel_expense_zone_id?`, `overnight_accommodation?`, `location`, `address?`, `count`, `is_deduction_for_breakfast?`, `is_deduction_for_lunch?`, `is_deduction_for_dinner?`",
+      "inputs": [
+        "travel_expense_ref",
+        "rate_type_ref",
+        "rate_category_ref",
+        "country_code",
+        "travel_expense_zone_id",
+        "overnight_accommodation",
+        "location",
+        "address",
+        "count",
+        "is_deduction_for_breakfast",
+        "is_deduction_for_lunch",
+        "is_deduction_for_dinner"
+      ],
+      "notes": [],
+      "operationId": "TravelExpensePerDiemCompensation_post",
+      "purpose": "add a per diem row.",
+      "rawMethod": "POST",
+      "rawPath": "/travelExpense/perDiemCompensation",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "travel_expense.per_diem_compensation.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "travel_expense.create_with_rows"
+      ]
+    },
+    "travel_expense.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "travel_expense.search",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "department_id": {
+          "targetName": "departmentId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "departure_date_from": {
+          "targetName": "departureDateFrom",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "employee_id": {
+          "targetName": "employeeId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "project_id": {
+          "targetName": "projectId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "project_manager_id": {
+          "targetName": "projectManagerId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "return_date_to": {
+          "targetName": "returnDateTo",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "state": {
+          "targetName": "state",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`employee_id?`, `department_id?`, `project_id?`, `project_manager_id?`, `departure_date_from?`, `return_date_to?`, `state?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "employee_id",
+        "department_id",
+        "project_id",
+        "project_manager_id",
+        "departure_date_from",
+        "return_date_to",
+        "state",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "TravelExpense_search",
+      "purpose": "resolve an existing travel expense before update/delete/finalize.",
+      "rawMethod": "GET",
+      "rawPath": "/travelExpense",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "travel_expense.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "all travel-expense flows."
+      ]
+    },
+    "travel_expense.update": {
+      "allowsBodyPassthrough": true,
+      "commandName": "travel_expense.update",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "version": {
+          "targetName": "version",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, travel-expense payload, `version?`",
+      "inputs": [
+        "id",
+        "version"
+      ],
+      "notes": [],
+      "operationId": "TravelExpense_put",
+      "purpose": "update an existing travel expense.",
+      "rawMethod": "PUT",
+      "rawPath": "/travelExpense/{id}",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "travel_expense.update",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "travel_expense.create_basic"
+      ]
+    },
+    "travel_payment_type.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "travel_payment_type.search",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "description": {
+          "targetName": "description",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_inactive": {
+          "targetName": "isInactive",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "query": {
+          "targetName": "query",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "show_on_employee_expenses": {
+          "targetName": "showOnEmployeeExpenses",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `description?`, `show_on_employee_expenses?`, `is_inactive?`, `query?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "description",
+        "show_on_employee_expenses",
+        "is_inactive",
+        "query",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "TravelExpensePaymentType_search",
+      "purpose": "resolve travel-expense payment types for travel cost rows.",
+      "rawMethod": "GET",
+      "rawPath": "/travelExpense/paymentType",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "travel_expense.payment_type.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "travel_expense.create_with_rows"
+      ]
+    },
+    "travel_rate.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "travel_rate.search",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "date_from": {
+          "targetName": "dateFrom",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "date_to": {
+          "targetName": "dateTo",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "is_valid_accommodation": {
+          "targetName": "isValidAccommodation",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_valid_day_trip": {
+          "targetName": "isValidDayTrip",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_valid_domestic": {
+          "targetName": "isValidDomestic",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_valid_foreign_travel": {
+          "targetName": "isValidForeignTravel",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "rate_category_id": {
+          "targetName": "rateCategoryId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "requires_overnight_accommodation": {
+          "targetName": "requiresOvernightAccommodation",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "requires_zone": {
+          "targetName": "requiresZone",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "type": {
+          "targetName": "type",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`rate_category_id?`, `type?`, `is_valid_day_trip?`, `is_valid_accommodation?`, `is_valid_domestic?`, `is_valid_foreign_travel?`, `requires_zone?`, `requires_overnight_accommodation?`, `date_from?`, `date_to?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "rate_category_id",
+        "type",
+        "is_valid_day_trip",
+        "is_valid_accommodation",
+        "is_valid_domestic",
+        "is_valid_foreign_travel",
+        "requires_zone",
+        "requires_overnight_accommodation",
+        "date_from",
+        "date_to",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "TravelExpenseRate_search",
+      "purpose": "resolve the actual travel rate object to use once the category is known.",
+      "rawMethod": "GET",
+      "rawPath": "/travelExpense/rate",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "travel_expense.rate.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "travel_expense.create_with_rows"
+      ]
+    },
+    "travel_rate_category.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "travel_rate_category.search",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "date_from": {
+          "targetName": "dateFrom",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "date_to": {
+          "targetName": "dateTo",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "is_valid_accommodation": {
+          "targetName": "isValidAccommodation",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_valid_day_trip": {
+          "targetName": "isValidDayTrip",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_valid_domestic": {
+          "targetName": "isValidDomestic",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "name": {
+          "targetName": "name",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "requires_overnight_accommodation": {
+          "targetName": "isRequiresOvernightAccommodation",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "requires_zone": {
+          "targetName": "requiresZone",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "travel_report_rate_category_group_id": {
+          "targetName": "travelReportRateCategoryGroupId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "type": {
+          "targetName": "type",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`type?`, `name?`, `travel_report_rate_category_group_id?`, `is_valid_day_trip?`, `is_valid_accommodation?`, `is_valid_domestic?`, `requires_zone?`, `requires_overnight_accommodation?`, `date_from?`, `date_to?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "type",
+        "name",
+        "travel_report_rate_category_group_id",
+        "is_valid_day_trip",
+        "is_valid_accommodation",
+        "is_valid_domestic",
+        "requires_zone",
+        "requires_overnight_accommodation",
+        "date_from",
+        "date_to",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "TravelExpenseRateCategory_search",
+      "purpose": "resolve travel rate-category IDs for mileage, per diem, and accommodation rows.",
+      "rawMethod": "GET",
+      "rawPath": "/travelExpense/rateCategory",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "travel_expense.rate_category.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "travel_expense.create_with_rows"
+      ]
+    },
+    "travel_zone.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "travel_zone.search",
+      "conformancePolicyKey": "travel_expense_payload",
+      "inputBindings": {
+        "code": {
+          "targetName": "code",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "date": {
+          "targetName": "date",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_disabled": {
+          "targetName": "isDisabled",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "query": {
+          "targetName": "query",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `code?`, `query?`, `date?`, `is_disabled?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "code",
+        "query",
+        "date",
+        "is_disabled",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "TravelExpenseZone_search",
+      "purpose": "resolve travel-expense zone IDs for foreign-travel per diem cases.",
+      "rawMethod": "GET",
+      "rawPath": "/travelExpense/zone",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "travel_expense.zone.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "travel_expense.create_with_rows"
+      ]
+    },
+    "vat_type.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "vat_type.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "number": {
+          "targetName": "number",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "should_include_specification_types": {
+          "targetName": "shouldIncludeSpecificationTypes",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "type_of_vat": {
+          "targetName": "typeOfVat",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "vat_date": {
+          "targetName": "vatDate",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `number?`, `type_of_vat?`, `vat_date?`, `should_include_specification_types?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "number",
+        "type_of_vat",
+        "vat_date",
+        "should_include_specification_types",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "LedgerVatType_search",
+      "purpose": "resolve VAT type IDs before product, order-line, voucher, or travel-cost creation.",
+      "rawMethod": "GET",
+      "rawPath": "/ledger/vatType",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "ledger.vat_type.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "product.create_or_update",
+        "invoice.order_first",
+        "voucher.manual_adjustment",
+        "travel_expense.create_with_rows"
+      ]
+    },
+    "voucher.create": {
+      "allowsBodyPassthrough": true,
+      "commandName": "voucher.create",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "date": {
+          "targetName": "date",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "description": {
+          "targetName": "description",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "postings": {
+          "targetName": "postings",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "send_to_ledger": {
+          "targetName": "sendToLedger",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "voucher_type_ref": {
+          "targetName": "voucherType",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        }
+      },
+      "inputSpec": "`date`, `description`, `voucher_type_ref`, `postings[]`, `send_to_ledger?`",
+      "inputs": [
+        "date",
+        "description",
+        "voucher_type_ref",
+        "postings",
+        "send_to_ledger"
+      ],
+      "notes": [
+        "use only when no safer domain-specific flow exists. This is the generic bookkeeping tool."
+      ],
+      "operationId": "LedgerVoucher_post",
+      "purpose": "create a manual voucher and its postings.",
+      "rawMethod": "POST",
+      "rawPath": "/ledger/voucher",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "ledger.voucher.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "voucher.manual_adjustment"
+      ]
+    },
+    "voucher.delete": {
+      "allowsBodyPassthrough": false,
+      "commandName": "voucher.delete",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`",
+      "inputs": [
+        "id"
+      ],
+      "notes": [
+        "prefer `voucher.reverse` when accounting history should be preserved."
+      ],
+      "operationId": "LedgerVoucher_delete",
+      "purpose": "delete a voucher by ID.",
+      "rawMethod": "DELETE",
+      "rawPath": "/ledger/voucher/{id}",
+      "safetyClass": "destructive",
+      "technicalFlowFamily": "ledger.voucher.delete",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields",
+        "confirm unique target before dispatch"
+      ],
+      "workflowMembership": [
+        "correction flows where deletion is legal."
+      ]
+    },
+    "voucher.get": {
+      "allowsBodyPassthrough": false,
+      "commandName": "voucher.get",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `fields?`",
+      "inputs": [
+        "id",
+        "fields"
+      ],
+      "notes": [],
+      "operationId": "LedgerVoucher_get",
+      "purpose": "fetch one voucher by ID.",
+      "rawMethod": "GET",
+      "rawPath": "/ledger/voucher/{id}",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "ledger.voucher.read",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "reversal",
+        "verification",
+        "update."
+      ]
+    },
+    "voucher.reverse": {
+      "allowsBodyPassthrough": false,
+      "commandName": "voucher.reverse",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "date": {
+          "targetName": "date",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `date`",
+      "inputs": [
+        "id",
+        "date"
+      ],
+      "notes": [
+        "preferred correction path for vouchers and other posted accounting mistakes."
+      ],
+      "operationId": "LedgerVoucherReverse_reverse",
+      "purpose": "reverse a voucher.",
+      "rawMethod": "PUT",
+      "rawPath": "/ledger/voucher/{id}/:reverse",
+      "safetyClass": "high_risk",
+      "technicalFlowFamily": "ledger.voucher.reverse",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields",
+        "confirm unique target before dispatch"
+      ],
+      "workflowMembership": [
+        "voucher.reverse_or_correct"
+      ]
+    },
+    "voucher.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "voucher.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "count": {
+          "targetName": "count",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "date_from": {
+          "targetName": "dateFrom",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "date_to": {
+          "targetName": "dateTo",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "number": {
+          "targetName": "number",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "number_from": {
+          "targetName": "numberFrom",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "number_to": {
+          "targetName": "numberTo",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "control",
+          "valueStrategy": "plain"
+        },
+        "type_id": {
+          "targetName": "typeId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `number?`, `number_from?`, `number_to?`, `type_id?`, `date_from`, `date_to`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "number",
+        "number_from",
+        "number_to",
+        "type_id",
+        "date_from",
+        "date_to",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "LedgerVoucher_search",
+      "purpose": "resolve vouchers before inspection, reversal, update, or deletion.",
+      "rawMethod": "GET",
+      "rawPath": "/ledger/voucher",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "ledger.voucher.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "voucher.manual_adjustment",
+        "voucher.reverse_or_correct",
+        "ledger.verify_effect"
+      ]
+    },
+    "voucher.update": {
+      "allowsBodyPassthrough": true,
+      "commandName": "voucher.update",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "send_to_ledger": {
+          "targetName": "sendToLedger",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "version": {
+          "targetName": "version",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, voucher payload, `version?`, `send_to_ledger?`",
+      "inputs": [
+        "id",
+        "version",
+        "send_to_ledger"
+      ],
+      "notes": [
+        "updating regenerates postings with `guiRow == 0` according to the spec."
+      ],
+      "operationId": "LedgerVoucher_put",
+      "purpose": "update an existing voucher.",
+      "rawMethod": "PUT",
+      "rawPath": "/ledger/voucher/{id}",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "ledger.voucher.update",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "advanced correction flows."
+      ]
+    }
+  }
+}

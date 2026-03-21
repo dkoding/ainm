@@ -1,0 +1,749 @@
+{
+  "flowCount": 21,
+  "flows": {
+    "bootstrap.inspect_context": {
+      "commandNames": [
+        "session.who_am_i",
+        "company.sales_modules.list"
+      ],
+      "flowName": "bootstrap.inspect_context",
+      "inputSpec": [
+        "`fields_for_identity?`",
+        "`include_sales_modules?`"
+      ],
+      "inputs": [
+        "fields_for_identity",
+        "include_sales_modules"
+      ],
+      "notes": [],
+      "result": [
+        "current employee ID",
+        "current company ID",
+        "optional active sales-module inventory"
+      ],
+      "steps": [
+        "`session.who_am_i`",
+        "optionally `company.sales_modules.list`"
+      ],
+      "useWhen": [
+        "a run starts",
+        "module activation or privilege-sensitive operations are possible"
+      ]
+    },
+    "customer.create_or_update": {
+      "commandNames": [
+        "customer.search",
+        "customer.get",
+        "customer.update",
+        "customer.create"
+      ],
+      "flowName": "customer.create_or_update",
+      "inputSpec": [
+        "`customer_selector?`",
+        "`name?`",
+        "`organization_number?`",
+        "`email?`",
+        "`invoice_email?`",
+        "`phone_number?`",
+        "`phone_number_mobile?`",
+        "`department?`",
+        "`account_manager?`",
+        "`language?`",
+        "`patch_mode`"
+      ],
+      "inputs": [
+        "account_manager",
+        "customer_selector",
+        "department",
+        "email",
+        "invoice_email",
+        "language",
+        "name",
+        "organization_number",
+        "patch_mode",
+        "phone_number",
+        "phone_number_mobile"
+      ],
+      "notes": [],
+      "result": [
+        "customer created or updated"
+      ],
+      "steps": [
+        "if update-like: `customer.search`",
+        "if exactly one target exists: `customer.get` -> `customer.update`",
+        "otherwise `customer.create`"
+      ],
+      "useWhen": [
+        "prompt asks to create a customer or modify contact/invoice information on an existing customer"
+      ]
+    },
+    "department.create_with_manager": {
+      "commandNames": [
+        "department.create",
+        "department.get",
+        "department.update"
+      ],
+      "flowName": "department.create_with_manager",
+      "inputSpec": [
+        "`name`",
+        "`department_number?`",
+        "`department_manager?`"
+      ],
+      "inputs": [
+        "department_manager",
+        "department_number",
+        "name"
+      ],
+      "notes": [],
+      "result": [
+        "department created"
+      ],
+      "steps": [
+        "resolve manager if needed",
+        "`department.create`",
+        "optional `department.get` and `department.update` if a follow-up adjustment is needed"
+      ],
+      "useWhen": [
+        "prompt asks to create a department and optionally assign a manager"
+      ]
+    },
+    "department.enable_accounting_module": {
+      "commandNames": [
+        "company.sales_modules.list",
+        "company.sales_modules.activate",
+        "department.create"
+      ],
+      "flowName": "department.enable_accounting_module",
+      "inputSpec": [
+        "`desired_module_name`",
+        "`cost_start_date?`",
+        "optional `department_payload?`"
+      ],
+      "inputs": [
+        "cost_start_date",
+        "department_payload",
+        "desired_module_name"
+      ],
+      "notes": [
+        "the public surface exposes sales-module purchase names, not a direct `moduleDepartmentAccounting=true` style endpoint. Keep the mapping from business intent to sales-module name in a separate maintained table."
+      ],
+      "result": [
+        "module activated, optionally followed by department creation"
+      ],
+      "steps": [
+        "`company.sales_modules.list`",
+        "if needed `company.sales_modules.activate`",
+        "optional `department.create`"
+      ],
+      "useWhen": [
+        "the prompt explicitly asks to enable a company/module capability related to departments, projects, or product accounting"
+      ]
+    },
+    "employee.create_basic": {
+      "commandNames": [
+        "employee.search",
+        "employee.create"
+      ],
+      "flowName": "employee.create_basic",
+      "inputSpec": [
+        "`first_name`",
+        "`last_name`",
+        "`email?`",
+        "`phone_number_mobile?`",
+        "`department?`",
+        "`duplicate_check?`"
+      ],
+      "inputs": [
+        "department",
+        "duplicate_check",
+        "email",
+        "first_name",
+        "last_name",
+        "phone_number_mobile"
+      ],
+      "notes": [],
+      "result": [
+        "employee created"
+      ],
+      "steps": [
+        "optional `employee.search` if duplicate risk is real",
+        "resolve department if needed",
+        "`employee.create`"
+      ],
+      "useWhen": [
+        "prompt asks to create an employee without special access/privilege language"
+      ]
+    },
+    "employee.create_with_access": {
+      "commandNames": [
+        "employee.search",
+        "employee.create",
+        "employee.entitlements.grant_template",
+        "employee.entitlements.search"
+      ],
+      "flowName": "employee.create_with_access",
+      "inputSpec": [
+        "all `employee.create_basic` inputs",
+        "`user_type`",
+        "`entitlement_template?`"
+      ],
+      "inputs": [
+        "employee.create_basic",
+        "entitlement_template",
+        "user_type"
+      ],
+      "notes": [
+        "this flow has an explicit ambiguity: the public docs do not fully explain how natural-language roles such as \"kontoadministrator\" should map to user type plus entitlement template. Keep that mapping in one maintained policy layer."
+      ],
+      "result": [
+        "employee created with intended access model"
+      ],
+      "steps": [
+        "optional `employee.search`",
+        "`employee.create` with `user_type`",
+        "optional `employee.entitlements.grant_template`",
+        "optional `employee.entitlements.search` for verification"
+      ],
+      "useWhen": [
+        "prompt asks for admin-like, manager-like, accountant-like, or system-access behavior"
+      ]
+    },
+    "employee.update_contact": {
+      "commandNames": [
+        "employee.search",
+        "employee.get",
+        "employee.update"
+      ],
+      "flowName": "employee.update_contact",
+      "inputSpec": [
+        "`employee_selector`",
+        "`patch`"
+      ],
+      "inputs": [
+        "employee_selector",
+        "patch"
+      ],
+      "notes": [],
+      "result": [
+        "employee updated"
+      ],
+      "steps": [
+        "`employee.search`",
+        "`employee.get`",
+        "`employee.update`"
+      ],
+      "useWhen": [
+        "prompt refers to an existing employee and wants contact or metadata changes"
+      ]
+    },
+    "invoice.credit_note": {
+      "commandNames": [
+        "invoice.search",
+        "invoice.create_credit_note",
+        "invoice.get"
+      ],
+      "flowName": "invoice.credit_note",
+      "inputSpec": [
+        "`invoice_selector`",
+        "`credit_note_date`",
+        "`comment?`",
+        "`send_options?`"
+      ],
+      "inputs": [
+        "comment",
+        "credit_note_date",
+        "invoice_selector",
+        "send_options"
+      ],
+      "notes": [],
+      "result": [
+        "credit note created"
+      ],
+      "steps": [
+        "`invoice.search`",
+        "`invoice.create_credit_note`",
+        "optional `invoice.get`"
+      ],
+      "useWhen": [
+        "prompt says credit, cancel, reverse, or nullify an outgoing invoice"
+      ]
+    },
+    "invoice.direct": {
+      "commandNames": [
+        "customer.search",
+        "customer.create",
+        "invoice.create"
+      ],
+      "flowName": "invoice.direct",
+      "inputSpec": [
+        "`customer`",
+        "`invoice_date`",
+        "`invoice_due_date?`",
+        "`orders[]` or `invoiceable_lines`",
+        "`payment_spec?`",
+        "`invoice_comment?`"
+      ],
+      "inputs": [
+        "customer",
+        "invoice_comment",
+        "invoice_date",
+        "invoice_due_date",
+        "invoiceable_lines",
+        "orders[]",
+        "payment_spec"
+      ],
+      "notes": [
+        "structure the payload as invoice -> orders -> orderLines rather than relying on top-level `Invoice.orderLines`."
+      ],
+      "result": [
+        "invoice created directly"
+      ],
+      "steps": [
+        "`customer.search` or `customer.create`",
+        "resolve payment type and other references as needed",
+        "`invoice.create`"
+      ],
+      "useWhen": [
+        "prompt is explicitly invoice-centric",
+        "an intermediate order would add no business value"
+      ]
+    },
+    "invoice.order_first": {
+      "commandNames": [
+        "customer.search",
+        "customer.create",
+        "order.create",
+        "order.invoice"
+      ],
+      "flowName": "invoice.order_first",
+      "inputSpec": [
+        "`customer`",
+        "`order_date`",
+        "`invoice_date`",
+        "`line_items[]`",
+        "`project?`",
+        "`department?`",
+        "`invoice_comment?`",
+        "`due_term?`",
+        "`send_options?`",
+        "`prepayment?`"
+      ],
+      "inputs": [
+        "customer",
+        "department",
+        "due_term",
+        "invoice_comment",
+        "invoice_date",
+        "line_items[]",
+        "order_date",
+        "prepayment",
+        "project",
+        "send_options"
+      ],
+      "notes": [
+        "this should usually be the default invoicing flow when products or service lines are present."
+      ],
+      "result": [
+        "invoice created from order"
+      ],
+      "steps": [
+        "`customer.search` or `customer.create`",
+        "resolve or create referenced products",
+        "resolve VAT, units, currency, project, department as needed",
+        "`order.create`",
+        "`order.invoice`"
+      ],
+      "useWhen": [
+        "prompt describes a sale with line items or products",
+        "customer may need to be created first",
+        "Tripletex order model is a natural fit"
+      ]
+    },
+    "invoice.register_payment": {
+      "commandNames": [
+        "invoice.search",
+        "invoice_payment_type.search",
+        "invoice.register_payment",
+        "invoice.get",
+        "ledger.posting.search"
+      ],
+      "flowName": "invoice.register_payment",
+      "inputSpec": [
+        "`invoice_selector`",
+        "`payment_spec`"
+      ],
+      "inputs": [
+        "invoice_selector",
+        "payment_spec"
+      ],
+      "notes": [],
+      "result": [
+        "payment registered"
+      ],
+      "steps": [
+        "`invoice.search`",
+        "resolve payment type with `invoice_payment_type.search` if needed",
+        "`invoice.register_payment`",
+        "optional `invoice.get` or `ledger.posting.search` for verification"
+      ],
+      "useWhen": [
+        "prompt asks to register payment on an already existing outgoing invoice"
+      ]
+    },
+    "ledger.verify_effect": {
+      "commandNames": [
+        "voucher.search",
+        "ledger.posting.search"
+      ],
+      "flowName": "ledger.verify_effect",
+      "inputSpec": [
+        "`voucher_selector?`",
+        "`posting_filters`"
+      ],
+      "inputs": [
+        "posting_filters",
+        "voucher_selector"
+      ],
+      "notes": [],
+      "result": [
+        "read-only accounting verification"
+      ],
+      "steps": [
+        "optional `voucher.search`",
+        "`ledger.posting.search`"
+      ],
+      "useWhen": [
+        "the solver has to verify accounting consequences rather than mutate more data"
+      ]
+    },
+    "product.create_or_update": {
+      "commandNames": [
+        "product.search"
+      ],
+      "flowName": "product.create_or_update",
+      "inputSpec": [
+        "`product_selector?`",
+        "`name?`",
+        "`number?`",
+        "`description?`",
+        "`price_excluding_vat_currency?`",
+        "`price_including_vat_currency?`",
+        "`vat_type`",
+        "`product_unit?`",
+        "`account?`",
+        "`currency?`"
+      ],
+      "inputs": [
+        "account",
+        "currency",
+        "description",
+        "name",
+        "number",
+        "price_excluding_vat_currency",
+        "price_including_vat_currency",
+        "product_selector",
+        "product_unit",
+        "vat_type"
+      ],
+      "notes": [],
+      "result": [
+        "product created or updated"
+      ],
+      "steps": [
+        "if update-like: `product.search`",
+        "resolve VAT type, product unit, account, currency as needed",
+        "update existing or create new"
+      ],
+      "useWhen": [
+        "prompt asks to create or modify a product/service"
+      ]
+    },
+    "project.create_for_customer": {
+      "commandNames": [
+        "project.create"
+      ],
+      "flowName": "project.create_for_customer",
+      "inputSpec": [
+        "`name`",
+        "`number?`",
+        "`customer?`",
+        "`project_manager?`",
+        "`department?`",
+        "`start_date?`",
+        "`end_date?`",
+        "`is_fixed_price?`",
+        "`fixedprice?`",
+        "`invoice_comment?`",
+        "`invoice_receiver_email?`"
+      ],
+      "inputs": [
+        "customer",
+        "department",
+        "end_date",
+        "fixedprice",
+        "invoice_comment",
+        "invoice_receiver_email",
+        "is_fixed_price",
+        "name",
+        "number",
+        "project_manager",
+        "start_date"
+      ],
+      "notes": [],
+      "result": [
+        "project created"
+      ],
+      "steps": [
+        "resolve or create customer if needed",
+        "resolve project manager and department",
+        "`project.create`"
+      ],
+      "useWhen": [
+        "prompt asks to create a project, especially one linked to a customer"
+      ]
+    },
+    "supplier_invoice.register_payment": {
+      "commandNames": [
+        "supplier_invoice.search",
+        "supplier_invoice.add_payment",
+        "supplier_invoice.get"
+      ],
+      "flowName": "supplier_invoice.register_payment",
+      "inputSpec": [
+        "`supplier_invoice_selector`",
+        "`payment_type`",
+        "`amount?`",
+        "`payment_date?`",
+        "`kid_or_receiver_reference?`",
+        "`bban?`",
+        "`use_default_payment_type?`",
+        "`partial_payment?`"
+      ],
+      "inputs": [
+        "amount",
+        "bban",
+        "kid_or_receiver_reference",
+        "partial_payment",
+        "payment_date",
+        "payment_type",
+        "supplier_invoice_selector",
+        "use_default_payment_type"
+      ],
+      "notes": [],
+      "result": [
+        "supplier invoice payment registered"
+      ],
+      "steps": [
+        "`supplier_invoice.search`",
+        "`supplier_invoice.add_payment`",
+        "optional `supplier_invoice.get`"
+      ],
+      "useWhen": [
+        "prompt asks to register payment on an existing supplier invoice"
+      ]
+    },
+    "travel_expense.create_basic": {
+      "commandNames": [
+        "travel_expense.create"
+      ],
+      "flowName": "travel_expense.create_basic",
+      "inputSpec": [
+        "`employee`",
+        "`travel_details`",
+        "`title?`",
+        "`project?`",
+        "`department?`"
+      ],
+      "inputs": [
+        "department",
+        "employee",
+        "project",
+        "title",
+        "travel_details"
+      ],
+      "notes": [],
+      "result": [
+        "base travel expense created"
+      ],
+      "steps": [
+        "resolve employee/project/department",
+        "`travel_expense.create`"
+      ],
+      "useWhen": [
+        "prompt asks to create a travel expense without many sub-rows"
+      ]
+    },
+    "travel_expense.create_with_rows": {
+      "commandNames": [
+        "travel_expense.create",
+        "travel_expense.cost.create",
+        "travel_expense.mileage.create",
+        "travel_expense.per_diem.create",
+        "travel_expense.accommodation.create"
+      ],
+      "flowName": "travel_expense.create_with_rows",
+      "inputSpec": [
+        "`employee`",
+        "`travel_details`",
+        "`title?`",
+        "`project?`",
+        "`department?`",
+        "`cost_rows[]?`",
+        "`mileage_rows[]?`",
+        "`per_diem_rows[]?`",
+        "`accommodation_rows[]?`"
+      ],
+      "inputs": [
+        "accommodation_rows[]",
+        "cost_rows[]",
+        "department",
+        "employee",
+        "mileage_rows[]",
+        "per_diem_rows[]",
+        "project",
+        "title",
+        "travel_details"
+      ],
+      "notes": [],
+      "result": [
+        "fully populated travel expense"
+      ],
+      "steps": [
+        "`travel_expense.create`",
+        "for each cost: resolve cost category/payment type/VAT -> `travel_expense.cost.create`",
+        "for each mileage row: resolve rate category/rate -> `travel_expense.mileage.create`",
+        "for each per diem row: resolve zone/rate category/rate -> `travel_expense.per_diem.create`",
+        "for each accommodation row: resolve rate category/rate -> `travel_expense.accommodation.create`"
+      ],
+      "useWhen": [
+        "prompt includes receipts, mileage, per diem, accommodation, or multiple reimbursable elements"
+      ]
+    },
+    "travel_expense.delete": {
+      "commandNames": [
+        "travel_expense.search",
+        "travel_expense.delete"
+      ],
+      "flowName": "travel_expense.delete",
+      "inputSpec": [
+        "`travel_expense_selector`"
+      ],
+      "inputs": [
+        "travel_expense_selector"
+      ],
+      "notes": [],
+      "result": [
+        "travel expense deleted"
+      ],
+      "steps": [
+        "`travel_expense.search`",
+        "`travel_expense.delete`"
+      ],
+      "useWhen": [
+        "prompt explicitly asks to remove a travel expense"
+      ]
+    },
+    "travel_expense.finalize_to_accounting": {
+      "commandNames": [
+        "travel_expense.search",
+        "travel_expense.deliver",
+        "travel_expense.approve",
+        "travel_expense.create_vouchers"
+      ],
+      "flowName": "travel_expense.finalize_to_accounting",
+      "inputSpec": [
+        "`travel_expense_selector` or `travel_expense_ids`",
+        "`voucher_date`",
+        "`override_approval_flow?`"
+      ],
+      "inputs": [
+        "override_approval_flow",
+        "travel_expense_ids",
+        "travel_expense_selector",
+        "voucher_date"
+      ],
+      "notes": [],
+      "result": [
+        "delivered/approved travel expense with voucher creation"
+      ],
+      "steps": [
+        "`travel_expense.search` if IDs are not already known",
+        "`travel_expense.deliver`",
+        "`travel_expense.approve`",
+        "`travel_expense.create_vouchers`"
+      ],
+      "useWhen": [
+        "the task requires the travel expense to progress into accounting state, not just exist as a draft"
+      ]
+    },
+    "voucher.manual_adjustment": {
+      "commandNames": [
+        "voucher.create",
+        "voucher.get",
+        "ledger.posting.search"
+      ],
+      "flowName": "voucher.manual_adjustment",
+      "inputSpec": [
+        "`date`",
+        "`description`",
+        "`voucher_type`",
+        "`postings[]`",
+        "`send_to_ledger?`"
+      ],
+      "inputs": [
+        "date",
+        "description",
+        "postings[]",
+        "send_to_ledger",
+        "voucher_type"
+      ],
+      "notes": [],
+      "result": [
+        "manual voucher created"
+      ],
+      "steps": [
+        "resolve voucher type, accounts, VAT, currency, and dimensions",
+        "`voucher.create`",
+        "optional `voucher.get` or `ledger.posting.search`"
+      ],
+      "useWhen": [
+        "a bookkeeping task requires direct voucher/posting creation",
+        "there is no safer domain-specific flow such as invoice payment, credit note, or travel voucher generation"
+      ]
+    },
+    "voucher.reverse_or_correct": {
+      "commandNames": [
+        "voucher.search",
+        "voucher.reverse",
+        "voucher.create",
+        "ledger.posting.search"
+      ],
+      "flowName": "voucher.reverse_or_correct",
+      "inputSpec": [
+        "`voucher_selector`",
+        "`reverse_date?`",
+        "`correction_mode`",
+        "`correction_postings[]?`"
+      ],
+      "inputs": [
+        "correction_mode",
+        "correction_postings[]",
+        "reverse_date",
+        "voucher_selector"
+      ],
+      "notes": [],
+      "result": [
+        "voucher reversed or corrected"
+      ],
+      "steps": [
+        "`voucher.search`",
+        "if reversal is appropriate: `voucher.reverse`",
+        "if manual correction is needed: `voucher.create`",
+        "optional `ledger.posting.search` verification"
+      ],
+      "useWhen": [
+        "prompt asks to reverse or correct an accounting entry"
+      ]
+    }
+  }
+}

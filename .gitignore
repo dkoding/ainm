@@ -20,3 +20,4 @@ __pycache__/
 /norgesgruppen-data/.tmp*
 /norgesgruppen-data/.torch_home
 /astar/artifacts/
+**/.venv
