@@ -5,11 +5,13 @@ This directory contains a documented and automation-ready scaffold for the Astar
 The default round flow is:
 
 1. sync completed-round history from the server
-2. retrain and re-evaluate the local sklearn model on completed rounds only
-3. evaluate multiple prediction variants on completed rounds and keep the best historical variant
-4. build predictions for the current active round
-5. optionally spend live simulate budget
-6. validate and submit predictions for the current round
+2. tune baseline floor and history-prior strength from completed rounds when default settings are in use
+3. retrain the local sklearn model on completed rounds only using entropy-aware sample weighting and held-out round calibration
+4. evaluate multiple prediction variants on completed rounds and keep the best historical variant
+5. if `--submit` and `--simulate` are both enabled, place an early safe submission first so later failures do not leave the round empty
+6. optionally spend live simulate budget with the adaptive information-gain planner
+7. infer round-regime weights from the live observations and build observation-conditioned global prediction variants
+8. validate predictions and overwrite the earlier safe submission with the stronger final tensor
 
 Completed rounds become training data. The active round does not enter training until it closes and `/analysis` is available.
 
@@ -31,14 +33,16 @@ What is included here:
 - `TASKS.md`: working project board for the remaining solver work.
 - `astar_client.py`: public/team API wrapper for rounds, budget, simulate, submit, leaderboard, and post-round analysis.
 - `baseline.py`: safe prior generator plus observation-informed posterior blending.
-- `observation_strategy.py`: budget-aware viewport planner that does a tiled full-map sweep first and uses leftover budget for targeted repeats.
+- `observation_strategy.py`: adaptive information-gain viewport planner that prioritizes unique tile coverage first, then spends repeat queries on the highest-uncertainty and highest regime-disagreement windows.
 - `history_cache.py`: completed-round cache sync and cache-loading helpers for `/analysis` data.
 - `history_priors.py`: empirical prior builder that learns simple class distributions from cached completed rounds and can reweight them by round-regime similarity.
 - `history_dataset.py`: JSONL dataset builder from cached completed-round analysis.
 - `feature_engineering.py`: shared per-cell feature extraction used by dataset generation and local ML inference.
 - `scoring.py`: offline entropy-weighted KL scorer matching the organizer docs.
-- `sklearn_model.py`: local scikit-learn soft-target random-forest training and inference helpers over the cached history dataset.
+- `sklearn_model.py`: local scikit-learn soft-target random-forest training and inference helpers over the cached history dataset, including entropy-aware sample weighting and held-out round calibration.
+- `supervise_round_loop.py`: lightweight local supervisor that restarts `round_loop.py` if it exits or stops heartbeating.
 - `reporting.py`: compact per-run reporting helper for prediction summaries and budget context.
+- `tune_baseline.py`: cached grid search for baseline floor and history-prior strength over completed rounds.
 - `build_history_dataset.py`: CLI entrypoint for dataset generation.
 - `evaluate_history.py`: CLI entrypoint for offline evaluation on cached rounds.
 - `train_sklearn_model.py`: CLI entrypoint for training a local random-forest regressor from cached history.
@@ -156,6 +160,14 @@ Submit the active round:
 python3 run_round.py --token "$AINM_ACCESS_TOKEN" --simulate --total-queries 50 --submit
 ```
 
+By default this now uses staged submission:
+
+1. submit a safe early tensor first
+2. spend simulator budget
+3. overwrite the earlier submission with the stronger final tensor
+
+This follows the organizer rule that the last submission for a seed is what counts.
+
 Force the baseline path instead of the retrained sklearn model:
 
 ```bash
@@ -174,6 +186,12 @@ Run the looped watcher that handles new rounds automatically:
 python3 round_loop.py --total-queries 50 --submit
 ```
 
+Run the loop under the lightweight local supervisor:
+
+```bash
+python3 supervise_round_loop.py -- --total-queries 50 --submit
+```
+
 Deploy as a Cloud Run Job:
 
 ```bash
@@ -189,17 +207,22 @@ Notes:
 - `GET /rounds` and `GET /rounds/{round_id}` are public. Budget, simulate, submit, and team analysis endpoints require a token.
 - The docs expose `prediction_window_minutes`, `started_at`, and `closes_at` on rounds. In live data so far, new rounds have appeared on a `165` minute cadence, but the loop runner keys off the API timestamps instead of hard-coding that schedule.
 - `--total-queries` is the correct budget control flag. The `50` query limit is for the whole round, not per seed.
-- Completed-round cache data is written under `artifacts/history/...` by default, with `index.json` summarizing what has been synced.
-- By default, `run_round.py` refreshes completed-round history first, retrains the local sklearn model on completed rounds only, re-evaluates it, and then predicts the active round.
+- Completed-round cache data is written under `artifacts/history/...` by default, with `index.json` summarizing what has been synced. The sync now also attempts `scoring` rounds when `/analysis` is already available.
+- By default, `run_round.py` refreshes completed-round history first, tunes the baseline if defaults are in use, retrains the local sklearn model on completed rounds only, re-evaluates it, and then predicts the active round.
 - History sync now always pulls the full completed-round history. There is no round-limit flag in the default workflow anymore.
-- The default live query policy is now `50` queries: `45` for the tiled sweep across all 5 maps, then `5` targeted repeat samples on the highest-value windows.
+- The default live query policy is now `50` queries: up to `45` unique tile samples chosen by the adaptive information-gain planner, then `5` targeted repeat samples on the highest-uncertainty windows. The planner now also scores windows by historical regime disagreement, not just local entropy.
 - The updated scaffold can spend simulator queries and blend observed outcomes back into the per-cell probability tensor.
 - `sync_history_cache.py` can cache completed-round `/analysis` payloads locally so startup logic can reuse them without refetching every file first.
 - When cached analysis exists, `run_round.py` can automatically build simple empirical priors from that history and blend them into the baseline.
+- When cached analysis exists and default baseline knobs are still in use, `run_round.py` can tune the probability floor and history-prior strength automatically before the active-round prediction step.
 - When cached analysis exists and `scikit-learn` is installed, `run_round.py` can retrain the local random-forest regressor before current-round inference. Training uses completed rounds only; the active round is never added to training before prediction.
-- In `auto` mode, `run_round.py` now compares `baseline_history`, `sklearn`, and simple ensemble variants on completed rounds, then uses the historically best variant for the live round.
-- Live observations can now reweight the history prior by round-regime similarity before the baseline and ensemble variants are built.
-- `round_loop.py` records official server round scores from `my_rounds`, runs post-round review when a round completes, and uses the newly completed rounds as training data for the next active round.
+- The sklearn path now trains with entropy-aware sample weights, applies held-out round calibration before the final floor step, and records dynamic-cell diagnostics during evaluation.
+- In `auto` mode, `run_round.py` now compares `baseline_history`, `sklearn`, observation-conditioned variants, and ensemble variants on completed rounds using replayed observations. Real cached historical simulations are preferred when available; synthetic observation-backed replays are the fallback.
+- Live observations can now reweight the history prior by round-regime similarity before the baseline and ensemble variants are built, and that inference now includes round-level summaries from observed settlement stats when present.
+- Live observations can now also influence unsampled cells through an observation-conditioned global variant instead of only patching directly observed windows.
+- `round_loop.py` records official server round scores from `my_rounds`, runs post-round review when a round completes, writes score-feedback artifacts, and can automatically avoid a repeatedly regressing variant in `auto` mode.
+- `round_loop.py` now writes `loop/events.jsonl`, `loop/heartbeat.json`, and a `loop/loop.lock` file so automation decisions are auditable and duplicate watchers are easier to avoid.
+- `supervise_round_loop.py` can now watch `round_loop.py` and restart it if the heartbeat goes stale.
 - Each run now writes `report.json` with round metadata, history-cache usage, seed-level confidence summaries, and argmax class counts.
 - Offline evaluation and dataset generation now work from the cached history without requiring live API calls.
 - A local scikit-learn random-forest regressor can now be trained directly on the cached history and learn the full six-class target probability vector without adding pandas or a hosted training service.
@@ -218,7 +241,9 @@ Important paths:
 - `artifacts/history/datasets/cell_examples.jsonl`: training dataset built from cached history
 - `artifacts/history/evaluation.json`: offline evaluation summary
 - `artifacts/<round_id>/report.json`: current run report
+- `artifacts/<round_id>/predictions_initial/seed_<n>.json`: early safe submission payloads when staged submit is enabled
 - `artifacts/<round_id>/predictions/seed_<n>.json`: submission payloads
+- `artifacts/<round_id>/team/submissions_initial/seed_<n>.json`: early safe submit request/response artifacts
 - `artifacts/<round_id>/team/submissions/seed_<n>.json`: submit request/response artifacts
 
 ## Verification
@@ -229,3 +254,5 @@ Use the project venv for verification commands:
 python3 -m py_compile *.py
 /tmp/astar-venv/bin/python -m unittest discover -s tests
 ```
+
+If you run `python3 -m unittest discover -s tests` from the wrong environment, dependency-bound tests now skip instead of failing with misleading import errors. The full suite should still be run inside the intended project environment.

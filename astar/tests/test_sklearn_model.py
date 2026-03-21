@@ -7,11 +7,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import numpy as np
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from sklearn_model import build_round_predictions_from_model, train_random_forest_from_history
+try:
+    import numpy as np
+    from sklearn_model import build_round_predictions_from_model, train_random_forest_from_history
+except ImportError as exc:  # pragma: no cover - environment guard
+    raise unittest.SkipTest(f"missing runtime dependency: {exc}") from exc
 
 
 @unittest.skipUnless(importlib.util.find_spec("sklearn") is not None, "scikit-learn not installed")
@@ -94,6 +95,8 @@ class SklearnModelTests(unittest.TestCase):
             self.assertEqual(len(predictions), 1)
             self.assertEqual(predictions[0].shape, (2, 2, 6))
             self.assertTrue(np.allclose(predictions[0].sum(axis=-1), 1.0))
+            self.assertGreater(artifact.calibration_temperature, 0.0)
+            self.assertIn("calibration_temperature", artifact.to_metadata())
 
 
 if __name__ == "__main__":

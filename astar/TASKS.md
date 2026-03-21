@@ -50,10 +50,10 @@ These are already present and should usually be extended rather than rewritten:
 
 These are not complete yet and are the real remaining work:
 
-- [ ] Strong query-planning logic.
+- [x] Strong query-planning logic.
 - [ ] High-quality probabilistic model beyond heuristics.
 - [x] Historical training and evaluation loop from `/analysis`.
-- [ ] Reliable tests, validation, and regression checks.
+- [x] Reliable tests, validation, and regression checks.
 - [ ] Scheduled/operational GCP workflow around the current job deployment.
 - [x] Competition-day runbook and fallback procedures.
 
@@ -66,9 +66,9 @@ Reference: [README.md](README.md), [API.md](API.md) sections 2-4, [COMPONENTS.md
 - [ ] Create and activate a local virtual environment and install `requirements.txt`.
 - [x] Run a public dry run with `python3 run_round.py --no-simulate --no-submit`.
 - [x] Run an authenticated smoke test against `budget`, `my-rounds`, and optionally `my-predictions` to verify token scope.
-- [ ] Decide the canonical local artifact directory and retention policy for round outputs.
+- [x] Decide the canonical local artifact directory and retention policy for round outputs.
 - [ ] Decide whether GCS artifact upload is required now or can remain optional.
-- [ ] Document any machine-specific setup changes back into [README.md](README.md).
+- [x] Document any machine-specific setup changes back into [README.md](README.md).
 
 ## 5. API Correctness And Runtime Hardening Tasks
 
@@ -110,7 +110,7 @@ Reference: [ANALYSIS.md](ANALYSIS.md) sections 3.3, 4, 5.2, and 6; [API.md](API.
 - [ ] Identify which observable patterns are most informative about round-wide parameters such as growth, conflict, ruin generation, or terrain transitions.
 - [x] Add support for repeated sampling of the same viewport when stochastic uncertainty is itself informative.
 - [ ] Add support for revisiting a seed based on what earlier queries revealed on other seeds.
-- [ ] Score candidate viewports by expected information gain rather than only by settlement density.
+- [x] Score candidate viewports by expected information gain rather than only by settlement density.
 - [ ] Track marginal value per query so the runner can stop spending budget when additional samples are not worth it.
 - [x] Add guardrails so the plan never exceeds the documented budget of 50 queries total.
 - [x] Persist the planned budget allocation and the realized budget allocation separately for later analysis.
@@ -121,10 +121,10 @@ Reference: [ANALYSIS.md](ANALYSIS.md) sections 5.3-5.4 and 9; [API.md](API.md) s
 
 - [ ] Design a stable in-memory representation for simulation evidence across repeated samples.
 - [ ] Aggregate observed class counts per cell and per time horizon rather than overwriting with the latest sample.
-- [ ] Store uncertainty summaries for cells that were observed multiple times with different outcomes.
-- [ ] Build round-level summary features from simulation outputs, not just per-cell counts.
-- [ ] Build seed-level summary features that describe coastlines, initial settlements, mountain barriers, forest density, and expansion corridors.
-- [ ] Derive features that capture neighborhood structure and likely interaction fronts between settlements.
+- [x] Store uncertainty summaries for cells that were observed multiple times with different outcomes.
+- [x] Build round-level summary features from simulation outputs, not just per-cell counts.
+- [x] Build seed-level summary features that describe coastlines, initial settlements, mountain barriers, forest density, and expansion corridors.
+- [x] Derive features that capture neighborhood structure and likely interaction fronts between settlements.
 - [x] Keep a clean mapping from raw terrain codes to submission classes so training and inference use the same conventions.
 - [x] Add dataset serialization utilities so observations can be reused in offline experiments without rerunning API calls.
 
@@ -137,7 +137,7 @@ Reference: [ANALYSIS.md](ANALYSIS.md) sections 2, 4, 6.1, and 6.2; [API.md](API.
 - [ ] Improve treatment of coastlines, ports, and settlement neighborhoods so the prior better reflects plausible development paths.
 - [ ] Distinguish between high-confidence static cells and high-entropy frontier cells.
 - [x] Add a first history-informed prior layer using cached completed-round analysis data.
-- [ ] Tune the probability floor and prior strength using historical rounds instead of fixed intuition.
+- [x] Tune the probability floor and prior strength using historical rounds instead of fixed intuition.
 - [ ] Add class-specific smoothing so impossible-looking but still nonzero outcomes are handled safely for KL scoring.
 - [ ] Compare pure-prior predictions against observation-informed predictions to quantify whether simulation budget is actually helping.
 
@@ -150,10 +150,10 @@ Reference: [ANALYSIS.md](ANALYSIS.md) sections 5.4 and 6.3-6.4; [COMPONENTS.md](
 - [x] Start with simple models that are easy to debug, such as logistic regression or tree-based class models over engineered features.
 - [ ] Add calibration on top of raw model outputs because the metric rewards calibrated probabilities rather than hard labels.
 - [ ] Evaluate whether separate models are needed for static terrain, dynamic frontier cells, and settlement-adjacent cells.
-- [ ] Add round-level latent parameter inference, either explicitly or through shared round features used across all seeds.
-- [ ] Experiment with ensembling prior-based, observation-based, and learned predictions.
+- [x] Add round-level latent parameter inference, either explicitly or through shared round features used across all seeds.
+- [x] Experiment with ensembling prior-based, observation-based, and learned predictions.
 - [ ] Keep inference cheap enough for Cloud Run Jobs unless profiling proves the need for heavier compute.
-- [ ] Record every experiment against historical rounds with reproducible configs and scores.
+- [x] Record every experiment against historical rounds with reproducible configs and scores.
 
 ## 11. Historical Evaluation And Testing Tasks
 
@@ -214,7 +214,7 @@ Decision: default to one inspected final submission, with resumable recovery if 
 - [x] Decide how to recover if a simulation call fails mid-budget.
 - [x] Decide how to recover if a submission succeeds for some seeds and fails for others.
 - [x] Track leaderboard movement after submissions when that information is useful.
-- [ ] After each round closes, fetch analysis data, score the run retrospectively, and log lessons learned into the next modeling iteration.
+- [x] After each round closes, fetch analysis data, score the run retrospectively, and log lessons learned into the next modeling iteration.
 
 ## 15. Documentation Maintenance Tasks
 

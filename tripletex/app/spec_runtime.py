@@ -509,15 +509,19 @@ def best_effort_payment_type_description(task_analysis: TaskAnalysis) -> str | N
 def lookup_analysis_value(task_analysis: TaskAnalysis, *keys: str) -> Any | None:
     for mapping in (task_analysis.payload_fields, task_analysis.search_hints):
         for key in keys:
-            if key in mapping and mapping[key] not in {None, ""}:
+            if key in mapping and _has_analysis_value(mapping[key]):
                 return mapping[key]
     for mapping in (task_analysis.payload_fields, task_analysis.search_hints):
         lowered = {str(key).lower(): value for key, value in mapping.items()}
         for key in keys:
             value = lowered.get(key.lower())
-            if value not in {None, ""}:
+            if _has_analysis_value(value):
                 return value
     return None
+
+
+def _has_analysis_value(value: Any) -> bool:
+    return value is not None and value != ""
 
 
 def resolved_invoice_from_history(history: list[dict[str, Any]], task_analysis: TaskAnalysis) -> dict[str, Any] | None:

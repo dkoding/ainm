@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import requests
@@ -37,6 +38,18 @@ class AstarClient:
         self.token = token
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self._pacing_rules = {
+            ("POST", "/astar-island/simulate"): 0.22,
+            ("POST", "/astar-island/submit"): 0.55,
+        }
+        self._last_request_started_at: dict[tuple[str, str], float] = {}
+        self._request_counters: dict[tuple[str, str], int] = {}
+        self._request_metrics = {
+            "paced_request_count": 0,
+            "paced_sleep_seconds_total": 0.0,
+            "per_endpoint": {},
+        }
+        self._last_request_meta: dict[str, Any] | None = None
         self.session = requests.Session()
         self.session.headers.update({"Accept": "application/json", "User-Agent": "ainm-astar-scaffold/2026-03-20"})
         retry_policy = Retry(
@@ -91,6 +104,30 @@ class AstarClient:
             self._request("GET", f"/astar-island/analysis/{round_id}/{seed_index}", auth_required=True)
         )
 
+    def get_last_request_meta(self) -> dict[str, Any] | None:
+        if self._last_request_meta is None:
+            return None
+        return dict(self._last_request_meta)
+
+    def get_request_metrics_summary(self) -> dict[str, Any]:
+        per_endpoint = []
+        for (method, path), count in sorted(self._request_counters.items()):
+            metrics = self._request_metrics["per_endpoint"].get(f"{method} {path}", {})
+            per_endpoint.append(
+                {
+                    "method": method,
+                    "path": path,
+                    "requests": int(count),
+                    "paced_sleeps": int(metrics.get("paced_sleeps", 0)),
+                    "paced_sleep_seconds_total": float(metrics.get("paced_sleep_seconds_total", 0.0)),
+                }
+            )
+        return {
+            "paced_request_count": int(self._request_metrics["paced_request_count"]),
+            "paced_sleep_seconds_total": float(self._request_metrics["paced_sleep_seconds_total"]),
+            "per_endpoint": per_endpoint,
+        }
+
     def _request(
         self,
         method: str,
@@ -100,19 +137,59 @@ class AstarClient:
     ) -> Any:
         if auth_required and not self.is_authenticated:
             raise AstarAPIError(401, f"{method} {path} requires AINM authentication.")
+        paced_sleep_seconds = self._pace_request(method, path)
+        started_at = time.monotonic()
         try:
             response = self.session.request(method, f"{self.base_url}{path}", json=json_body, timeout=self.timeout)
         except requests.Timeout as exc:
             raise AstarAPIError(504, f"{method} {path} timed out after {self.timeout}s.") from exc
         except requests.RequestException as exc:
             raise AstarAPIError(0, f"{method} {path} failed due to network error: {exc}") from exc
+        duration_seconds = time.monotonic() - started_at
         try:
             payload = response.json()
         except ValueError:
             payload = {"raw_text": response.text[:2000]}
+        key = (method, path)
+        self._request_counters[key] = self._request_counters.get(key, 0) + 1
+        self._last_request_meta = {
+            "method": method,
+            "path": path,
+            "status_code": int(response.status_code),
+            "paced_sleep_seconds": float(paced_sleep_seconds),
+            "duration_seconds": float(duration_seconds),
+            "timestamp_monotonic": float(started_at),
+            "rate_limited": bool(response.status_code == 429),
+        }
         if response.status_code >= 400:
             raise AstarAPIError(response.status_code, self._format_error(method, path, response.status_code, payload))
         return payload
+
+    def _pace_request(self, method: str, path: str) -> float:
+        interval_seconds = self._pacing_rules.get((method, path))
+        if not interval_seconds:
+            return 0.0
+        now = time.monotonic()
+        key = (method, path)
+        previous_started_at = self._last_request_started_at.get(key)
+        sleep_seconds = 0.0
+        if previous_started_at is not None:
+            elapsed = now - previous_started_at
+            sleep_seconds = max(0.0, float(interval_seconds) - elapsed)
+            if sleep_seconds > 0:
+                time.sleep(sleep_seconds)
+        self._last_request_started_at[key] = time.monotonic()
+        if sleep_seconds > 0:
+            endpoint_key = f"{method} {path}"
+            endpoint_metrics = self._request_metrics["per_endpoint"].setdefault(
+                endpoint_key,
+                {"paced_sleeps": 0, "paced_sleep_seconds_total": 0.0},
+            )
+            endpoint_metrics["paced_sleeps"] += 1
+            endpoint_metrics["paced_sleep_seconds_total"] += float(sleep_seconds)
+            self._request_metrics["paced_request_count"] += 1
+            self._request_metrics["paced_sleep_seconds_total"] += float(sleep_seconds)
+        return sleep_seconds
 
     def _format_error(self, method: str, path: str, status_code: int, payload: Any) -> str:
         detail = f"{method} {path} failed with HTTP {status_code}: {payload}"

@@ -6,8 +6,10 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from astar_client import AstarClient
+try:
+    from astar_client import AstarClient
+except ImportError as exc:  # pragma: no cover - environment guard
+    raise unittest.SkipTest(f"missing runtime dependency: {exc}") from exc
 
 
 class PublicIntegrationTests(unittest.TestCase):

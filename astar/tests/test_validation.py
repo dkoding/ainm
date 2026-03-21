@@ -4,11 +4,12 @@ import sys
 import unittest
 from pathlib import Path
 
-import numpy as np
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from validation import AstarValidationError, validate_prediction_array, validate_submission_payload
+try:
+    import numpy as np
+    from validation import AstarValidationError, validate_prediction_array, validate_submission_payload
+except ImportError as exc:  # pragma: no cover - environment guard
+    raise unittest.SkipTest(f"missing runtime dependency: {exc}") from exc
 
 
 class ValidationTests(unittest.TestCase):

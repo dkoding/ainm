@@ -1,0 +1,718 @@
+from __future__ import annotations
+
+import json
+import hashlib
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+from baseline import apply_probability_floor, blend_observations, build_round_predictions, summarize_observations
+from config import DEFAULT_HISTORY_CACHE_PREFIX, DEFAULT_OUTPUT_DIR, DEFAULT_PREDICTION_FLOOR
+from history_cache import load_history_index
+from history_priors import HistoryPriorModel, infer_regime_history_prior_model, load_history_prior_model
+from observation_strategy import select_next_viewport_request
+from scoring import round_score, seed_score
+from sklearn_model import (
+    FEATURE_COLUMNS,
+    SklearnModelArtifact,
+    build_round_predictions_from_model,
+    train_random_forest_from_history,
+)
+
+
+ENSEMBLE_SKLEARN_WEIGHTS = (0.25, 0.5, 0.75)
+
+
+def build_prediction_variants(
+    *,
+    round_detail: dict[str, Any],
+    floor: float = DEFAULT_PREDICTION_FLOOR,
+    observations_by_seed: dict[int, list[dict[str, Any]]] | None = None,
+    prior_strength: float = 2.0,
+    history_prior_model: HistoryPriorModel | None = None,
+    history_prior_strength: float = 2.0,
+    sklearn_artifact: SklearnModelArtifact | None = None,
+) -> dict[str, list[np.ndarray]]:
+    variants: dict[str, list[np.ndarray]] = {}
+    floor_distributions: dict[str, np.ndarray] = {}
+    observations_by_seed = observations_by_seed or {}
+
+    baseline_predictions = build_round_predictions(
+        round_detail=round_detail,
+        floor=floor,
+        observations_by_seed=observations_by_seed,
+        prior_strength=prior_strength,
+        history_prior_model=history_prior_model,
+        history_prior_strength=history_prior_strength,
+    )
+    baseline_name = "baseline_history" if history_prior_model is not None else "baseline_static"
+    variants[baseline_name] = baseline_predictions
+    if history_prior_model is not None:
+        floor_distributions[baseline_name] = history_prior_model.global_class_probs
+
+    if observations_by_seed and any(observations_by_seed.values()):
+        conditioned_baseline = apply_observation_conditioning_to_prediction_set(
+            round_detail=round_detail,
+            predictions=baseline_predictions,
+            observations_by_seed=observations_by_seed,
+            floor=floor,
+            floor_distribution=floor_distributions.get(baseline_name),
+        )
+        conditioned_baseline_name = f"{baseline_name}_observation_context"
+        variants[conditioned_baseline_name] = conditioned_baseline
+        if baseline_name in floor_distributions:
+            floor_distributions[conditioned_baseline_name] = floor_distributions[baseline_name]
+
+    if sklearn_artifact is not None:
+        sklearn_predictions = build_round_predictions_from_model(
+            artifact=sklearn_artifact,
+            round_detail=round_detail,
+            floor=floor,
+        )
+        sklearn_predictions = blend_predictions_with_observations(
+            predictions=sklearn_predictions,
+            observations_by_seed=observations_by_seed,
+            prior_strength=prior_strength,
+            floor=floor,
+            floor_distribution=sklearn_artifact.floor_distribution,
+        )
+        variants["sklearn"] = sklearn_predictions
+        floor_distributions["sklearn"] = sklearn_artifact.floor_distribution
+
+        if observations_by_seed and any(observations_by_seed.values()):
+            conditioned_sklearn = apply_observation_conditioning_to_prediction_set(
+                round_detail=round_detail,
+                predictions=sklearn_predictions,
+                observations_by_seed=observations_by_seed,
+                floor=floor,
+                floor_distribution=sklearn_artifact.floor_distribution,
+            )
+            variants["sklearn_observation_context"] = conditioned_sklearn
+            floor_distributions["sklearn_observation_context"] = sklearn_artifact.floor_distribution
+
+        for sklearn_weight in ENSEMBLE_SKLEARN_WEIGHTS:
+            variant_name = ensemble_variant_name(sklearn_weight)
+            variants[variant_name] = blend_prediction_sets(
+                primary=sklearn_predictions,
+                secondary=baseline_predictions,
+                primary_weight=sklearn_weight,
+                floor=floor,
+                floor_distribution=combine_floor_distributions(
+                    floor_distributions["sklearn"],
+                    floor_distributions.get(baseline_name),
+                    primary_weight=sklearn_weight,
+                ),
+            )
+        if observations_by_seed and any(observations_by_seed.values()):
+            variants["ensemble_observation_context_50"] = blend_prediction_sets(
+                primary=variants["sklearn_observation_context"],
+                secondary=variants[conditioned_baseline_name],
+                primary_weight=0.5,
+                floor=floor,
+                floor_distribution=combine_floor_distributions(
+                    floor_distributions.get("sklearn_observation_context"),
+                    floor_distributions.get(conditioned_baseline_name),
+                    primary_weight=0.5,
+                ),
+            )
+
+    return variants
+
+
+def blend_predictions_with_observations(
+    *,
+    predictions: list[np.ndarray],
+    observations_by_seed: dict[int, list[dict[str, Any]]],
+    prior_strength: float,
+    floor: float,
+    floor_distribution: Any,
+) -> list[np.ndarray]:
+    blended_predictions: list[np.ndarray] = []
+    for seed_index, prediction in enumerate(predictions):
+        observation_samples = observations_by_seed.get(seed_index, [])
+        adjusted = prediction
+        if observation_samples:
+            adjusted = blend_observations(adjusted, observation_samples, prior_strength=prior_strength)
+            adjusted = apply_probability_floor(adjusted, floor=floor, floor_distribution=floor_distribution)
+        blended_predictions.append(adjusted)
+    return blended_predictions
+
+
+def blend_prediction_sets(
+    *,
+    primary: list[np.ndarray],
+    secondary: list[np.ndarray],
+    primary_weight: float,
+    floor: float,
+    floor_distribution: np.ndarray | None = None,
+) -> list[np.ndarray]:
+    secondary_weight = 1.0 - primary_weight
+    combined: list[np.ndarray] = []
+    for primary_seed, secondary_seed in zip(primary, secondary, strict=True):
+        tensor = (primary_seed * primary_weight) + (secondary_seed * secondary_weight)
+        tensor = np.clip(tensor, 0.0, None)
+        tensor /= tensor.sum(axis=-1, keepdims=True)
+        combined.append(apply_probability_floor(tensor, floor=floor, floor_distribution=floor_distribution))
+    return combined
+
+
+def combine_floor_distributions(
+    primary: np.ndarray | None,
+    secondary: np.ndarray | None,
+    primary_weight: float,
+) -> np.ndarray | None:
+    if primary is None and secondary is None:
+        return None
+    if primary is None:
+        return np.asarray(secondary, dtype=float)
+    if secondary is None:
+        return np.asarray(primary, dtype=float)
+    return (np.asarray(primary, dtype=float) * primary_weight) + (np.asarray(secondary, dtype=float) * (1.0 - primary_weight))
+
+
+def ensemble_variant_name(sklearn_weight: float) -> str:
+    return f"ensemble_sklearn_{int(round(sklearn_weight * 100)):02d}"
+
+
+def evaluate_prediction_variants(
+    *,
+    root: str | Path = DEFAULT_OUTPUT_DIR,
+    cache_prefix: str = DEFAULT_HISTORY_CACHE_PREFIX,
+    floor: float = DEFAULT_PREDICTION_FLOOR,
+    prior_strength: float = 2.0,
+    history_prior_strength: float = 2.0,
+    neighborhood_radius: int = 1,
+    n_estimators: int = 300,
+    min_samples_leaf: int = 5,
+    random_state: int = 0,
+    simulate_queries: int = 50,
+    viewport_size: int = 15,
+) -> dict[str, Any]:
+    root_path = Path(root)
+    index = load_history_index(root=root_path, cache_prefix=cache_prefix)
+    if not index:
+        raise SystemExit(f"No history cache found under {root_path / cache_prefix}.")
+
+    variant_round_scores: dict[str, list[float]] = {}
+    rounds_report: list[dict[str, Any]] = []
+
+    for round_entry in index.get("rounds", []):
+        round_id = str(round_entry["round_id"])
+        round_detail_path = root_path / cache_prefix / "rounds" / round_id / "public" / "round_detail.json"
+        if not round_detail_path.exists():
+            continue
+        round_detail = json.loads(round_detail_path.read_text())
+
+        sklearn_artifact = train_random_forest_from_history(
+            root=root_path,
+            cache_prefix=cache_prefix,
+            neighborhood_radius=neighborhood_radius,
+            exclude_round_ids={round_id},
+            n_estimators=n_estimators,
+            min_samples_leaf=min_samples_leaf,
+            random_state=random_state,
+        )
+        history_prior_model = load_history_prior_model(
+            root=root_path,
+            cache_prefix=cache_prefix,
+            exclude_round_ids={round_id},
+        )
+        replay_observations, replay_mode = load_replay_observations(
+            round_detail=round_detail,
+            round_id=round_id,
+            root=root_path,
+            cache_prefix=cache_prefix,
+            total_queries=simulate_queries,
+            viewport_size=viewport_size,
+            history_prior_model=history_prior_model,
+            history_prior_strength=history_prior_strength,
+            prior_strength=prior_strength,
+            floor=floor,
+            random_state=random_state,
+        )
+        regime_prior_model = history_prior_model
+        if regime_prior_model is not None:
+            regime_prior_model, _ = infer_regime_history_prior_model(
+                history_prior_model=regime_prior_model,
+                round_detail=round_detail,
+                observations_by_seed=replay_observations,
+            )
+        variants = build_prediction_variants(
+            round_detail=round_detail,
+            floor=floor,
+            observations_by_seed=replay_observations,
+            prior_strength=prior_strength,
+            history_prior_model=regime_prior_model,
+            history_prior_strength=history_prior_strength,
+            sklearn_artifact=sklearn_artifact,
+        )
+
+        variant_reports = []
+        for variant_name, predictions in variants.items():
+            seed_scores = []
+            for seed_index in round_entry.get("analysis_cached_seeds", []):
+                analysis_path = (
+                    root_path / cache_prefix / "rounds" / round_id / "team" / "analysis" / f"seed_{int(seed_index)}.json"
+                )
+                if not analysis_path.exists():
+                    continue
+                analysis = json.loads(analysis_path.read_text())
+                score = seed_score(analysis["ground_truth"], predictions[int(seed_index)])
+                seed_scores.append(score)
+            if not seed_scores:
+                continue
+            score_value = round_score(seed_scores)
+            variant_round_scores.setdefault(variant_name, []).append(score_value)
+            variant_reports.append(
+                {
+                    "variant": variant_name,
+                    "round_score": score_value,
+                    "seed_scores": seed_scores,
+                }
+            )
+
+        rounds_report.append(
+            {
+                "round_id": round_id,
+                "round_number": round_entry.get("round_number"),
+                "replay_mode": replay_mode,
+                "variant_reports": sorted(variant_reports, key=lambda item: item["round_score"], reverse=True),
+            }
+        )
+
+    summary_variants = []
+    for variant_name, scores in sorted(variant_round_scores.items()):
+        summary_variants.append(
+            {
+                "variant": variant_name,
+                "completed_rounds_evaluated": len(scores),
+                "mean_round_score": float(sum(scores) / len(scores)),
+                "round_scores": [float(score) for score in scores],
+            }
+        )
+    best_variant = max(summary_variants, key=lambda item: item["mean_round_score"]) if summary_variants else None
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "summary": {
+            "best_variant": best_variant["variant"] if best_variant is not None else None,
+            "best_variant_mean_round_score": best_variant["mean_round_score"] if best_variant is not None else None,
+            "completed_rounds_evaluated": len(rounds_report),
+            "strategy_signature": strategy_signature(
+                history_round_ids=[str(round_entry["round_id"]) for round_entry in index.get("rounds", [])],
+                floor=floor,
+                prior_strength=prior_strength,
+                history_prior_strength=history_prior_strength,
+                neighborhood_radius=neighborhood_radius,
+                n_estimators=n_estimators,
+                min_samples_leaf=min_samples_leaf,
+                random_state=random_state,
+                simulate_queries=simulate_queries,
+                viewport_size=viewport_size,
+            ),
+            "history_round_ids": [str(round_entry["round_id"]) for round_entry in index.get("rounds", [])],
+            "history_round_numbers": [int(round_entry.get("round_number", 0) or 0) for round_entry in index.get("rounds", [])],
+            "variants": summary_variants,
+            "floor": floor,
+            "prior_strength": prior_strength,
+            "history_prior_strength": history_prior_strength,
+            "neighborhood_radius": neighborhood_radius,
+            "n_estimators": n_estimators,
+            "min_samples_leaf": min_samples_leaf,
+            "random_state": random_state,
+            "simulate_queries": simulate_queries,
+            "viewport_size": viewport_size,
+        },
+        "rounds": rounds_report,
+    }
+
+
+def strategy_signature(
+    *,
+    history_round_ids: list[str],
+    floor: float,
+    prior_strength: float,
+    history_prior_strength: float,
+    neighborhood_radius: int,
+    n_estimators: int,
+    min_samples_leaf: int,
+    random_state: int,
+    simulate_queries: int,
+    viewport_size: int,
+) -> str:
+    payload = {
+        "version": 3,
+        "history_round_ids": list(history_round_ids),
+        "floor": float(floor),
+        "prior_strength": float(prior_strength),
+        "history_prior_strength": float(history_prior_strength),
+        "neighborhood_radius": int(neighborhood_radius),
+        "n_estimators": int(n_estimators),
+        "min_samples_leaf": int(min_samples_leaf),
+        "random_state": int(random_state),
+        "simulate_queries": int(simulate_queries),
+        "viewport_size": int(viewport_size),
+        "ensemble_weights": list(ENSEMBLE_SKLEARN_WEIGHTS),
+        "feature_columns": list(FEATURE_COLUMNS),
+        "planner": "adaptive_information_gain_v2",
+        "observation_mode": "cached_or_synthetic_replay_v3",
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def load_replay_observations(
+    *,
+    round_detail: dict[str, Any],
+    round_id: str,
+    root: Path,
+    cache_prefix: str,
+    total_queries: int,
+    viewport_size: int,
+    history_prior_model: HistoryPriorModel | None,
+    history_prior_strength: float,
+    prior_strength: float,
+    floor: float,
+    random_state: int,
+) -> tuple[dict[int, list[dict[str, Any]]], str]:
+    cached = load_cached_round_observations(root=root, round_id=round_id, max_queries=total_queries)
+    if any(cached.values()):
+        return cached, "real_cached_simulations"
+    synthetic = synthesize_observations_from_analysis(
+        round_detail=round_detail,
+        round_id=round_id,
+        root=root,
+        cache_prefix=cache_prefix,
+        total_queries=total_queries,
+        viewport_size=viewport_size,
+        history_prior_model=history_prior_model,
+        history_prior_strength=history_prior_strength,
+        prior_strength=prior_strength,
+        floor=floor,
+        random_state=random_state,
+    )
+    return synthetic, "synthetic_analysis_sampling"
+
+
+def load_cached_round_observations(root: Path, round_id: str, max_queries: int) -> dict[int, list[dict[str, Any]]]:
+    observations_by_seed: dict[int, list[dict[str, Any]]] = {}
+    sim_root = root / round_id / "team" / "simulations"
+    if not sim_root.exists():
+        return observations_by_seed
+    total_loaded = 0
+    for seed_dir in sorted(sim_root.glob("seed_*")):
+        seed_index = int(seed_dir.name.split("_")[1])
+        observations_by_seed[seed_index] = []
+        for query_path in sorted(seed_dir.glob("query_*.json")):
+            if total_loaded >= max_queries:
+                break
+            payload = json.loads(query_path.read_text())
+            observations_by_seed[seed_index].append(payload["response"])
+            total_loaded += 1
+        if total_loaded >= max_queries:
+            break
+    return observations_by_seed
+
+
+def synthesize_observations_from_analysis(
+    *,
+    round_detail: dict[str, Any],
+    round_id: str,
+    root: Path,
+    cache_prefix: str,
+    total_queries: int,
+    viewport_size: int,
+    history_prior_model: HistoryPriorModel | None,
+    history_prior_strength: float,
+    prior_strength: float,
+    floor: float,
+    random_state: int,
+) -> dict[int, list[dict[str, Any]]]:
+    observations_by_seed: dict[int, list[dict[str, Any]]] = {
+        seed_index: [] for seed_index, _state in enumerate(round_detail["initial_states"])
+    }
+    analysis_by_seed: dict[int, dict[str, Any]] = {}
+    for seed_index, _state in enumerate(round_detail["initial_states"]):
+        analysis_path = root / cache_prefix / "rounds" / round_id / "team" / "analysis" / f"seed_{seed_index}.json"
+        if analysis_path.exists():
+            analysis_by_seed[seed_index] = json.loads(analysis_path.read_text())
+    if not analysis_by_seed:
+        return observations_by_seed
+
+    seed_material = f"{round_id}:{random_state}".encode("utf-8")
+    stable_seed = int(hashlib.sha256(seed_material).hexdigest()[:8], 16)
+    rng = np.random.default_rng(stable_seed)
+    planned_requests: dict[int, list[Any]] = {seed_index: [] for seed_index in observations_by_seed}
+    for _ in range(total_queries):
+        planning_history_prior_model = history_prior_model
+        if planning_history_prior_model is not None and any(observations_by_seed.values()):
+            planning_history_prior_model, _ = infer_regime_history_prior_model(
+                history_prior_model=planning_history_prior_model,
+                round_detail=round_detail,
+                observations_by_seed=observations_by_seed,
+            )
+        selection = select_next_viewport_request(
+            round_detail=round_detail,
+            viewport_size=viewport_size,
+            observations_by_seed=observations_by_seed,
+            already_selected=planned_requests,
+            history_prior_model=planning_history_prior_model,
+            history_prior_strength=history_prior_strength,
+            prior_strength=prior_strength,
+            floor=floor,
+        )
+        if selection is None:
+            break
+        request = selection["request"]
+        planned_requests[request.seed_index].append(request)
+        analysis = analysis_by_seed.get(request.seed_index)
+        if analysis is None:
+            continue
+        observations_by_seed[request.seed_index].append(
+            synthesize_single_observation(
+                analysis=analysis,
+                seed_index=request.seed_index,
+                viewport_x=request.viewport_x,
+                viewport_y=request.viewport_y,
+                viewport_w=request.viewport_w,
+                viewport_h=request.viewport_h,
+                rng=rng,
+            )
+        )
+    return observations_by_seed
+
+
+def synthesize_single_observation(
+    *,
+    analysis: dict[str, Any],
+    seed_index: int,
+    viewport_x: int,
+    viewport_y: int,
+    viewport_w: int,
+    viewport_h: int,
+    rng: np.random.Generator,
+) -> dict[str, Any]:
+    ground_truth = np.asarray(analysis["ground_truth"], dtype=float)
+    initial_grid = np.asarray(analysis["initial_grid"], dtype=int)
+    patch_truth = ground_truth[viewport_y : viewport_y + viewport_h, viewport_x : viewport_x + viewport_w]
+    patch_initial = initial_grid[viewport_y : viewport_y + viewport_h, viewport_x : viewport_x + viewport_w]
+    sampled_grid = np.zeros((viewport_h, viewport_w), dtype=int)
+    for y in range(viewport_h):
+        for x in range(viewport_w):
+            sampled_class = int(rng.choice(np.arange(patch_truth.shape[-1]), p=patch_truth[y, x]))
+            sampled_grid[y, x] = sampled_class_to_terrain_code(sampled_class, int(patch_initial[y, x]))
+    return {
+        "seed_index": seed_index,
+        "grid": sampled_grid.tolist(),
+        "settlements": [],
+        "viewport": {"x": viewport_x, "y": viewport_y, "w": viewport_w, "h": viewport_h},
+        "width": int(analysis["width"]),
+        "height": int(analysis["height"]),
+        "queries_used": None,
+        "queries_max": 50,
+    }
+
+
+def sampled_class_to_terrain_code(class_index: int, initial_code: int) -> int:
+    if class_index == 0:
+        if initial_code in {0, 10, 11}:
+            return int(initial_code)
+        return 11
+    return int(class_index)
+
+
+def apply_observation_conditioning_to_prediction_set(
+    *,
+    round_detail: dict[str, Any],
+    predictions: list[np.ndarray],
+    observations_by_seed: dict[int, list[dict[str, Any]]],
+    floor: float,
+    floor_distribution: np.ndarray | None = None,
+) -> list[np.ndarray]:
+    if not observations_by_seed or not any(observations_by_seed.values()):
+        return [prediction.copy() for prediction in predictions]
+    round_context = build_round_observation_context(round_detail=round_detail, observations_by_seed=observations_by_seed)
+    conditioned: list[np.ndarray] = []
+    for seed_index, prediction in enumerate(predictions):
+        conditioned.append(
+            apply_observation_conditioning_to_seed(
+                round_detail=round_detail,
+                seed_index=seed_index,
+                prediction=prediction,
+                round_context=round_context,
+                floor=floor,
+                floor_distribution=floor_distribution,
+            )
+        )
+    return conditioned
+
+
+def build_round_observation_context(
+    *,
+    round_detail: dict[str, Any],
+    observations_by_seed: dict[int, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    global_class_totals = np.zeros(6, dtype=float)
+    global_terrain_totals: dict[int, np.ndarray] = {}
+    global_coastal_totals = np.zeros(6, dtype=float)
+    seed_contexts: dict[int, dict[str, Any]] = {}
+
+    for seed_index, state in enumerate(round_detail["initial_states"]):
+        grid = np.asarray(state["grid"], dtype=int)
+        coastal_mask = _build_coastal_mask(grid)
+        summary = summarize_observations(
+            observations_by_seed.get(seed_index, []),
+            map_height=grid.shape[0],
+            map_width=grid.shape[1],
+        )
+        seed_class_totals = np.zeros(6, dtype=float)
+        seed_terrain_totals: dict[int, np.ndarray] = {}
+        seed_coastal_totals = np.zeros(6, dtype=float)
+        observed_cells: list[dict[str, Any]] = []
+        for (y, x), counts in summary["cell_class_counts"].items():
+            probs = counts / counts.sum()
+            terrain_code = int(grid[y, x])
+            is_coastal = bool(coastal_mask[y, x])
+            observed_cells.append(
+                {
+                    "x": int(x),
+                    "y": int(y),
+                    "terrain_code": terrain_code,
+                    "is_coastal": is_coastal,
+                    "probs": probs,
+                }
+            )
+            seed_class_totals += probs
+            seed_terrain_totals.setdefault(terrain_code, np.zeros(6, dtype=float))
+            seed_terrain_totals[terrain_code] += probs
+            global_class_totals += probs
+            global_terrain_totals.setdefault(terrain_code, np.zeros(6, dtype=float))
+            global_terrain_totals[terrain_code] += probs
+            if is_coastal:
+                seed_coastal_totals += probs
+                global_coastal_totals += probs
+        seed_contexts[seed_index] = {
+            "observed_cells": observed_cells,
+            "class_probs": _normalize_prob_vector(seed_class_totals),
+            "terrain_probs": {code: _normalize_prob_vector(totals) for code, totals in seed_terrain_totals.items()},
+            "coastal_probs": _normalize_prob_vector(seed_coastal_totals),
+            "coverage_fraction": float(len(observed_cells) / max(grid.size, 1)),
+        }
+
+    return {
+        "global_class_probs": _normalize_prob_vector(global_class_totals),
+        "global_terrain_probs": {code: _normalize_prob_vector(totals) for code, totals in global_terrain_totals.items()},
+        "global_coastal_probs": _normalize_prob_vector(global_coastal_totals),
+        "seed_contexts": seed_contexts,
+    }
+
+
+def apply_observation_conditioning_to_seed(
+    *,
+    round_detail: dict[str, Any],
+    seed_index: int,
+    prediction: np.ndarray,
+    round_context: dict[str, Any],
+    floor: float,
+    floor_distribution: np.ndarray | None,
+) -> np.ndarray:
+    state = round_detail["initial_states"][seed_index]
+    grid = np.asarray(state["grid"], dtype=int)
+    coastal_mask = _build_coastal_mask(grid)
+    seed_context = round_context["seed_contexts"].get(seed_index, {})
+    observed_cells = list(seed_context.get("observed_cells", []))
+    adjusted = prediction.astype(float, copy=True)
+    for y in range(grid.shape[0]):
+        for x in range(grid.shape[1]):
+            base = adjusted[y, x]
+            terrain_code = int(grid[y, x])
+            pieces = [(base, 1.0)]
+            seed_terrain_probs = seed_context.get("terrain_probs", {}).get(terrain_code)
+            if seed_terrain_probs is not None:
+                pieces.append((seed_terrain_probs, 0.35))
+            global_terrain_probs = round_context.get("global_terrain_probs", {}).get(terrain_code)
+            if global_terrain_probs is not None:
+                pieces.append((global_terrain_probs, 0.30))
+            if bool(coastal_mask[y, x]):
+                coastal_probs = seed_context.get("coastal_probs")
+                if coastal_probs is not None:
+                    pieces.append((coastal_probs, 0.18))
+                global_coastal_probs = round_context.get("global_coastal_probs")
+                if global_coastal_probs is not None:
+                    pieces.append((global_coastal_probs, 0.12))
+            if observed_cells:
+                spatial_probs, spatial_weight = _spatial_observation_prior(
+                    x=x,
+                    y=y,
+                    terrain_code=terrain_code,
+                    is_coastal=bool(coastal_mask[y, x]),
+                    observed_cells=observed_cells,
+                )
+                if spatial_probs is not None and spatial_weight > 0:
+                    pieces.append((spatial_probs, spatial_weight))
+            combined = np.zeros(6, dtype=float)
+            total_weight = 0.0
+            for probs, weight in pieces:
+                combined += np.asarray(probs, dtype=float) * float(weight)
+                total_weight += float(weight)
+            if total_weight > 0:
+                adjusted[y, x] = combined / total_weight
+    return apply_probability_floor(adjusted, floor=floor, floor_distribution=floor_distribution)
+
+
+def _spatial_observation_prior(
+    *,
+    x: int,
+    y: int,
+    terrain_code: int,
+    is_coastal: bool,
+    observed_cells: list[dict[str, Any]],
+) -> tuple[np.ndarray | None, float]:
+    weighted = np.zeros(6, dtype=float)
+    total_weight = 0.0
+    for item in observed_cells:
+        distance = abs(int(item["x"]) - x) + abs(int(item["y"]) - y)
+        base_weight = float(np.exp(-distance / 6.0))
+        if int(item["terrain_code"]) == terrain_code:
+            base_weight *= 1.35
+        if bool(item["is_coastal"]) == is_coastal:
+            base_weight *= 1.15
+        if distance == 0:
+            base_weight *= 1.5
+        if base_weight <= 1e-4:
+            continue
+        weighted += np.asarray(item["probs"], dtype=float) * base_weight
+        total_weight += base_weight
+    if total_weight <= 0:
+        return None, 0.0
+    normalized = weighted / total_weight
+    return normalized, float(min(0.45, total_weight / 6.0))
+
+
+def _normalize_prob_vector(values: np.ndarray) -> np.ndarray | None:
+    total = float(np.asarray(values, dtype=float).sum())
+    if total <= 0:
+        return None
+    return np.asarray(values, dtype=float) / total
+
+
+def _build_coastal_mask(grid: np.ndarray) -> np.ndarray:
+    mask = np.zeros(grid.shape, dtype=bool)
+    for y in range(grid.shape[0]):
+        for x in range(grid.shape[1]):
+            center_is_ocean = int(grid[y, x]) == 10
+            for nx, ny in _neighbors(x=x, y=y, width=grid.shape[1], height=grid.shape[0]):
+                if (int(grid[ny, nx]) == 10) != center_is_ocean:
+                    mask[y, x] = True
+                    break
+    return mask
+
+
+def _neighbors(x: int, y: int, width: int, height: int) -> list[tuple[int, int]]:
+    result: list[tuple[int, int]] = []
+    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        nx = x + dx
+        ny = y + dy
+        if 0 <= nx < width and 0 <= ny < height:
+            result.append((nx, ny))
+    return result

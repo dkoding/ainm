@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import hashlib
 from pathlib import Path
 
 from config import DEFAULT_HISTORY_CACHE_PREFIX, DEFAULT_OUTPUT_DIR
 from evaluate_history import evaluate_history_cache
+from history_cache import load_history_index
 
 
 def parse_args() -> argparse.Namespace:
@@ -22,15 +24,32 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    floors = [0.005, 0.01, 0.02]
-    strengths = [0.5, 1.0, 2.0, 4.0]
+    output = tune_baseline_from_history(root=args.root, cache_prefix=args.cache_prefix)
+    output_path = Path(args.output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(output, indent=2, sort_keys=True))
+    print(output_path)
+    print(json.dumps(output["best"], indent=2, sort_keys=True))
+
+
+def tune_baseline_from_history(
+    root: str | Path = DEFAULT_OUTPUT_DIR,
+    cache_prefix: str = DEFAULT_HISTORY_CACHE_PREFIX,
+    floors: list[float] | None = None,
+    history_prior_strengths: list[float] | None = None,
+) -> dict:
+    root_path = Path(root)
+    index = load_history_index(root=root_path, cache_prefix=cache_prefix)
+    history_round_ids = [str(item["round_id"]) for item in index.get("rounds", [])] if index else []
+    floors = floors or [0.005, 0.01, 0.02]
+    history_prior_strengths = history_prior_strengths or [0.5, 1.0, 2.0, 4.0]
     results = []
     best = None
     for floor in floors:
-        for strength in strengths:
+        for strength in history_prior_strengths:
             report = evaluate_history_cache(
-                root=args.root,
-                cache_prefix=args.cache_prefix,
+                root=root_path,
+                cache_prefix=cache_prefix,
                 floor=floor,
                 history_prior_strength=strength,
                 leave_one_round_out=True,
@@ -40,13 +59,23 @@ def main() -> None:
             results.append(item)
             if best is None or score > best["mean_round_score"]:
                 best = item
-
-    output = {"best": best, "results": results}
-    output_path = Path(args.output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(output, indent=2, sort_keys=True))
-    print(output_path)
-    print(json.dumps(best, indent=2, sort_keys=True))
+    signature = hashlib.sha256(
+        json.dumps(
+            {
+                "version": 1,
+                "history_round_ids": history_round_ids,
+                "floors": floors,
+                "history_prior_strengths": history_prior_strengths,
+            },
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    return {
+        "signature": signature,
+        "history_round_ids": history_round_ids,
+        "best": best,
+        "results": results,
+    }
 
 
 if __name__ == "__main__":

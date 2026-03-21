@@ -94,7 +94,7 @@ def main() -> None:
             response = client.submit_prediction(payload)
             artifact_store.write_json(
                 round_root / "team" / "submissions" / f"seed_{seed_index}.json",
-                {"request": payload, "response": response},
+                {"request": payload, "response": response, "request_meta": client.get_last_request_meta()},
             )
             print(f"submitted seed {seed_index}: {response}")
         else:
@@ -129,6 +129,7 @@ def main() -> None:
         observations_by_seed=observations_by_seed,
         budget_before=budget_before,
         budget_after=budget_after,
+        request_metrics=client.get_request_metrics_summary(),
     )
     artifact_store.write_json(round_root / "report_resume.json", report)
 

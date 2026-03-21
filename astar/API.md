@@ -217,6 +217,10 @@ Common error conditions:
 - budget exhausted
 - rate limit exceeded
 
+Operational implication for the scaffold:
+
+- the runtime should pace simulate calls explicitly rather than relying on server-side throttling
+
 ## 8. Submission Endpoint
 
 ## 8.1 `POST /astar-island/submit`
@@ -251,6 +255,10 @@ So:
 Docs rate limit:
 
 - `POST /submit`: `2 requests/second per team`
+
+Operational implication for the scaffold:
+
+- submit loops should pace seed submissions explicitly to avoid `429` during final round writeout
 
 Common validation failures:
 
@@ -309,6 +317,8 @@ Useful fields:
 - `initial_grid`
 
 This endpoint is the main post-round learning surface. It is what makes supervised improvement across rounds possible.
+
+The official docs say it is available after a round is completed or while scoring is in progress. The local history sync now attempts to ingest both `scoring` and `completed` rounds when analysis is available.
 
 ## 10. Leaderboard Endpoint
 

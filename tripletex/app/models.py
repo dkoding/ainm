@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Literal
+
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
 
 
 class TripletexFile(BaseModel):
@@ -12,7 +14,7 @@ class TripletexFile(BaseModel):
 class TripletexCredentials(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    base_url: str = Field(min_length=1)
+    base_url: AnyHttpUrl
     session_token: str = Field(min_length=1)
 
 
@@ -25,4 +27,4 @@ class SolveRequest(BaseModel):
 
 
 class SolveResponse(BaseModel):
-    status: str = "completed"
+    status: Literal["completed"] = "completed"

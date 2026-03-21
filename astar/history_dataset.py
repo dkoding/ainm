@@ -42,9 +42,14 @@ def iter_history_dataset_records(root: str | Path, cache_prefix: str = "history"
             positive = target > 0
             entropy_terms = np.zeros_like(target)
             entropy_terms[positive] = target[positive] * np.log(target[positive])
+            target_entropy = float(-np.sum(entropy_terms))
+            normalized_entropy = target_entropy / float(np.log(target.shape[-1])) if target.shape[-1] > 1 else 0.0
             yield {
                 **feature_record,
-                "terrain_entropy": float(-np.sum(entropy_terms)),
+                "terrain_entropy": target_entropy,
+                "target_entropy": target_entropy,
+                "entropy_sample_weight": float(0.15 + (1.85 * normalized_entropy)),
+                "dynamic_cell": int(target_entropy >= 0.05),
                 "target_argmax": int(np.argmax(target)),
                 "target_probs": target.tolist(),
             }

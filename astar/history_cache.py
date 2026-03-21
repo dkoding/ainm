@@ -18,8 +18,12 @@ def sync_history_cache(
 ) -> dict[str, Any]:
     cache_root = Path(cache_prefix)
     public_rounds = client.get_rounds()
-    completed_rounds = sorted(
-        (round_item for round_item in public_rounds if round_item.get("status") == "completed"),
+    analysis_ready_rounds = sorted(
+        (
+            round_item
+            for round_item in public_rounds
+            if str(round_item.get("status", "")).lower() in {"completed", "scoring"}
+        ),
         key=_round_sort_key,
         reverse=True,
     )
@@ -30,6 +34,7 @@ def sync_history_cache(
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "cache_prefix": str(cache_root),
         "completed_rounds_cached": 0,
+        "analysis_ready_rounds_cached": 0,
         "analysis_cached_seeds": 0,
         "analysis_enabled": bool(sync_analysis and client.is_authenticated),
         "public_rounds_total": len(public_rounds),
@@ -44,13 +49,14 @@ def sync_history_cache(
         else:
             artifact_store.write_json(cache_root / "team" / "my_rounds.json", team_rounds)
 
-    for round_item in completed_rounds:
+    for round_item in analysis_ready_rounds:
         round_id = str(round_item["id"])
         round_entry: dict[str, Any] = {
             "round_id": round_id,
             "round_number": round_item.get("round_number"),
             "event_date": round_item.get("event_date"),
             "status": round_item.get("status"),
+            "analysis_status": "ready",
             "analysis_cached_seeds": [],
             "analysis_errors": [],
         }
@@ -85,7 +91,8 @@ def sync_history_cache(
                 round_entry["analysis_cached_seeds"].append(seed_index)
                 summary["analysis_cached_seeds"] += 1
 
-        summary["completed_rounds_cached"] += 1
+        summary["completed_rounds_cached"] += 1 if str(round_item.get("status", "")).lower() == "completed" else 0
+        summary["analysis_ready_rounds_cached"] += 1
         summary["rounds"].append(round_entry)
 
     artifact_store.write_json(cache_root / "index.json", summary)
@@ -108,6 +115,7 @@ def summarize_history_cache(root: str | Path, cache_prefix: str = DEFAULT_HISTOR
         "cache_path": str(Path(root) / cache_prefix),
         "generated_at": index.get("generated_at"),
         "completed_rounds_cached": int(index.get("completed_rounds_cached", len(round_entries))),
+        "analysis_ready_rounds_cached": int(index.get("analysis_ready_rounds_cached", len(round_entries))),
         "analysis_cached_seeds": int(
             index.get(
                 "analysis_cached_seeds",

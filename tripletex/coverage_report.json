@@ -1,0 +1,3500 @@
+{
+  "coded_method_count": 27,
+  "contract_version": "tripletex.task_analysis.v1",
+  "documented_task_category_coverage": {
+    "bank_reconciliation": true,
+    "corrections": true,
+    "customers_products": true,
+    "departments": true,
+    "employees": true,
+    "invoicing": true,
+    "projects": true,
+    "salary": true,
+    "travel_expenses": true
+  },
+  "documented_task_category_gaps": [],
+  "method_count": 84,
+  "methods": [
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "customer.upsert",
+      "method_name": "CreateCustomer",
+      "operation": "create",
+      "target_resource": "customer"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "department.upsert",
+      "method_name": "CreateDepartment",
+      "operation": "create",
+      "target_resource": "department"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "employee.upsert",
+      "method_name": "CreateEmployee",
+      "operation": "create",
+      "target_resource": "employee"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "invoice.credit_note",
+      "method_name": "CreateInvoiceCreditNote",
+      "operation": "reverse",
+      "target_resource": "invoice"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "ledger.dimension.workflow",
+      "method_name": "CreateLedgerDimensionWorkflow",
+      "operation": "create",
+      "target_resource": "ledger"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "product.upsert",
+      "method_name": "CreateProduct",
+      "operation": "create",
+      "target_resource": "product"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "project.upsert",
+      "method_name": "CreateProject",
+      "operation": "create",
+      "target_resource": "project"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "supplier.upsert",
+      "method_name": "CreateSupplier",
+      "operation": "create",
+      "target_resource": "supplier"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "employee.admin",
+      "method_name": "GrantEmployeeEntitlements",
+      "operation": "update",
+      "target_resource": "employee"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "invoice.register_payment",
+      "method_name": "RegisterInvoicePayment",
+      "operation": "register_payment",
+      "target_resource": "invoice"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "supplier.invoice.workflow",
+      "method_name": "RegisterSupplierInvoice",
+      "operation": "create",
+      "target_resource": "supplierinvoice"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunAccountantDashboardOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "accountantdashboard"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunAccountingOfficeOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "accountingoffice"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunActivityOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "activity"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunAssetOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "asset"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunAttestationOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "attestation"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunBalanceOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "balance"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunBalanceSheetOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "balancesheet"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunBankOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "bank"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "bank.reconciliation.workflow",
+      "method_name": "RunBankReconciliationWorkflow",
+      "operation": "other",
+      "target_resource": "bank"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunCompanyOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "company"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunContactOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "contact"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunCountryOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "country"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunCrmOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "crm"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunCurrencyOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "currency"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunCustomerOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "customer"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunDeliveryAddressOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "deliveryaddress"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunDepartmentOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "department"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunDivisionOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "division"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunDocumentArchiveOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "documentarchive"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunDocumentOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "document"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "employee.onboarding.workflow",
+      "method_name": "RunEmployeeOnboardingWorkflow",
+      "operation": "create",
+      "target_resource": "employee"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunEmployeeOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "employee"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunEventOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "event"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "expense_increase_project.workflow",
+      "method_name": "RunExpenseIncreaseProjectWorkflow",
+      "operation": "create",
+      "target_resource": "project"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunGenericOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "other"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunIncomingInvoiceOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "incominginvoice"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunInternalOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "internal"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunInventoryOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "inventory"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunInvoiceOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "invoice"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "invoice.payment_reversal.workflow",
+      "method_name": "RunInvoicePaymentReversalWorkflow",
+      "operation": "reverse",
+      "target_resource": "ledger"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunInvoiceRemarkOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "invoiceremark"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunLedgerOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "ledger"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "month_end.closing.workflow",
+      "method_name": "RunMonthEndClosingWorkflow",
+      "operation": "create",
+      "target_resource": "ledger"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunMunicipalityOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "municipality"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunOrderOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "order"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunPensionOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "pension"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunPickupPointOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "pickuppoint"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunPlatformAgnosticOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "platformagnostic"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunProductOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "product"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "project.lifecycle.workflow",
+      "method_name": "RunProjectLifecycleWorkflow",
+      "operation": "other",
+      "target_resource": "project"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunProjectOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "project"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "project.time_invoice.workflow",
+      "method_name": "RunProjectTimeInvoiceWorkflow",
+      "operation": "invoice",
+      "target_resource": "invoice"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunPurchaseOrderOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "purchaseorder"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunReminderOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "reminder"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunResultbudgetOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "resultbudget"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunSaftOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "saft"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunSalaryOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "salary"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "salary.payroll.workflow",
+      "method_name": "RunSalaryPayrollWorkflow",
+      "operation": "create",
+      "target_resource": "salary"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "sales.workflow",
+      "method_name": "RunSalesWorkflow",
+      "operation": "invoice",
+      "target_resource": "invoice"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunSubscriptionOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "subscription"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunSupplierCustomerOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "suppliercustomer"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunSupplierInvoiceOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "supplierinvoice"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunSupplierOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "supplier"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunSupportDashboardOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "supportdashboard"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunTimesheetOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "timesheet"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunTokenOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "token"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunTransportTypeOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "transporttype"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunTravelExpenseOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "travelexpense"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "travel.expense.workflow",
+      "method_name": "RunTravelExpenseWorkflow",
+      "operation": "create",
+      "target_resource": "travelExpense"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunUserLicenseOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "userlicense"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunVatReturnsOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "vatreturns"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunVatTermSizeSettingsOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "vattermsizesettings"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunVoucherApprovalListElementOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "voucherapprovallistelement"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunVoucherInboxOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "voucherinbox"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunVoucherMessageOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "vouchermessage"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunVoucherStatusOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "voucherstatus"
+    },
+    {
+      "coverage_status": "wrapper_only",
+      "execution_strategy": "openapi_wrapper",
+      "flow_kind": "openapi.resource.workflow",
+      "method_name": "RunYearEndOpenAPIWorkflow",
+      "operation": "other",
+      "target_resource": "yearend"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "customer.upsert",
+      "method_name": "UpsertCustomer",
+      "operation": "update",
+      "target_resource": "customer"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "department.upsert",
+      "method_name": "UpsertDepartment",
+      "operation": "update",
+      "target_resource": "department"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "employee.upsert",
+      "method_name": "UpsertEmployee",
+      "operation": "update",
+      "target_resource": "employee"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "product.upsert",
+      "method_name": "UpsertProduct",
+      "operation": "update",
+      "target_resource": "product"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "project.upsert",
+      "method_name": "UpsertProject",
+      "operation": "update",
+      "target_resource": "project"
+    },
+    {
+      "coverage_status": "coded",
+      "execution_strategy": "curated_router",
+      "flow_kind": "supplier.upsert",
+      "method_name": "UpsertSupplier",
+      "operation": "update",
+      "target_resource": "supplier"
+    }
+  ],
+  "resource_capabilities": [
+    {
+      "collection_path": "/accountantDashboard/news",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": "/accountantDashboard",
+      "request_body_summaries": [],
+      "required_path_parameters": [],
+      "resource_family": "accountantdashboard",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "fields",
+        "from",
+        "sorting"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": null,
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/accountingOffice/reconciliations/{reconciliationId}/control",
+      "primary_prefix": "/accountingOffice",
+      "request_body_summaries": [
+        "PUT /accountingOffice/reconciliations/{reconciliationId}/control/:requestControl: application/json; charset=utf-8: array[integer]"
+      ],
+      "required_path_parameters": [
+        "reconciliationId"
+      ],
+      "resource_family": "accountingoffice",
+      "reverse_paths": [],
+      "search_parameters": [],
+      "supported_methods": [
+        "GET",
+        "PUT"
+      ],
+      "update_path": "/accountingOffice/reconciliations/{reconciliationId}/control/:controlReconciliation",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/activity",
+      "create_path": "/activity/list",
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/activity/{id}",
+      "primary_prefix": "/activity",
+      "request_body_summaries": [
+        "POST /activity/list: application/json: array[Activity]",
+        "POST /activity: application/json; charset=utf-8: Activity"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "activity",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "date",
+        "description",
+        "employeeId",
+        "fields",
+        "filterExistingHours",
+        "from",
+        "id",
+        "isChargeable",
+        "isGeneral",
+        "isInactive",
+        "isProjectActivity",
+        "isTask",
+        "name",
+        "number",
+        "projectId",
+        "query",
+        "sorting"
+      ],
+      "supported_methods": [
+        "GET",
+        "POST"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/asset",
+      "create_path": "/asset/list",
+      "delete_path": "/asset/{id}",
+      "destructive_support": true,
+      "detail_path": "/asset/{id}",
+      "primary_prefix": "/asset",
+      "request_body_summaries": [
+        "POST /asset/list: application/json; charset=utf-8: array[Asset]",
+        "POST /asset/upload: multipart/form-data: object(file)",
+        "POST /asset: application/json; charset=utf-8: Asset",
+        "PUT /asset/{id}: application/json; charset=utf-8: Asset"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "asset",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "description",
+        "fields",
+        "from",
+        "id",
+        "name",
+        "sorting"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/asset/{id}",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/attestation/addApproverPermission",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": "/attestation",
+      "request_body_summaries": [
+        "PUT /attestation/:addApprover: application/json; charset=utf-8: NewApproverBody"
+      ],
+      "required_path_parameters": [],
+      "resource_family": "attestation",
+      "reverse_paths": [],
+      "search_parameters": [
+        "attestationObjectId",
+        "attestationType",
+        "fields"
+      ],
+      "supported_methods": [
+        "GET",
+        "PUT"
+      ],
+      "update_path": "/attestation/:addApprover",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/balance/reconciliation/annual/context",
+      "create_path": "/balance/reconciliation/annual/context",
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/balance/reconciliation/attachment/{attachmentId}/pdf",
+      "primary_prefix": "/balance",
+      "request_body_summaries": [
+        "POST /balance/reconciliation/annual/context: application/json; charset=utf-8: AnnualBalanceContextRequest"
+      ],
+      "required_path_parameters": [
+        "accountId",
+        "attachmentId",
+        "reconciliationId"
+      ],
+      "resource_family": "balance",
+      "reverse_paths": [],
+      "search_parameters": [
+        "accountNumberFrom",
+        "accountNumberTo",
+        "count",
+        "customerId",
+        "dateFrom",
+        "dateTo",
+        "departmentId",
+        "employeeId",
+        "fields",
+        "from",
+        "includeActiveAccountsWithoutMovements",
+        "includeSubProjects",
+        "projectId",
+        "sorting"
+      ],
+      "supported_methods": [
+        "GET",
+        "POST"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/balanceSheet",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": "/balanceSheet",
+      "request_body_summaries": [],
+      "required_path_parameters": [],
+      "resource_family": "balancesheet",
+      "reverse_paths": [],
+      "search_parameters": [
+        "accountNumberFrom",
+        "accountNumberTo",
+        "count",
+        "customerId",
+        "dateFrom",
+        "dateTo",
+        "departmentId",
+        "employeeId",
+        "fields",
+        "from",
+        "includeActiveAccountsWithoutMovements",
+        "includeSubProjects",
+        "projectId",
+        "sorting"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/bank/reconciliation",
+      "create_path": "/bank/reconciliation/matches/counter",
+      "delete_path": "/bank/reconciliation/match/{id}",
+      "destructive_support": true,
+      "detail_path": "/bank/{id}",
+      "primary_prefix": "/bank",
+      "request_body_summaries": [
+        "POST /bank/reconciliation/match: application/json; charset=utf-8: BankReconciliationMatch",
+        "POST /bank/reconciliation/settings: application/json; charset=utf-8: BankReconciliationSettings",
+        "POST /bank/reconciliation: application/json; charset=utf-8: BankReconciliation",
+        "POST /bank/statement/import: multipart/form-data: object(file)",
+        "PUT /bank/reconciliation/match/{id}: application/json; charset=utf-8: BankReconciliationMatch",
+        "PUT /bank/reconciliation/settings/{id}: application/json; charset=utf-8: BankReconciliationSettings",
+        "PUT /bank/reconciliation/{id}/:adjustment: application/json; charset=utf-8: array[BankReconciliationAdjustment]",
+        "PUT /bank/reconciliation/{id}: application/json; charset=utf-8: BankReconciliation"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "bank",
+      "reverse_paths": [],
+      "search_parameters": [
+        "accountId",
+        "accountingPeriodId",
+        "after",
+        "approved",
+        "bankReconciliationId",
+        "bankStatementId",
+        "count",
+        "description",
+        "fields",
+        "fileFormats",
+        "from",
+        "id",
+        "isAutoPaySupported",
+        "isBankReconciliationSupport",
+        "isZtlSupported",
+        "query",
+        "registerNumbers",
+        "sorting",
+        "start"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/bank/reconciliation/match/:suggest",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/company/salesmodules",
+      "create_path": "/company/salesmodules",
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/company/{id}",
+      "primary_prefix": "/company",
+      "request_body_summaries": [
+        "POST /company/salesmodules: application/json; charset=utf-8: SalesModule",
+        "PUT /company/settings/altinn: application/json; charset=utf-8: AltinnCompanyModule",
+        "PUT /company: application/json; charset=utf-8: Company"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "company",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "fields",
+        "from",
+        "sorting"
+      ],
+      "supported_methods": [
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/company/settings/altinn",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/contact",
+      "create_path": "/contact/list",
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/contact/{id}",
+      "primary_prefix": "/contact",
+      "request_body_summaries": [
+        "POST /contact/list: application/json; charset=utf-8: array[Contact]",
+        "POST /contact: application/json; charset=utf-8: Contact",
+        "PUT /contact/{id}: application/json; charset=utf-8: Contact"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "contact",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "customerId",
+        "departmentId",
+        "email",
+        "fields",
+        "firstName",
+        "from",
+        "id",
+        "lastName",
+        "sorting"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/contact/{id}",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/country",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/country/{id}",
+      "primary_prefix": "/country",
+      "request_body_summaries": [],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "country",
+      "reverse_paths": [],
+      "search_parameters": [
+        "code",
+        "count",
+        "fields",
+        "from",
+        "id",
+        "isDisabled",
+        "sorting",
+        "supportedInZtl"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/crm/prospect",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/crm/prospect/{id}",
+      "primary_prefix": "/crm",
+      "request_body_summaries": [],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "crm",
+      "reverse_paths": [],
+      "search_parameters": [
+        "closedDateFrom",
+        "closedDateTo",
+        "closedReason",
+        "competitor",
+        "count",
+        "createdDateFrom",
+        "createdDateTo",
+        "customerId",
+        "description",
+        "fields",
+        "from",
+        "isClosed",
+        "name",
+        "projectId",
+        "projectOfferId",
+        "prospectType",
+        "salesEmployeeId",
+        "sorting"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/currency",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/currency/{id}",
+      "primary_prefix": "/currency",
+      "request_body_summaries": [],
+      "required_path_parameters": [
+        "fromCurrencyID",
+        "id",
+        "toCurrencyID"
+      ],
+      "resource_family": "currency",
+      "reverse_paths": [],
+      "search_parameters": [
+        "code",
+        "count",
+        "fields",
+        "from",
+        "id",
+        "sorting"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/customer",
+      "create_path": "/customer/category",
+      "delete_path": "/customer/{id}",
+      "destructive_support": true,
+      "detail_path": "/customer/{id}",
+      "primary_prefix": "/customer",
+      "request_body_summaries": [
+        "POST /customer/category: application/json; charset=utf-8: CustomerCategory",
+        "POST /customer/list: application/json; charset=utf-8: array[Customer]",
+        "POST /customer: application/json; charset=utf-8: Customer",
+        "PUT /customer/category/{id}: application/json; charset=utf-8: CustomerCategory",
+        "PUT /customer/list: application/json; charset=utf-8: array[Customer]",
+        "PUT /customer/{id}: application/json; charset=utf-8: Customer"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "customer",
+      "reverse_paths": [],
+      "search_parameters": [
+        "accountManagerId",
+        "changedSince",
+        "count",
+        "customerAccountNumber",
+        "customerName",
+        "description",
+        "email",
+        "fields",
+        "from",
+        "id",
+        "invoiceEmail",
+        "isInactive",
+        "name",
+        "number",
+        "organizationNumber",
+        "phoneNumberMobile",
+        "sorting",
+        "type"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/customer/list",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/deliveryAddress",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/deliveryAddress/{id}",
+      "primary_prefix": "/deliveryAddress",
+      "request_body_summaries": [
+        "PUT /deliveryAddress/{id}: application/json; charset=utf-8: DeliveryAddress"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "deliveryaddress",
+      "reverse_paths": [],
+      "search_parameters": [
+        "addressLine1",
+        "addressLine2",
+        "city",
+        "count",
+        "fields",
+        "from",
+        "id",
+        "name",
+        "postalCode",
+        "sorting"
+      ],
+      "supported_methods": [
+        "GET",
+        "PUT"
+      ],
+      "update_path": "/deliveryAddress/{id}",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/department",
+      "create_path": "/department/list",
+      "delete_path": "/department/{id}",
+      "destructive_support": true,
+      "detail_path": "/department/{id}",
+      "primary_prefix": "/department",
+      "request_body_summaries": [
+        "POST /department/list: application/json; charset=utf-8: array[Department]",
+        "POST /department: application/json; charset=utf-8: Department",
+        "PUT /department/list: application/json; charset=utf-8: array[Department]",
+        "PUT /department/{id}: application/json; charset=utf-8: Department"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "department",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "departmentManagerId",
+        "departmentNumber",
+        "fields",
+        "from",
+        "id",
+        "isInactive",
+        "name",
+        "query",
+        "sorting"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/department/list",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/division",
+      "create_path": "/division/list",
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/division/{id}",
+      "primary_prefix": "/division",
+      "request_body_summaries": [
+        "POST /division/list: application/json; charset=utf-8: array[Division]",
+        "POST /division: application/json; charset=utf-8: Division",
+        "PUT /division/list: application/json; charset=utf-8: array[Division]",
+        "PUT /division/{id}: application/json; charset=utf-8: Division"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "division",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "fields",
+        "from",
+        "query",
+        "sorting"
+      ],
+      "supported_methods": [
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/division/list",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/documentArchive/reception",
+      "create_path": "/documentArchive/reception",
+      "delete_path": "/documentArchive/{id}",
+      "destructive_support": true,
+      "detail_path": "/document/{id}",
+      "primary_prefix": "/document",
+      "request_body_summaries": [
+        "POST /documentArchive/account/{id}: multipart/form-data: object(file)",
+        "POST /documentArchive/customer/{id}: multipart/form-data: object(file)",
+        "POST /documentArchive/dynamicControlForm/{id}: multipart/form-data: object(file)",
+        "POST /documentArchive/employee/{id}: multipart/form-data: object(file)",
+        "POST /documentArchive/product/{id}: multipart/form-data: object(file)",
+        "POST /documentArchive/project/{id}: multipart/form-data: object(file)",
+        "POST /documentArchive/reception: multipart/form-data: object(file)",
+        "POST /documentArchive/supplier/{id}: multipart/form-data: object(file)",
+        "PUT /documentArchive/{id}: application/json; charset=utf-8: DocumentArchive"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "document",
+      "reverse_paths": [],
+      "search_parameters": [],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/documentArchive/{id}",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/documentArchive/reception",
+      "create_path": "/documentArchive/reception",
+      "delete_path": "/documentArchive/{id}",
+      "destructive_support": true,
+      "detail_path": "/documentArchive/{id}",
+      "primary_prefix": "/documentArchive",
+      "request_body_summaries": [
+        "POST /documentArchive/account/{id}: multipart/form-data: object(file)",
+        "POST /documentArchive/customer/{id}: multipart/form-data: object(file)",
+        "POST /documentArchive/dynamicControlForm/{id}: multipart/form-data: object(file)",
+        "POST /documentArchive/employee/{id}: multipart/form-data: object(file)",
+        "POST /documentArchive/product/{id}: multipart/form-data: object(file)",
+        "POST /documentArchive/project/{id}: multipart/form-data: object(file)",
+        "POST /documentArchive/reception: multipart/form-data: object(file)",
+        "POST /documentArchive/supplier/{id}: multipart/form-data: object(file)",
+        "PUT /documentArchive/{id}: application/json; charset=utf-8: DocumentArchive"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "documentarchive",
+      "reverse_paths": [],
+      "search_parameters": [],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/documentArchive/{id}",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/employee",
+      "create_path": "/employee/employment/leaveOfAbsence/list",
+      "delete_path": "/employee/category/{id}",
+      "destructive_support": true,
+      "detail_path": "/employee/{id}",
+      "primary_prefix": "/employee",
+      "request_body_summaries": [
+        "POST /employee/category/list: application/json; charset=utf-8: array[EmployeeCategory]",
+        "POST /employee/category: application/json; charset=utf-8: EmployeeCategory",
+        "POST /employee/employment/details: application/json; charset=utf-8: EmploymentDetails",
+        "POST /employee/employment/leaveOfAbsence/list: application/json; charset=utf-8: array[LeaveOfAbsence]",
+        "POST /employee/employment/leaveOfAbsence: application/json; charset=utf-8: LeaveOfAbsence",
+        "POST /employee/employment: application/json; charset=utf-8: Employment",
+        "POST /employee/hourlyCostAndRate: application/json; charset=utf-8: HourlyCostAndRate",
+        "POST /employee/list: application/json; charset=utf-8: array[Employee]",
+        "POST /employee/nextOfKin: application/json; charset=utf-8: NextOfKin",
+        "POST /employee/standardTime: application/json; charset=utf-8: StandardTime",
+        "POST /employee: application/json; charset=utf-8: Employee",
+        "PUT /employee/category/list: application/json; charset=utf-8: array[EmployeeCategory]",
+        "PUT /employee/category/{id}: application/json; charset=utf-8: EmployeeCategory",
+        "PUT /employee/employment/details/{id}: application/json; charset=utf-8: EmploymentDetails",
+        "PUT /employee/employment/leaveOfAbsence/{id}: application/json; charset=utf-8: LeaveOfAbsence",
+        "PUT /employee/employment/{id}: application/json; charset=utf-8: Employment",
+        "PUT /employee/hourlyCostAndRate/{id}: application/json; charset=utf-8: HourlyCostAndRate",
+        "PUT /employee/nextOfKin/{id}: application/json; charset=utf-8: NextOfKin",
+        "PUT /employee/preferences/list: application/json; charset=utf-8: array[EmployeePreferences]",
+        "PUT /employee/preferences/{id}: application/json; charset=utf-8: EmployeePreferences",
+        "PUT /employee/standardTime/{id}: application/json; charset=utf-8: StandardTime",
+        "PUT /employee/{id}: application/json; charset=utf-8: Employee"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "employee",
+      "reverse_paths": [],
+      "search_parameters": [
+        "allowInformationRegistration",
+        "assignableProjectManagers",
+        "code",
+        "count",
+        "customerId",
+        "date",
+        "departmentId",
+        "email",
+        "employeeId",
+        "employeeNumber",
+        "employmentId",
+        "employmentIds",
+        "excludeReadOnly",
+        "fields",
+        "firstName",
+        "from",
+        "hasSystemAccess",
+        "id",
+        "includeContacts",
+        "isInactive",
+        "lastName",
+        "maxPercentage",
+        "minPercentage",
+        "name",
+        "nameNO",
+        "number",
+        "onlyContacts",
+        "onlyEmployeeTokens",
+        "onlyProjectManagers",
+        "periodEnd",
+        "periodStart",
+        "query",
+        "sorting",
+        "type"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/employee/category/list",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/event/subscription",
+      "create_path": "/event/subscription/list",
+      "delete_path": "/event/subscription/{id}",
+      "destructive_support": true,
+      "detail_path": "/event/{eventType}",
+      "primary_prefix": "/event",
+      "request_body_summaries": [
+        "POST /event/subscription/list: application/json; charset=utf-8: array[Subscription]",
+        "POST /event/subscription: application/json; charset=utf-8: Subscription",
+        "PUT /event/subscription/list: application/json; charset=utf-8: array[Subscription]",
+        "PUT /event/subscription/{id}: application/json: Subscription"
+      ],
+      "required_path_parameters": [
+        "eventType",
+        "id"
+      ],
+      "resource_family": "event",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "fields",
+        "from",
+        "sorting"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/event/subscription/list",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/incomingInvoice",
+      "create_path": "/incomingInvoice",
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/incomingInvoice/{voucherId}",
+      "primary_prefix": "/incomingInvoice",
+      "request_body_summaries": [
+        "POST /incomingInvoice/{voucherId}/addPayment: application/json; charset=utf-8: IncomingInvoicePaymentExternalWrite",
+        "POST /incomingInvoice: application/json; charset=utf-8: IncomingInvoiceAggregateExternalWrite",
+        "PUT /incomingInvoice/{voucherId}: application/json; charset=utf-8: IncomingInvoiceAggregateExternalWrite"
+      ],
+      "required_path_parameters": [
+        "voucherId"
+      ],
+      "resource_family": "incominginvoice",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "fields",
+        "from",
+        "invoiceDateFrom",
+        "invoiceDateTo",
+        "invoiceNumber",
+        "sorting",
+        "status",
+        "vendorId",
+        "voucherId"
+      ],
+      "supported_methods": [
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/incomingInvoice/{voucherId}",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/internal/debtCollector",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": "/internal",
+      "request_body_summaries": [],
+      "required_path_parameters": [],
+      "resource_family": "internal",
+      "reverse_paths": [],
+      "search_parameters": [
+        "fields"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "PUT"
+      ],
+      "update_path": "/internal/nhoAdmin/:abort",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/inventory",
+      "create_path": "/inventory/location/list",
+      "delete_path": "/inventory/stocktaking/productline/{id}",
+      "destructive_support": true,
+      "detail_path": "/inventory/{id}",
+      "primary_prefix": "/inventory",
+      "request_body_summaries": [
+        "POST /inventory/location/list: application/json; charset=utf-8: array[InventoryLocation]",
+        "POST /inventory/location: application/json; charset=utf-8: InventoryLocation",
+        "POST /inventory/stocktaking/productline: application/json; charset=utf-8: ProductLine",
+        "POST /inventory/stocktaking: application/json; charset=utf-8: Stocktaking",
+        "POST /inventory: application/json; charset=utf-8: Inventory",
+        "PUT /inventory/location/list: application/json; charset=utf-8: array[InventoryLocation]",
+        "PUT /inventory/location/{id}: application/json; charset=utf-8: InventoryLocation",
+        "PUT /inventory/stocktaking/productline/{id}: application/json; charset=utf-8: ProductLine",
+        "PUT /inventory/stocktaking/{id}: application/json; charset=utf-8: Stocktaking",
+        "PUT /inventory/{id}: application/json; charset=utf-8: Inventory"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "inventory",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "dateFrom",
+        "dateTo",
+        "fields",
+        "from",
+        "id",
+        "inventoryId",
+        "isCompleted",
+        "isInactive",
+        "isMainInventory",
+        "locationIds",
+        "name",
+        "onlyProductWithChangedStatus",
+        "productGroupIds",
+        "productId",
+        "productLineStatus",
+        "query",
+        "sorting",
+        "stocktakingId",
+        "warehouseId"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/inventory/location/list",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/invoice",
+      "create_path": "/invoice/list",
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/invoice/{id}",
+      "primary_prefix": "/invoice",
+      "request_body_summaries": [
+        "POST /invoice/list: application/json; charset=utf-8: array[Invoice]",
+        "POST /invoice: application/json; charset=utf-8: Invoice"
+      ],
+      "required_path_parameters": [
+        "id",
+        "invoiceId"
+      ],
+      "resource_family": "invoice",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "customerId",
+        "description",
+        "fields",
+        "from",
+        "id",
+        "invoiceDateFrom",
+        "invoiceDateTo",
+        "invoiceNumber",
+        "kid",
+        "query",
+        "sorting",
+        "voucherId"
+      ],
+      "supported_methods": [
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/invoice/{id}/:createCreditNote",
+      "verification_support": true
+    },
+    {
+      "collection_path": null,
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/invoiceRemark/{id}",
+      "primary_prefix": "/invoiceRemark",
+      "request_body_summaries": [],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "invoiceremark",
+      "reverse_paths": [],
+      "search_parameters": [],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/ledger/account",
+      "create_path": "/ledger/voucher/historical/employee",
+      "delete_path": "/ledger/voucher/{voucherId}/attachment",
+      "destructive_support": true,
+      "detail_path": "/ledger/account/{id}",
+      "primary_prefix": "/ledger",
+      "request_body_summaries": [
+        "POST /ledger/account/list: application/json; charset=utf-8: array[Account]",
+        "POST /ledger/account: application/json; charset=utf-8: Account",
+        "POST /ledger/accountingDimensionName: application/json; charset=utf-8: AccountingDimensionName",
+        "POST /ledger/accountingDimensionValue: application/json; charset=utf-8: AccountingDimensionValue",
+        "POST /ledger/paymentTypeOut/list: application/json; charset=utf-8: array[PaymentTypeOut]",
+        "POST /ledger/paymentTypeOut: application/json; charset=utf-8: PaymentTypeOut",
+        "POST /ledger/voucher/historical/employee: application/json; charset=utf-8: Employee",
+        "POST /ledger/voucher/historical/historical: application/json; charset=utf-8: array[HistoricalVoucher]",
+        "POST /ledger/voucher/historical/{voucherId}/attachment: multipart/form-data: object(file)",
+        "POST /ledger/voucher/importDocument: multipart/form-data: object(file,description)",
+        "POST /ledger/voucher/importGbat10: multipart/form-data: object(generateVatPostings,file,encoding)",
+        "POST /ledger/voucher/openingBalance: application/json; charset=utf-8: OpeningBalance",
+        "POST /ledger/voucher/{voucherId}/attachment: multipart/form-data: object(file)",
+        "POST /ledger/voucher/{voucherId}/pdf/{fileName}: multipart/form-data: object(file)",
+        "POST /ledger/voucher: application/json; charset=utf-8: Voucher",
+        "PUT /ledger/account/list: application/json; charset=utf-8: array[Account]",
+        "PUT /ledger/account/{id}: application/json; charset=utf-8: Account",
+        "PUT /ledger/accountingDimensionName/{id}: application/json; charset=utf-8: AccountingDimensionName",
+        "PUT /ledger/accountingDimensionValue/list: application/json; charset=utf-8: array[AccountingDimensionValue]",
+        "PUT /ledger/paymentTypeOut/list: application/json; charset=utf-8: array[PaymentTypeOut]",
+        "PUT /ledger/paymentTypeOut/{id}: application/json; charset=utf-8: PaymentTypeOut",
+        "PUT /ledger/posting/:closePostings: application/json: array[integer]",
+        "PUT /ledger/vatSettings: application/json; charset=utf-8: VatSettings",
+        "PUT /ledger/voucher/historical/:closePostings: application/json: string",
+        "PUT /ledger/voucher/list: application/json; charset=utf-8: array[Voucher]",
+        "PUT /ledger/voucher/{id}: application/json; charset=utf-8: Voucher"
+      ],
+      "required_path_parameters": [
+        "fileName",
+        "id",
+        "voucherId"
+      ],
+      "resource_family": "ledger",
+      "reverse_paths": [
+        "/ledger/voucher/historical/:reverseHistoricalVouchers",
+        "/ledger/voucher/{id}/:reverse"
+      ],
+      "search_parameters": [
+        "accountId",
+        "accountNumberFrom",
+        "accountNumberTo",
+        "accountingDimensionValue1Id",
+        "accountingDimensionValue2Id",
+        "accountingDimensionValue3Id",
+        "activeOnly",
+        "changedSince",
+        "count",
+        "customerId",
+        "date",
+        "dateFrom",
+        "dateTo",
+        "departmentId",
+        "description",
+        "dimensionIndex",
+        "employeeId",
+        "endFrom",
+        "endTo",
+        "externalVoucherNumber",
+        "fields",
+        "from",
+        "id",
+        "includeNonApproved",
+        "isApplicableForSupplierInvoice",
+        "isBalanceAccount",
+        "isBankAccount",
+        "isInactive",
+        "ledgerType",
+        "name",
+        "number",
+        "numberFrom",
+        "numberTo",
+        "onlyDimensionsWithActiveValues",
+        "openPostings",
+        "productId",
+        "projectId",
+        "saftCode",
+        "searchText",
+        "shouldIncludeSpecificationTypes",
+        "showInVoucherRegistration",
+        "sorting",
+        "startFrom",
+        "startTo",
+        "supplierId",
+        "type",
+        "typeId",
+        "typeOfVat",
+        "vatDate",
+        "yearFrom",
+        "yearTo"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/ledger/voucher/historical/:closePostings",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/municipality",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": "/municipality",
+      "request_body_summaries": [],
+      "required_path_parameters": [],
+      "resource_family": "municipality",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "fields",
+        "from",
+        "id",
+        "includePayrollTaxZones",
+        "query",
+        "sorting"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/order",
+      "create_path": "/order/orderline/list",
+      "delete_path": "/order/orderGroup/{id}",
+      "destructive_support": true,
+      "detail_path": "/order/{id}",
+      "primary_prefix": "/order",
+      "request_body_summaries": [
+        "POST /order/list: application/json; charset=utf-8: array[Order]",
+        "POST /order/orderGroup: application/json; charset=utf-8: OrderGroup",
+        "POST /order/orderline/list: application/json; charset=utf-8: array[OrderLine]",
+        "POST /order/orderline: application/json; charset=utf-8: OrderLine",
+        "POST /order: application/json; charset=utf-8: Order",
+        "PUT /order/orderGroup: application/json; charset=utf-8: OrderGroup",
+        "PUT /order/orderline/{id}: application/json; charset=utf-8: OrderLine",
+        "PUT /order/{id}/:attach: multipart/form-data: object(file)",
+        "PUT /order/{id}: application/json; charset=utf-8: Order"
+      ],
+      "required_path_parameters": [
+        "id",
+        "orderId"
+      ],
+      "resource_family": "order",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "customerId",
+        "deliveryComment",
+        "fields",
+        "from",
+        "id",
+        "ids",
+        "isClosed",
+        "isSubscription",
+        "number",
+        "orderDateFrom",
+        "orderDateTo",
+        "orderId",
+        "orderIds",
+        "productId",
+        "sorting"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/order/:invoiceMultipleOrders",
+      "verification_support": true
+    },
+    {
+      "collection_path": null,
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": null,
+      "request_body_summaries": [],
+      "required_path_parameters": [],
+      "resource_family": "other",
+      "reverse_paths": [],
+      "search_parameters": [],
+      "supported_methods": [],
+      "update_path": null,
+      "verification_support": false
+    },
+    {
+      "collection_path": "/pension",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": "/pension",
+      "request_body_summaries": [],
+      "required_path_parameters": [],
+      "resource_family": "pension",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "fields",
+        "from",
+        "query",
+        "sorting",
+        "startDate"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/pickupPoint",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/pickupPoint/{id}",
+      "primary_prefix": "/pickupPoint",
+      "request_body_summaries": [],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "pickuppoint",
+      "reverse_paths": [],
+      "search_parameters": [
+        "code",
+        "count",
+        "fields",
+        "from",
+        "name",
+        "sorting",
+        "supplierId",
+        "transportTypeId"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/platformAgnostic/bank/onboarding/fetchOdpCustomerId",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": "/platformAgnostic",
+      "request_body_summaries": [],
+      "required_path_parameters": [],
+      "resource_family": "platformagnostic",
+      "reverse_paths": [],
+      "search_parameters": [
+        "companyId"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/product",
+      "create_path": "/product/group/list",
+      "delete_path": "/product/group/{id}",
+      "destructive_support": true,
+      "detail_path": "/product/{id}",
+      "primary_prefix": "/product",
+      "request_body_summaries": [
+        "DELETE /product/groupRelation/list: application/json: array[integer]",
+        "POST /product/group/list: application/json; charset=utf-8: array[ProductGroup]",
+        "POST /product/group: application/json; charset=utf-8: ProductGroup",
+        "POST /product/groupRelation/list: application/json; charset=utf-8: array[ProductGroupRelation]",
+        "POST /product/groupRelation: application/json; charset=utf-8: ProductGroupRelation",
+        "POST /product/inventoryLocation/list: application/json; charset=utf-8: array[ProductInventoryLocation]",
+        "POST /product/inventoryLocation: application/json; charset=utf-8: ProductInventoryLocation",
+        "POST /product/list: application/json; charset=utf-8: array[Product]",
+        "POST /product/supplierProduct/getSupplierProductsByIds: application/json: array[SupplierProduct]",
+        "POST /product/supplierProduct/list: application/json; charset=utf-8: array[SupplierProduct]",
+        "POST /product/supplierProduct: application/json; charset=utf-8: SupplierProduct",
+        "POST /product/unit/list: application/json; charset=utf-8: array[ProductUnit]",
+        "POST /product/unit: application/json; charset=utf-8: ProductUnit",
+        "POST /product/{id}/image: multipart/form-data: object(file)",
+        "POST /product: application/json; charset=utf-8: Product",
+        "PUT /product/group/list: application/json; charset=utf-8: array[ProductGroup]",
+        "PUT /product/group/{id}: application/json; charset=utf-8: ProductGroup",
+        "PUT /product/inventoryLocation/list: application/json; charset=utf-8: array[ProductInventoryLocation]",
+        "PUT /product/inventoryLocation/{id}: application/json; charset=utf-8: ProductInventoryLocation",
+        "PUT /product/list: application/json; charset=utf-8: array[Product]",
+        "PUT /product/logisticsSettings: application/json; charset=utf-8: LogisticsSettings",
+        "PUT /product/supplierProduct/list: application/json; charset=utf-8: array[SupplierProduct]",
+        "PUT /product/supplierProduct/{id}: application/json; charset=utf-8: SupplierProduct",
+        "PUT /product/unit/list: application/json; charset=utf-8: array[ProductUnit]",
+        "PUT /product/unit/{id}: application/json; charset=utf-8: ProductUnit",
+        "PUT /product/{id}: application/json; charset=utf-8: Product"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "product",
+      "reverse_paths": [],
+      "search_parameters": [
+        "accountId",
+        "commonCode",
+        "costExcludingVatCurrencyFrom",
+        "costExcludingVatCurrencyTo",
+        "count",
+        "currencyId",
+        "departmentId",
+        "ean",
+        "elNumber",
+        "fields",
+        "from",
+        "fromDate",
+        "id",
+        "ids",
+        "inventoryId",
+        "isInactive",
+        "isMainLocation",
+        "isStockItem",
+        "isSupplierProduct",
+        "name",
+        "nameShort",
+        "nrfNumber",
+        "number",
+        "organizationNumber",
+        "peppolName",
+        "peppolSymbol",
+        "priceExcludingVatCurrencyFrom",
+        "priceExcludingVatCurrencyTo",
+        "priceIncludingVatCurrencyFrom",
+        "priceIncludingVatCurrencyTo",
+        "productGroupId",
+        "productId",
+        "productNumber",
+        "productUnitId",
+        "query",
+        "resaleIds",
+        "showOnlyLastPrice",
+        "sorting",
+        "supplierId",
+        "targetCurrencyId",
+        "toDate",
+        "vatTypeId",
+        "vendorId",
+        "wholesaler"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/product/group/list",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/project",
+      "create_path": "/project/hourlyRates/projectSpecificRates/list",
+      "delete_path": "/project/hourlyRates/projectSpecificRates/{id}",
+      "destructive_support": true,
+      "detail_path": "/project/{id}",
+      "primary_prefix": "/project",
+      "request_body_summaries": [
+        "DELETE /project: application/json; charset=utf-8: array[Project]",
+        "POST /project/category: application/json; charset=utf-8: ProjectCategory",
+        "POST /project/hourlyRates/list: application/json; charset=utf-8: array[ProjectHourlyRate]",
+        "POST /project/hourlyRates/projectSpecificRates/list: application/json; charset=utf-8: array[ProjectSpecificRate]",
+        "POST /project/hourlyRates/projectSpecificRates: application/json; charset=utf-8: ProjectSpecificRate",
+        "POST /project/hourlyRates: application/json; charset=utf-8: ProjectHourlyRate",
+        "POST /project/import: multipart/form-data: object(file)",
+        "POST /project/list: application/json; charset=utf-8: array[Project]",
+        "POST /project/orderline/list: application/json; charset=utf-8: array[ProjectOrderLine]",
+        "POST /project/orderline: application/json; charset=utf-8: ProjectOrderLine",
+        "POST /project/participant/list: application/json; charset=utf-8: array[ProjectParticipant]",
+        "POST /project/participant: application/json; charset=utf-8: ProjectParticipant",
+        "POST /project/projectActivity: application/json; charset=utf-8: ProjectActivity",
+        "POST /project/subcontract: application/json; charset=utf-8: ProjectSubContract",
+        "POST /project: application/json; charset=utf-8: Project",
+        "PUT /project/category/{id}: application/json; charset=utf-8: ProjectCategory",
+        "PUT /project/hourlyRates/list: application/json; charset=utf-8: array[ProjectHourlyRate]",
+        "PUT /project/hourlyRates/projectSpecificRates/list: application/json; charset=utf-8: array[ProjectSpecificRate]",
+        "PUT /project/hourlyRates/projectSpecificRates/{id}: application/json; charset=utf-8: ProjectSpecificRate",
+        "PUT /project/hourlyRates/updateOrAddHourRates: application/json: HourlyRate",
+        "PUT /project/hourlyRates/{id}: application/json; charset=utf-8: ProjectHourlyRate",
+        "PUT /project/list: application/json; charset=utf-8: array[Project]",
+        "PUT /project/orderline/{id}: application/json; charset=utf-8: ProjectOrderLine",
+        "PUT /project/participant/{id}: application/json; charset=utf-8: ProjectParticipant",
+        "PUT /project/settings: application/json; charset=utf-8: ProjectSettings",
+        "PUT /project/subcontract/{id}: application/json; charset=utf-8: ProjectSubContract",
+        "PUT /project/{id}: application/json; charset=utf-8: Project"
+      ],
+      "required_path_parameters": [
+        "id",
+        "number"
+      ],
+      "resource_family": "project",
+      "reverse_paths": [],
+      "search_parameters": [
+        "activityId",
+        "count",
+        "customerAccountManagerId",
+        "customerId",
+        "date",
+        "dateFrom",
+        "dateTo",
+        "departmentId",
+        "description",
+        "employeeId",
+        "employeeInProjectId",
+        "endDateFrom",
+        "endDateTo",
+        "externalAccountsNumber",
+        "fields",
+        "from",
+        "id",
+        "ids",
+        "includeProjectOffers",
+        "includeRecentlyClosed",
+        "isBudget",
+        "isClosed",
+        "isFixedPrice",
+        "isOffer",
+        "name",
+        "number",
+        "periodEnd",
+        "periodStart",
+        "periodType",
+        "productId",
+        "projectHourlyRateId",
+        "projectId",
+        "projectManagerId",
+        "query",
+        "showInProjectOrder",
+        "sorting",
+        "startDateFrom",
+        "startDateTo",
+        "type",
+        "useNkode"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/project/hourlyRates/projectSpecificRates/list",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/purchaseOrder",
+      "create_path": "/purchaseOrder/deviation/list",
+      "delete_path": "/purchaseOrder/deviation/{id}",
+      "destructive_support": true,
+      "detail_path": "/purchaseOrder/{id}",
+      "primary_prefix": "/purchaseOrder",
+      "request_body_summaries": [
+        "DELETE /purchaseOrder/goodsReceiptLine/list: application/json: array[GoodsReceiptLine]",
+        "DELETE /purchaseOrder/orderline/list: application/json: array[PurchaseOrderline]",
+        "POST /purchaseOrder/deviation/list: application/json; charset=utf-8: array[Deviation]",
+        "POST /purchaseOrder/deviation: application/json; charset=utf-8: Deviation",
+        "POST /purchaseOrder/goodsReceipt/list: application/json; charset=utf-8: array[GoodsReceipt]",
+        "POST /purchaseOrder/goodsReceipt: application/json; charset=utf-8: GoodsReceipt",
+        "POST /purchaseOrder/goodsReceiptLine/list: application/json; charset=utf-8: array[GoodsReceiptLine]",
+        "POST /purchaseOrder/goodsReceiptLine: application/json; charset=utf-8: GoodsReceiptLine",
+        "POST /purchaseOrder/orderline/list: application/json; charset=utf-8: array[PurchaseOrderline]",
+        "POST /purchaseOrder/orderline: application/json; charset=utf-8: PurchaseOrderline",
+        "POST /purchaseOrder/purchaseOrderIncomingInvoiceRelation/list: application/json; charset=utf-8: array[PurchaseOrderIncomingInvoiceRelation]",
+        "POST /purchaseOrder/purchaseOrderIncomingInvoiceRelation: application/json; charset=utf-8: PurchaseOrderIncomingInvoiceRelation",
+        "POST /purchaseOrder/{id}/attachment/list: multipart/form-data: object(file)",
+        "POST /purchaseOrder/{id}/attachment: multipart/form-data: object(file)",
+        "POST /purchaseOrder: application/json; charset=utf-8: PurchaseOrder",
+        "PUT /purchaseOrder/deviation/list: application/json; charset=utf-8: array[Deviation]",
+        "PUT /purchaseOrder/deviation/{id}: application/json; charset=utf-8: Deviation",
+        "PUT /purchaseOrder/goodsReceipt/{id}: application/json; charset=utf-8: GoodsReceipt",
+        "PUT /purchaseOrder/goodsReceiptLine/list: application/json; charset=utf-8: array[GoodsReceiptLine]",
+        "PUT /purchaseOrder/goodsReceiptLine/{id}: application/json; charset=utf-8: GoodsReceiptLine",
+        "PUT /purchaseOrder/orderline/list: application/json; charset=utf-8: array[PurchaseOrderline]",
+        "PUT /purchaseOrder/orderline/{id}: application/json; charset=utf-8: PurchaseOrderline",
+        "PUT /purchaseOrder/{id}/:sendByEmail: application/json; charset=utf-8: PurchaseOrderEmail",
+        "PUT /purchaseOrder/{id}: application/json; charset=utf-8: PurchaseOrder"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "purchaseorder",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "creationDateFrom",
+        "creationDateTo",
+        "deliveryDateFrom",
+        "deliveryDateTo",
+        "fields",
+        "from",
+        "id",
+        "isClosed",
+        "number",
+        "orderOutId",
+        "projectId",
+        "purchaseOrderId",
+        "receivedDateFrom",
+        "receivedDateTo",
+        "sorting",
+        "status",
+        "supplierId",
+        "voucherId",
+        "withDeviationOnly",
+        "withoutPurchase"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/purchaseOrder/deviation/list",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/reminder",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/reminder/{id}",
+      "primary_prefix": "/reminder",
+      "request_body_summaries": [],
+      "required_path_parameters": [
+        "id",
+        "reminderId"
+      ],
+      "resource_family": "reminder",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "customerId",
+        "dateFrom",
+        "dateTo",
+        "fields",
+        "from",
+        "id",
+        "invoiceId",
+        "sorting",
+        "termOfPaymentFrom",
+        "termOfPaymentTo"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/resultbudget",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/resultbudget/product/{id}",
+      "primary_prefix": "/resultbudget",
+      "request_body_summaries": [],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "resultbudget",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "departmentIds",
+        "employeeIds",
+        "fields",
+        "from",
+        "includeAllDepartmentResultBudgets",
+        "includeAllEmployeeResultBudgets",
+        "includeAllProductResultBudgets",
+        "includeAllProjectResultBudgets",
+        "productIds",
+        "projectIds",
+        "sorting",
+        "year"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/saft/importSAFT",
+      "create_path": "/saft/importSAFT",
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": "/saft",
+      "request_body_summaries": [
+        "POST /saft/importSAFT: multipart/form-data: object(saftFile,mappingFile,importCustomerVendors)"
+      ],
+      "required_path_parameters": [],
+      "resource_family": "saft",
+      "reverse_paths": [],
+      "search_parameters": [
+        "year"
+      ],
+      "supported_methods": [
+        "GET",
+        "POST"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/salary/settings/holiday",
+      "create_path": "/salary/financeTax/reconciliation/context",
+      "delete_path": "/salary/settings/pensionScheme/{id}",
+      "destructive_support": true,
+      "detail_path": "/salary/type/{id}",
+      "primary_prefix": "/salary",
+      "request_body_summaries": [
+        "POST /salary/financeTax/reconciliation/context: application/json; charset=utf-8: FinanceTaxContextRequest",
+        "POST /salary/holidayAllowance/reconciliation/context: application/json; charset=utf-8: HolidayAllowanceContextRequest",
+        "POST /salary/mandatoryDeduction/reconciliation/context: application/json; charset=utf-8: MandatoryDeductionContextRequest",
+        "POST /salary/payrollTax/reconciliation/context: application/json; charset=utf-8: PayrollTaxContextRequest",
+        "POST /salary/settings/holiday/list: application/json; charset=utf-8: array[CompanyHoliday]",
+        "POST /salary/settings/holiday: application/json; charset=utf-8: CompanyHoliday",
+        "POST /salary/settings/pensionScheme/list: application/json; charset=utf-8: array[PensionScheme]",
+        "POST /salary/settings/pensionScheme: application/json: PensionScheme",
+        "POST /salary/settings/standardTime: application/json; charset=utf-8: CompanyStandardTime",
+        "POST /salary/taxDeduction/reconciliation/context: application/json; charset=utf-8: TaxDeductionContextRequest",
+        "POST /salary/transaction/{id}/attachment/list: multipart/form-data: object(file)",
+        "POST /salary/transaction/{id}/attachment: multipart/form-data: object(file)",
+        "POST /salary/transaction: application/json; charset=utf-8: SalaryTransaction",
+        "PUT /salary/settings/holiday/list: application/json; charset=utf-8: array[CompanyHoliday]",
+        "PUT /salary/settings/holiday/{id}: application/json; charset=utf-8: CompanyHoliday",
+        "PUT /salary/settings/pensionScheme/list: application/json; charset=utf-8: array[PensionScheme]",
+        "PUT /salary/settings/pensionScheme/{id}: application/json: PensionScheme",
+        "PUT /salary/settings/standardTime/{id}: application/json; charset=utf-8: CompanyStandardTime",
+        "PUT /salary/settings: application/json; charset=utf-8: SalarySettings"
+      ],
+      "required_path_parameters": [
+        "id",
+        "reconciliationId"
+      ],
+      "resource_family": "salary",
+      "reverse_paths": [],
+      "search_parameters": [
+        "activityId",
+        "comment",
+        "count",
+        "date",
+        "description",
+        "employeeId",
+        "employeeIds",
+        "fields",
+        "from",
+        "id",
+        "isInactive",
+        "monthFrom",
+        "monthTo",
+        "name",
+        "number",
+        "showInTimesheet",
+        "sorting",
+        "voucherDateFrom",
+        "voucherDateTo",
+        "wageTransactionId",
+        "year",
+        "yearFrom",
+        "yearTo"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/salary/settings/holiday/list",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/subscription/packages",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": "/subscription",
+      "request_body_summaries": [
+        "PUT /subscription/cancel: application/json: AccountClosureInfo"
+      ],
+      "required_path_parameters": [],
+      "resource_family": "subscription",
+      "reverse_paths": [],
+      "search_parameters": [
+        "fields"
+      ],
+      "supported_methods": [
+        "GET",
+        "PUT"
+      ],
+      "update_path": "/subscription/cancel",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/supplier",
+      "create_path": "/supplier/list",
+      "delete_path": "/supplier/{id}",
+      "destructive_support": true,
+      "detail_path": "/supplier/{id}",
+      "primary_prefix": "/supplier",
+      "request_body_summaries": [
+        "POST /supplier/list: application/json; charset=utf-8: array[Supplier]",
+        "POST /supplier: application/json; charset=utf-8: Supplier",
+        "PUT /supplier/list: application/json; charset=utf-8: array[Supplier]",
+        "PUT /supplier/{id}: application/json; charset=utf-8: Supplier",
+        "PUT /supplierInvoice/voucher/{id}/postings: application/json; charset=utf-8: array[OrderLinePosting]"
+      ],
+      "required_path_parameters": [
+        "id",
+        "invoiceId"
+      ],
+      "resource_family": "supplier",
+      "reverse_paths": [],
+      "search_parameters": [
+        "accountManagerId",
+        "changedSince",
+        "count",
+        "email",
+        "employeeId",
+        "fields",
+        "from",
+        "id",
+        "invoiceDateFrom",
+        "invoiceDateTo",
+        "invoiceEmail",
+        "invoiceNumber",
+        "isInactive",
+        "isWholesaler",
+        "kid",
+        "organizationNumber",
+        "query",
+        "searchText",
+        "showAll",
+        "showProducts",
+        "sorting",
+        "supplierId",
+        "supplierNumber",
+        "voucherId"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/supplier/list",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/supplierCustomer/search",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": "/supplierCustomer",
+      "request_body_summaries": [],
+      "required_path_parameters": [],
+      "resource_family": "suppliercustomer",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "fields",
+        "from",
+        "query",
+        "sorting"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/supplierInvoice",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/supplierInvoice/{id}",
+      "primary_prefix": "/supplierInvoice",
+      "request_body_summaries": [
+        "PUT /supplierInvoice/voucher/{id}/postings: application/json; charset=utf-8: array[OrderLinePosting]"
+      ],
+      "required_path_parameters": [
+        "id",
+        "invoiceId"
+      ],
+      "resource_family": "supplierinvoice",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "employeeId",
+        "fields",
+        "from",
+        "id",
+        "invoiceDateFrom",
+        "invoiceDateTo",
+        "invoiceNumber",
+        "kid",
+        "searchText",
+        "showAll",
+        "sorting",
+        "supplierId",
+        "voucherId"
+      ],
+      "supported_methods": [
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/supplierInvoice/:addRecipient",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/supportDashboard/bankruptAndExcludedCustomers",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": "/supportDashboard",
+      "request_body_summaries": [],
+      "required_path_parameters": [],
+      "resource_family": "supportdashboard",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "endDateRange",
+        "fields",
+        "filter",
+        "from",
+        "sorting",
+        "startDateRange",
+        "type"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/timesheet/allocated",
+      "create_path": "/timesheet/allocated/list",
+      "delete_path": "/timesheet/allocated/{id}",
+      "destructive_support": true,
+      "detail_path": "/timesheet/entry/{id}",
+      "primary_prefix": "/timesheet",
+      "request_body_summaries": [
+        "POST /timesheet/allocated/list: application/json; charset=utf-8: array[TimesheetAllocated]",
+        "POST /timesheet/allocated: application/json; charset=utf-8: TimesheetAllocated",
+        "POST /timesheet/companyHoliday: application/json; charset=utf-8: CompanyHolidays",
+        "POST /timesheet/entry/list: application/json; charset=utf-8: array[TimesheetEntry]",
+        "POST /timesheet/entry: application/json; charset=utf-8: TimesheetEntry",
+        "POST /timesheet/salaryProjectTypeSpecification: application/json: TimesheetProjectSalaryTypeSpecification",
+        "POST /timesheet/salaryTypeSpecification: application/json: TimesheetSalaryTypeSpecification",
+        "PUT /timesheet/allocated/list: application/json; charset=utf-8: array[TimesheetAllocated]",
+        "PUT /timesheet/allocated/{id}: application/json; charset=utf-8: TimesheetAllocated",
+        "PUT /timesheet/companyHoliday/{id}: application/json; charset=utf-8: CompanyHolidays",
+        "PUT /timesheet/entry/list: application/json; charset=utf-8: array[TimesheetEntry]",
+        "PUT /timesheet/entry/{id}: application/json; charset=utf-8: TimesheetEntry",
+        "PUT /timesheet/salaryProjectTypeSpecification/{id}: application/json: TimesheetProjectSalaryTypeSpecification",
+        "PUT /timesheet/salaryTypeSpecification/{id}: application/json: TimesheetSalaryTypeSpecification",
+        "PUT /timesheet/timeClock/{id}: application/json; charset=utf-8: TimeClock"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "timesheet",
+      "reverse_paths": [],
+      "search_parameters": [
+        "activityId",
+        "activityIds",
+        "approvedBy",
+        "comment",
+        "count",
+        "dateFrom",
+        "dateTo",
+        "employeeId",
+        "employeeIds",
+        "endDate",
+        "fields",
+        "from",
+        "hourId",
+        "id",
+        "ids",
+        "includeNotConnectedToActivities",
+        "isRunning",
+        "monthYear",
+        "monthYearList",
+        "projectId",
+        "projectIds",
+        "sorting",
+        "startDate",
+        "weekYear",
+        "years"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/timesheet/allocated/:approveList",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/token/session/:create",
+      "create_path": "/token/session/:create",
+      "delete_path": "/token/session/{token}",
+      "destructive_support": true,
+      "detail_path": "/token/session/{token}",
+      "primary_prefix": "/token",
+      "request_body_summaries": [
+        "POST /token/session/:create: application/json: PostSessionTokenBody"
+      ],
+      "required_path_parameters": [
+        "token"
+      ],
+      "resource_family": "token",
+      "reverse_paths": [],
+      "search_parameters": [
+        "fields",
+        "token"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/token/employee/:create",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/transportType",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/transportType/{id}",
+      "primary_prefix": "/transportType",
+      "request_body_summaries": [],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "transporttype",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "fields",
+        "from",
+        "sorting",
+        "supplier"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/travelExpense",
+      "create_path": "/travelExpense/costParticipant/createCostParticipantAdvanced",
+      "delete_path": "/travelExpense/accommodationAllowance/{id}",
+      "destructive_support": true,
+      "detail_path": "/travelExpense/{id}",
+      "primary_prefix": "/travelExpense",
+      "request_body_summaries": [
+        "DELETE /travelExpense/costParticipant/list: application/json: array[CostParticipant]",
+        "DELETE /travelExpense/passenger/list: application/json: array[Passenger]",
+        "POST /travelExpense/accommodationAllowance: application/json; charset=utf-8: AccommodationAllowance",
+        "POST /travelExpense/cost: application/json; charset=utf-8: Cost",
+        "POST /travelExpense/costParticipant/list: application/json; charset=utf-8: array[CostParticipant]",
+        "POST /travelExpense/costParticipant: application/json; charset=utf-8: CostParticipant",
+        "POST /travelExpense/drivingStop: application/json; charset=utf-8: DrivingStop",
+        "POST /travelExpense/mileageAllowance: application/json; charset=utf-8: MileageAllowance",
+        "POST /travelExpense/passenger/list: application/json; charset=utf-8: array[Passenger]",
+        "POST /travelExpense/passenger: application/json; charset=utf-8: Passenger",
+        "POST /travelExpense/perDiemCompensation: application/json; charset=utf-8: PerDiemCompensation",
+        "POST /travelExpense/{travelExpenseId}/attachment/list: multipart/form-data: object(file)",
+        "POST /travelExpense/{travelExpenseId}/attachment: multipart/form-data: object(file)",
+        "POST /travelExpense: application/json; charset=utf-8: TravelExpense",
+        "PUT /travelExpense/:undeliver: application/json: TravelExpense",
+        "PUT /travelExpense/accommodationAllowance/{id}: application/json; charset=utf-8: AccommodationAllowance",
+        "PUT /travelExpense/cost/list: application/json; charset=utf-8: array[Cost]",
+        "PUT /travelExpense/cost/{id}: application/json; charset=utf-8: Cost",
+        "PUT /travelExpense/mileageAllowance/{id}: application/json; charset=utf-8: MileageAllowance",
+        "PUT /travelExpense/passenger/{id}: application/json; charset=utf-8: Passenger",
+        "PUT /travelExpense/perDiemCompensation/{id}: application/json; charset=utf-8: PerDiemCompensation",
+        "PUT /travelExpense/{id}: application/json; charset=utf-8: TravelExpense"
+      ],
+      "required_path_parameters": [
+        "costId",
+        "id",
+        "travelExpenseId"
+      ],
+      "resource_family": "travelexpense",
+      "reverse_paths": [],
+      "search_parameters": [
+        "address",
+        "ameldingWageCode",
+        "amountFrom",
+        "amountTo",
+        "code",
+        "count",
+        "countFrom",
+        "countTo",
+        "currencyId",
+        "date",
+        "dateFrom",
+        "dateTo",
+        "departmentId",
+        "departureDateFrom",
+        "departureLocation",
+        "description",
+        "destination",
+        "employeeId",
+        "fields",
+        "from",
+        "id",
+        "isCompanyCar",
+        "isDeductionForBreakfast",
+        "isDinnerDeduction",
+        "isDisabled",
+        "isForeignTravel",
+        "isInactive",
+        "isLunchDeduction",
+        "isRequiresOvernightAccommodation",
+        "isValidAccommodation",
+        "isValidDayTrip",
+        "isValidDomestic",
+        "isValidForeignTravel",
+        "kmFrom",
+        "kmTo",
+        "location",
+        "mileageAllowance",
+        "name",
+        "overnightAccommodation",
+        "projectId",
+        "projectManagerId",
+        "query",
+        "rateCategoryId",
+        "rateFrom",
+        "rateTo",
+        "rateTypeId",
+        "requiresOvernightAccommodation",
+        "requiresZone",
+        "returnDateTo",
+        "showOnEmployeeExpenses",
+        "sorting",
+        "state",
+        "travelExpenseId",
+        "travelReportRateCategoryGroupId",
+        "type",
+        "vatTypeId",
+        "wageCodeNumber"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/travelExpense/cost/list",
+      "verification_support": true
+    },
+    {
+      "collection_path": "/userLicense/export",
+      "create_path": "/userLicense/export",
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": "/userLicense",
+      "request_body_summaries": [
+        "POST /userLicense/export: application/json; charset=utf-8: UserLicenseExport"
+      ],
+      "required_path_parameters": [],
+      "resource_family": "userlicense",
+      "reverse_paths": [],
+      "search_parameters": [],
+      "supported_methods": [
+        "POST"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/vatReturns/comment",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": "/vatReturns",
+      "request_body_summaries": [],
+      "required_path_parameters": [],
+      "resource_family": "vatreturns",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "fields",
+        "from",
+        "sorting"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/vatTermSizeSettings",
+      "create_path": "/vatTermSizeSettings",
+      "delete_path": "/vatTermSizeSettings/{id}",
+      "destructive_support": true,
+      "detail_path": "/vatTermSizeSettings/{id}",
+      "primary_prefix": "/vatTermSizeSettings",
+      "request_body_summaries": [
+        "POST /vatTermSizeSettings: application/json; charset=utf-8: VatTermSizeSettings",
+        "PUT /vatTermSizeSettings/{id}: application/json; charset=utf-8: VatTermSizeSettings"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "vattermsizesettings",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "fields",
+        "from",
+        "sorting"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/vatTermSizeSettings/{id}",
+      "verification_support": true
+    },
+    {
+      "collection_path": null,
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/voucherApprovalListElement/{id}",
+      "primary_prefix": "/voucherApprovalListElement",
+      "request_body_summaries": [],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "voucherapprovallistelement",
+      "reverse_paths": [],
+      "search_parameters": [],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/voucherInbox/inboxCount",
+      "create_path": null,
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": "/voucherInbox",
+      "request_body_summaries": [],
+      "required_path_parameters": [],
+      "resource_family": "voucherinbox",
+      "reverse_paths": [],
+      "search_parameters": [
+        "fields"
+      ],
+      "supported_methods": [
+        "GET"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/voucherMessage",
+      "create_path": "/voucherMessage",
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": null,
+      "primary_prefix": "/voucherMessage",
+      "request_body_summaries": [
+        "POST /voucherMessage: application/json; charset=utf-8: VoucherMessage"
+      ],
+      "required_path_parameters": [],
+      "resource_family": "vouchermessage",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "fields",
+        "from",
+        "sorting",
+        "voucherIds"
+      ],
+      "supported_methods": [
+        "GET",
+        "POST"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/voucherStatus",
+      "create_path": "/voucherStatus",
+      "delete_path": null,
+      "destructive_support": false,
+      "detail_path": "/voucherStatus/{id}",
+      "primary_prefix": "/voucherStatus",
+      "request_body_summaries": [
+        "POST /voucherStatus: application/json; charset=utf-8: VoucherStatus"
+      ],
+      "required_path_parameters": [
+        "id"
+      ],
+      "resource_family": "voucherstatus",
+      "reverse_paths": [],
+      "search_parameters": [
+        "count",
+        "fields",
+        "from",
+        "ids",
+        "sorting",
+        "status",
+        "type",
+        "voucherIds"
+      ],
+      "supported_methods": [
+        "GET",
+        "POST"
+      ],
+      "update_path": null,
+      "verification_support": true
+    },
+    {
+      "collection_path": "/yearEnd/penneo/casefiles",
+      "create_path": "/yearEnd/penneo/casefiles",
+      "delete_path": "/yearEnd/penneo/casefiles/{caseFileId}",
+      "destructive_support": true,
+      "detail_path": "/yearEnd/{yearEndReportId}/researchAndDevelopment2024",
+      "primary_prefix": "/yearEnd",
+      "request_body_summaries": [
+        "DELETE /yearEnd/researchAndDevelopment2024: application/json; charset=utf-8: ResearchAndDevelopment2024",
+        "POST /yearEnd/penneo/casefiles: application/json; charset=utf-8: CaseFileRequest",
+        "POST /yearEnd/penneo/documents: application/json; charset=utf-8: AddDocumentRequest",
+        "POST /yearEnd/penneo/recipients: application/json; charset=utf-8: AddRecipientRequest",
+        "POST /yearEnd/penneo/signature-lines: application/json; charset=utf-8: CreateAndLinkSignatureLineRequest",
+        "POST /yearEnd/researchAndDevelopment2024: application/json; charset=utf-8: ResearchAndDevelopment2024",
+        "PUT /yearEnd/penneo/documents/{documentId}: application/json; charset=utf-8: UpdateDocumentRequest",
+        "PUT /yearEnd/researchAndDevelopment2024: application/json; charset=utf-8: ResearchAndDevelopment2024"
+      ],
+      "required_path_parameters": [
+        "caseFileId",
+        "documentId",
+        "id",
+        "signerId",
+        "yearEndReportId"
+      ],
+      "resource_family": "yearend",
+      "reverse_paths": [],
+      "search_parameters": [
+        "caseFileId",
+        "count",
+        "fields",
+        "from",
+        "id",
+        "query",
+        "sorting",
+        "year"
+      ],
+      "supported_methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "update_path": "/yearEnd/researchAndDevelopment2024",
+      "verification_support": true
+    }
+  ],
+  "resource_support_matrix": [
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunAccountantDashboardOpenAPIWorkflow",
+      "resource_family": "accountantdashboard",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunAccountingOfficeOpenAPIWorkflow",
+      "resource_family": "accountingoffice",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunActivityOpenAPIWorkflow",
+      "resource_family": "activity",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunAssetOpenAPIWorkflow",
+      "resource_family": "asset",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunAttestationOpenAPIWorkflow",
+      "resource_family": "attestation",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunBalanceOpenAPIWorkflow",
+      "resource_family": "balance",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunBalanceSheetOpenAPIWorkflow",
+      "resource_family": "balancesheet",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [
+        "RunBankReconciliationWorkflow"
+      ],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunBankOpenAPIWorkflow",
+      "resource_family": "bank",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunCompanyOpenAPIWorkflow",
+      "resource_family": "company",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunContactOpenAPIWorkflow",
+      "resource_family": "contact",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunCountryOpenAPIWorkflow",
+      "resource_family": "country",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunCrmOpenAPIWorkflow",
+      "resource_family": "crm",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunCurrencyOpenAPIWorkflow",
+      "resource_family": "currency",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [
+        "CreateCustomer",
+        "UpsertCustomer"
+      ],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunCustomerOpenAPIWorkflow",
+      "resource_family": "customer",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunDeliveryAddressOpenAPIWorkflow",
+      "resource_family": "deliveryaddress",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [
+        "CreateDepartment",
+        "UpsertDepartment"
+      ],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunDepartmentOpenAPIWorkflow",
+      "resource_family": "department",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunDivisionOpenAPIWorkflow",
+      "resource_family": "division",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunDocumentOpenAPIWorkflow",
+      "resource_family": "document",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunDocumentArchiveOpenAPIWorkflow",
+      "resource_family": "documentarchive",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [
+        "CreateEmployee",
+        "GrantEmployeeEntitlements",
+        "RunEmployeeOnboardingWorkflow",
+        "UpsertEmployee"
+      ],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunEmployeeOpenAPIWorkflow",
+      "resource_family": "employee",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunEventOpenAPIWorkflow",
+      "resource_family": "event",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunIncomingInvoiceOpenAPIWorkflow",
+      "resource_family": "incominginvoice",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunInternalOpenAPIWorkflow",
+      "resource_family": "internal",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunInventoryOpenAPIWorkflow",
+      "resource_family": "inventory",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [
+        "CreateInvoiceCreditNote",
+        "RegisterInvoicePayment",
+        "RunProjectTimeInvoiceWorkflow",
+        "RunSalesWorkflow"
+      ],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunInvoiceOpenAPIWorkflow",
+      "resource_family": "invoice",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunInvoiceRemarkOpenAPIWorkflow",
+      "resource_family": "invoiceremark",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [
+        "CreateLedgerDimensionWorkflow",
+        "RunInvoicePaymentReversalWorkflow",
+        "RunMonthEndClosingWorkflow"
+      ],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunLedgerOpenAPIWorkflow",
+      "resource_family": "ledger",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunMunicipalityOpenAPIWorkflow",
+      "resource_family": "municipality",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunOrderOpenAPIWorkflow",
+      "resource_family": "order",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": false,
+      "planner_method": "RunGenericOpenAPIWorkflow",
+      "resource_family": "other",
+      "verification_support": false,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunPensionOpenAPIWorkflow",
+      "resource_family": "pension",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunPickupPointOpenAPIWorkflow",
+      "resource_family": "pickuppoint",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunPlatformAgnosticOpenAPIWorkflow",
+      "resource_family": "platformagnostic",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [
+        "CreateProduct",
+        "UpsertProduct"
+      ],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunProductOpenAPIWorkflow",
+      "resource_family": "product",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [
+        "CreateProject",
+        "RunExpenseIncreaseProjectWorkflow",
+        "RunProjectLifecycleWorkflow",
+        "UpsertProject"
+      ],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunProjectOpenAPIWorkflow",
+      "resource_family": "project",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunPurchaseOrderOpenAPIWorkflow",
+      "resource_family": "purchaseorder",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunReminderOpenAPIWorkflow",
+      "resource_family": "reminder",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunResultbudgetOpenAPIWorkflow",
+      "resource_family": "resultbudget",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunSaftOpenAPIWorkflow",
+      "resource_family": "saft",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [
+        "RunSalaryPayrollWorkflow"
+      ],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunSalaryOpenAPIWorkflow",
+      "resource_family": "salary",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunSubscriptionOpenAPIWorkflow",
+      "resource_family": "subscription",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [
+        "CreateSupplier",
+        "UpsertSupplier"
+      ],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunSupplierOpenAPIWorkflow",
+      "resource_family": "supplier",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunSupplierCustomerOpenAPIWorkflow",
+      "resource_family": "suppliercustomer",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [
+        "RegisterSupplierInvoice"
+      ],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunSupplierInvoiceOpenAPIWorkflow",
+      "resource_family": "supplierinvoice",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunSupportDashboardOpenAPIWorkflow",
+      "resource_family": "supportdashboard",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunTimesheetOpenAPIWorkflow",
+      "resource_family": "timesheet",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunTokenOpenAPIWorkflow",
+      "resource_family": "token",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunTransportTypeOpenAPIWorkflow",
+      "resource_family": "transporttype",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunTravelExpenseOpenAPIWorkflow",
+      "resource_family": "travelexpense",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunUserLicenseOpenAPIWorkflow",
+      "resource_family": "userlicense",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunVatReturnsOpenAPIWorkflow",
+      "resource_family": "vatreturns",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunVatTermSizeSettingsOpenAPIWorkflow",
+      "resource_family": "vattermsizesettings",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunVoucherApprovalListElementOpenAPIWorkflow",
+      "resource_family": "voucherapprovallistelement",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunVoucherInboxOpenAPIWorkflow",
+      "resource_family": "voucherinbox",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunVoucherMessageOpenAPIWorkflow",
+      "resource_family": "vouchermessage",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": false,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunVoucherStatusOpenAPIWorkflow",
+      "resource_family": "voucherstatus",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    },
+    {
+      "curated_methods": [],
+      "destructive_support": true,
+      "deterministic_execution_supported": true,
+      "planner_method": "RunYearEndOpenAPIWorkflow",
+      "resource_family": "yearend",
+      "verification_support": true,
+      "wrapper_coverage_status": "wrapper_only"
+    }
+  ],
+  "unsupported_method_count": 0,
+  "wrapper_only_method_count": 57
+}

@@ -4,11 +4,12 @@ import sys
 import unittest
 from pathlib import Path
 
-import numpy as np
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from scoring import entropy_weighted_kl, seed_score
+try:
+    import numpy as np
+    from scoring import entropy_weighted_kl, seed_score
+except ImportError as exc:  # pragma: no cover - environment guard
+    raise unittest.SkipTest(f"missing runtime dependency: {exc}") from exc
 
 
 class ScoringTests(unittest.TestCase):

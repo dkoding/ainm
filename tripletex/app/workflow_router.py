@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import logging
 import re
 from datetime import date
 from typing import Any
 
 from .internal_tasks import FlowKind, InternalTask
+from .openapi_registry import ResourceCapability, TripletexOpenAPIRegistry
 from .spec_runtime import (
     best_effort_amount,
     best_effort_date_window,
@@ -20,68 +22,186 @@ from .spec_runtime import (
 )
 from .tasking import PlannedAction, PlannerDecision, TaskAnalysis
 
+logger = logging.getLogger(__name__)
+
 
 class DeterministicWorkflowRouter:
+    def __init__(self, registry: TripletexOpenAPIRegistry | None = None) -> None:
+        self.registry = registry or TripletexOpenAPIRegistry.from_default_spec()
+
     def next_step(
         self,
         *,
         internal_task: InternalTask,
-        task_prompt: str,
+        task_prompt: str | None = None,
         task_analysis: TaskAnalysis,
         history: list[dict[str, Any]],
     ) -> PlannerDecision | None:
+        del task_prompt
         if not internal_task.is_supported:
+            logger.info(
+                "workflow.step.unsupported method=%s flow_kind=%s target_resource=%s",
+                internal_task.method_name,
+                internal_task.flow_kind.value,
+                internal_task.target_resource,
+            )
             return None
 
-        if internal_task.flow_kind is FlowKind.SALES_WORKFLOW:
-            return self._next_sales_workflow(
-                internal_task=internal_task,
-                task_analysis=task_analysis,
-                history=history,
-            )
-        if internal_task.flow_kind is FlowKind.SUPPLIER_INVOICE_WORKFLOW:
-            return self._next_supplier_invoice_workflow(
-                internal_task=internal_task,
-                task_analysis=task_analysis,
-                history=history,
-            )
-        if internal_task.flow_kind is FlowKind.INVOICE_CREDIT_NOTE:
-            return self._next_invoice_credit_note_workflow(
-                internal_task=internal_task,
-                task_analysis=task_analysis,
-                history=history,
-            )
-        if internal_task.flow_kind is FlowKind.PROJECT_TIME_INVOICE_WORKFLOW:
-            return self._next_project_time_invoice_workflow(
-                internal_task=internal_task,
-                task_analysis=task_analysis,
-                history=history,
-            )
-        if internal_task.flow_kind is FlowKind.INVOICE_REGISTER_PAYMENT:
-            return self._next_invoice_payment(
-                internal_task=internal_task,
-                task_analysis=task_analysis,
-                history=history,
-            )
-        if internal_task.flow_kind is FlowKind.EMPLOYEE_ADMIN:
-            return self._next_employee_admin(
-                internal_task=internal_task,
-                history=history,
-            )
-        if internal_task.flow_kind is FlowKind.EMPLOYEE_UPSERT:
-            return self._next_employee_upsert(internal_task=internal_task, history=history)
-        if internal_task.flow_kind is FlowKind.CUSTOMER_UPSERT:
-            return self._next_customer_upsert(internal_task=internal_task, history=history)
-        if internal_task.flow_kind is FlowKind.PRODUCT_UPSERT:
-            return self._next_product_upsert(internal_task=internal_task, history=history)
-        if internal_task.flow_kind is FlowKind.DEPARTMENT_UPSERT:
-            return self._next_department_upsert(internal_task=internal_task, history=history)
-        if internal_task.flow_kind is FlowKind.PROJECT_UPSERT:
-            return self._next_project_upsert(internal_task=internal_task, history=history)
-        if internal_task.flow_kind is FlowKind.LEDGER_DIMENSION_WORKFLOW:
-            return self._next_ledger_dimension_workflow(internal_task=internal_task, history=history)
+        route_name: str | None = None
+        route_fn = None
 
-        return None
+        if internal_task.flow_kind is FlowKind.SALES_WORKFLOW:
+            route_name = "_next_sales_workflow"
+            route_fn = lambda: self._next_sales_workflow(
+                internal_task=internal_task,
+                task_analysis=task_analysis,
+                history=history,
+            )
+        elif internal_task.flow_kind is FlowKind.SUPPLIER_INVOICE_WORKFLOW:
+            route_name = "_next_supplier_invoice_workflow"
+            route_fn = lambda: self._next_supplier_invoice_workflow(
+                internal_task=internal_task,
+                task_analysis=task_analysis,
+                history=history,
+            )
+        elif internal_task.flow_kind is FlowKind.INVOICE_CREDIT_NOTE:
+            route_name = "_next_invoice_credit_note_workflow"
+            route_fn = lambda: self._next_invoice_credit_note_workflow(
+                internal_task=internal_task,
+                task_analysis=task_analysis,
+                history=history,
+            )
+        elif internal_task.flow_kind is FlowKind.PROJECT_TIME_INVOICE_WORKFLOW:
+            route_name = "_next_project_time_invoice_workflow"
+            route_fn = lambda: self._next_project_time_invoice_workflow(
+                internal_task=internal_task,
+                task_analysis=task_analysis,
+                history=history,
+            )
+        elif internal_task.flow_kind is FlowKind.PROJECT_LIFECYCLE_WORKFLOW:
+            route_name = "_next_project_lifecycle_workflow"
+            route_fn = lambda: self._next_project_lifecycle_workflow(
+                internal_task=internal_task,
+                task_analysis=task_analysis,
+                history=history,
+            )
+        elif internal_task.flow_kind is FlowKind.INVOICE_REGISTER_PAYMENT:
+            route_name = "_next_invoice_payment"
+            route_fn = lambda: self._next_invoice_payment(
+                internal_task=internal_task,
+                task_analysis=task_analysis,
+                history=history,
+            )
+        elif internal_task.flow_kind is FlowKind.INVOICE_PAYMENT_REVERSAL_WORKFLOW:
+            route_name = "_next_invoice_payment_reversal_workflow"
+            route_fn = lambda: self._next_invoice_payment_reversal_workflow(
+                internal_task=internal_task,
+                task_analysis=task_analysis,
+                history=history,
+            )
+        elif internal_task.flow_kind is FlowKind.EMPLOYEE_ADMIN:
+            route_name = "_next_employee_admin"
+            route_fn = lambda: self._next_employee_admin(
+                internal_task=internal_task,
+                history=history,
+            )
+        elif internal_task.flow_kind is FlowKind.EMPLOYEE_ONBOARDING_WORKFLOW:
+            route_name = "_next_employee_onboarding_workflow"
+            route_fn = lambda: self._next_employee_onboarding_workflow(
+                internal_task=internal_task,
+                history=history,
+            )
+        elif internal_task.flow_kind is FlowKind.TRAVEL_EXPENSE_WORKFLOW:
+            route_name = "_next_travel_expense_workflow"
+            route_fn = lambda: self._next_travel_expense_workflow(
+                internal_task=internal_task,
+                history=history,
+            )
+        elif internal_task.flow_kind is FlowKind.MONTH_END_CLOSING_WORKFLOW:
+            route_name = "_next_month_end_closing_workflow"
+            route_fn = lambda: self._next_month_end_closing_workflow(
+                internal_task=internal_task,
+                history=history,
+            )
+        elif internal_task.flow_kind is FlowKind.EXPENSE_INCREASE_PROJECT_WORKFLOW:
+            route_name = "_next_expense_increase_project_workflow"
+            route_fn = lambda: self._next_expense_increase_project_workflow(
+                internal_task=internal_task,
+                history=history,
+            )
+        elif internal_task.flow_kind is FlowKind.SALARY_PAYROLL_WORKFLOW:
+            route_name = "_next_salary_payroll_workflow"
+            route_fn = lambda: self._next_salary_payroll_workflow(
+                internal_task=internal_task,
+                history=history,
+            )
+        elif internal_task.flow_kind is FlowKind.BANK_RECONCILIATION_WORKFLOW:
+            route_name = "_next_bank_reconciliation_workflow"
+            route_fn = lambda: self._next_bank_reconciliation_workflow(
+                internal_task=internal_task,
+                task_analysis=task_analysis,
+                history=history,
+            )
+        elif internal_task.flow_kind is FlowKind.EMPLOYEE_UPSERT:
+            route_name = "_next_employee_upsert"
+            route_fn = lambda: self._next_employee_upsert(internal_task=internal_task, history=history)
+        elif internal_task.flow_kind is FlowKind.CUSTOMER_UPSERT:
+            route_name = "_next_customer_upsert"
+            route_fn = lambda: self._next_customer_upsert(internal_task=internal_task, history=history)
+        elif internal_task.flow_kind is FlowKind.SUPPLIER_UPSERT:
+            route_name = "_next_supplier_upsert"
+            route_fn = lambda: self._next_supplier_upsert(internal_task=internal_task, history=history)
+        elif internal_task.flow_kind is FlowKind.PRODUCT_UPSERT:
+            route_name = "_next_product_upsert"
+            route_fn = lambda: self._next_product_upsert(internal_task=internal_task, history=history)
+        elif internal_task.flow_kind is FlowKind.DEPARTMENT_UPSERT:
+            route_name = "_next_department_upsert"
+            route_fn = lambda: self._next_department_upsert(internal_task=internal_task, history=history)
+        elif internal_task.flow_kind is FlowKind.PROJECT_UPSERT:
+            route_name = "_next_project_upsert"
+            route_fn = lambda: self._next_project_upsert(internal_task=internal_task, history=history)
+        elif internal_task.flow_kind is FlowKind.LEDGER_DIMENSION_WORKFLOW:
+            route_name = "_next_ledger_dimension_workflow"
+            route_fn = lambda: self._next_ledger_dimension_workflow(internal_task=internal_task, history=history)
+        elif internal_task.flow_kind is FlowKind.OPENAPI_RESOURCE_WORKFLOW:
+            route_name = "_next_openapi_resource_workflow"
+            route_fn = lambda: self._next_openapi_resource_workflow(
+                internal_task=internal_task,
+                task_analysis=task_analysis,
+                history=history,
+            )
+
+        logger.info(
+            "workflow.step.start route=%s method=%s flow_kind=%s target_resource=%s task_family=%s operation=%s search=%s payload=%s history_tail=%s",
+            route_name,
+            internal_task.method_name,
+            internal_task.flow_kind.value,
+            internal_task.target_resource,
+            task_analysis.task_family,
+            task_analysis.operation,
+            _trim_payload(internal_task.search),
+            _trim_payload(internal_task.payload),
+            _history_tail_signature(history),
+        )
+
+        if route_fn is None:
+            logger.info(
+                "workflow.step.no_route method=%s flow_kind=%s target_resource=%s",
+                internal_task.method_name,
+                internal_task.flow_kind.value,
+                internal_task.target_resource,
+            )
+            return None
+
+        decision = route_fn()
+        logger.info(
+            "workflow.step.result route=%s method=%s flow_kind=%s decision=%s",
+            route_name,
+            internal_task.method_name,
+            internal_task.flow_kind.value,
+            _decision_signature(decision),
+        )
+        return decision
 
     def _next_customer_upsert(
         self,
@@ -127,6 +247,29 @@ class DeterministicWorkflowRouter:
             ),
         )
 
+    def _next_supplier_upsert(
+        self,
+        *,
+        internal_task: InternalTask,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        return self._next_simple_upsert(
+            internal_task=internal_task,
+            history=history,
+            resource_name="supplier",
+            resource_path="/supplier",
+            resolver=_resolved_supplier_from_internal,
+            allowed_fields=(
+                "name",
+                "organizationNumber",
+                "email",
+                "invoiceEmail",
+                "phoneNumber",
+                "phoneNumberMobile",
+                "description",
+            ),
+        )
+
     def _next_department_upsert(
         self,
         *,
@@ -142,28 +285,1939 @@ class DeterministicWorkflowRouter:
             allowed_fields=("name", "departmentNumber"),
         )
 
+    def _next_openapi_resource_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        task_analysis: TaskAnalysis,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        target_resource = internal_task.target_resource
+        if target_resource == "company":
+            return self._next_company_workflow(
+                internal_task=internal_task,
+                history=history,
+            )
+        if target_resource == "timesheet":
+            return self._next_timesheet_workflow(
+                internal_task=internal_task,
+                history=history,
+            )
+        return self._next_generic_resource_workflow(
+            internal_task=internal_task,
+            task_analysis=task_analysis,
+            history=history,
+        )
+
+    def _next_company_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        desired = _drop_empty(dict(internal_task.payload))
+        if not desired:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to update company settings because the workflow did not receive any canonical payload fields.",
+            )
+
+        if _has_success_exact_where(
+            history,
+            method="PUT",
+            path="/company",
+            predicate=lambda request: _request_json_contains(request, desired),
+        ):
+            return PlannerDecision(kind="finish", reason="The company workflow is complete.")
+
+        if _has_attempt_exact_where(
+            history,
+            method="PUT",
+            path="/company",
+            predicate=lambda request: _request_json_contains(request, desired),
+        ):
+            return None
+
+        return _action(
+            reason="Update the company settings using the canonical company endpoint.",
+            method="PUT",
+            path="/company",
+            json=desired,
+        )
+
+    def _next_generic_resource_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        task_analysis: TaskAnalysis,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        if not hasattr(self.registry, "resource_capability"):
+            return PlannerDecision(
+                kind="finish",
+                reason=(
+                    "Unable to execute the deterministic wrapper workflow because the OpenAPI resource capability "
+                    "map is unavailable."
+                ),
+            )
+        capability = self.registry.resource_capability(internal_task.target_resource)
+        desired = _drop_empty(dict(internal_task.payload))
+        search_params = _generic_search_params(capability, internal_task.search)
+        identity_ref = _generic_identity_ref(internal_task.search, desired)
+
+        if internal_task.operation == "reverse":
+            return self._next_generic_reverse_workflow(
+                internal_task=internal_task,
+                capability=capability,
+                history=history,
+                identity_ref=identity_ref,
+                search_params=search_params,
+            )
+
+        if internal_task.operation == "search" and not search_params:
+            return PlannerDecision(
+                kind="finish",
+                reason=(
+                    "Unable to execute a deterministic search because the workflow did not receive any "
+                    f"supported lookup parameters for {internal_task.target_resource}."
+                ),
+            )
+
+        entity = _resolved_resource_entity(
+            history,
+            resource_family=internal_task.target_resource,
+            collection_path=capability.collection_path,
+            detail_path=capability.detail_path,
+            ref=identity_ref,
+        )
+
+        if entity is None and search_params:
+            search_path = capability.collection_path
+            if search_path is None and capability.detail_path is not None and search_params.get("id") not in {None, ""}:
+                rendered_path = _render_detail_path(capability.detail_path, search_params.get("id"))
+                if rendered_path is not None and not _has_attempt_exact(history, method="GET", path=rendered_path):
+                    return _action(
+                        reason=f"Resolve the {internal_task.target_resource} before mutating it or creating a duplicate.",
+                        method="GET",
+                        path=rendered_path,
+                    )
+            elif search_path is not None and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path=search_path,
+                predicate=lambda request, expected=search_params: _request_contains_params(request, expected),
+            ):
+                return _action(
+                    reason=f"Resolve the {internal_task.target_resource} before mutating it or creating a duplicate.",
+                    method="GET",
+                    path=search_path,
+                    params=search_params,
+                )
+            entity = _resolved_resource_entity(
+                history,
+                resource_family=internal_task.target_resource,
+                collection_path=capability.collection_path,
+                detail_path=capability.detail_path,
+                ref=identity_ref,
+            )
+
+        if internal_task.operation == "delete":
+            if not identity_ref:
+                return PlannerDecision(
+                    kind="finish",
+                    reason=(
+                        "Unable to delete the requested resource because the workflow did not receive enough "
+                        f"lookup fields for {internal_task.target_resource}."
+                    ),
+                )
+            if entity is None:
+                return PlannerDecision(
+                    kind="finish",
+                    reason=f"The requested {internal_task.target_resource} is already absent or could not be resolved for deletion.",
+                )
+            delete_path = capability.delete_path
+            rendered_delete_path = _render_detail_path(delete_path, entity.get("id")) if delete_path else None
+            if rendered_delete_path is None:
+                return PlannerDecision(
+                    kind="finish",
+                    reason=f"Delete is not supported through a deterministic route for {internal_task.target_resource}.",
+                )
+            if _has_success_exact(history, method="DELETE", path=rendered_delete_path):
+                return PlannerDecision(kind="finish", reason=f"The {internal_task.target_resource} delete workflow is complete.")
+            if _has_attempt_exact(history, method="DELETE", path=rendered_delete_path):
+                return None
+            delete_params = _drop_empty({"version": entity.get("version")})
+            return _action(
+                reason=f"Delete the resolved {internal_task.target_resource} using the canonical detail endpoint.",
+                method="DELETE",
+                path=rendered_delete_path,
+                params=delete_params or None,
+            )
+
+        if internal_task.operation == "search" and search_params:
+            if entity is not None or _has_success_exact_where(
+                history,
+                method="GET",
+                path=capability.collection_path or "",
+                predicate=lambda request, expected=search_params: _request_contains_params(request, expected),
+            ):
+                return PlannerDecision(
+                    kind="finish",
+                    reason=f"The deterministic {internal_task.target_resource} lookup workflow is complete.",
+                )
+            return None
+
+        if entity is None:
+            if internal_task.operation == "update":
+                return PlannerDecision(
+                    kind="finish",
+                    reason=f"Unable to resolve the {internal_task.target_resource} that should be updated.",
+                )
+            if not desired:
+                return PlannerDecision(
+                    kind="finish",
+                    reason=(
+                        "Unable to continue the deterministic workflow because no target resource was resolved "
+                        f"and no canonical payload was provided for {internal_task.target_resource}."
+                    ),
+                )
+            create_path = capability.create_path or capability.collection_path
+            if create_path is None:
+                return PlannerDecision(
+                    kind="finish",
+                    reason=f"Create is not supported through a deterministic route for {internal_task.target_resource}.",
+                )
+            if _has_success_exact_where(
+                history,
+                method="POST",
+                path=create_path,
+                predicate=lambda request, expected=desired: _request_json_contains(request, expected),
+            ):
+                return PlannerDecision(kind="finish", reason=f"The {internal_task.target_resource} workflow is complete.")
+            if _has_attempt_exact_where(
+                history,
+                method="POST",
+                path=create_path,
+                predicate=lambda request, expected=desired: _request_json_contains(request, expected),
+            ):
+                return None
+            return _action(
+                reason=f"Create the {internal_task.target_resource} using the canonical resource endpoint.",
+                method="POST",
+                path=create_path,
+                json=desired,
+            )
+
+        if not desired:
+            return PlannerDecision(
+                kind="finish",
+                reason=f"The deterministic {internal_task.target_resource} workflow is complete.",
+            )
+
+        if _entity_matches(entity, desired):
+            return PlannerDecision(
+                kind="finish",
+                reason=f"The resolved {internal_task.target_resource} already satisfies the requested state.",
+            )
+
+        update_path = capability.update_path or capability.detail_path or capability.collection_path
+        rendered_update_path = _render_detail_path(update_path, entity.get("id")) if update_path else None
+        if rendered_update_path is None and update_path == capability.collection_path:
+            rendered_update_path = update_path
+        if rendered_update_path is None:
+            return PlannerDecision(
+                kind="finish",
+                reason=f"Update is not supported through a deterministic route for {internal_task.target_resource}.",
+            )
+
+        if capability.detail_path is not None and entity.get("version") in {None, ""} and rendered_update_path != capability.collection_path:
+            detail_path = _render_detail_path(capability.detail_path, entity.get("id"))
+            if detail_path is not None and not _has_attempt_exact(history, method="GET", path=detail_path):
+                return _action(
+                    reason=f"Fetch the {internal_task.target_resource} detail record with version information before updating it.",
+                    method="GET",
+                    path=detail_path,
+                )
+
+        update_payload = _build_update_payload(
+            entity,
+            desired,
+            allowed_fields=tuple(sorted(desired.keys())),
+        )
+        if _has_success_exact_where(
+            history,
+            method="PUT",
+            path=rendered_update_path,
+            predicate=lambda request, expected=update_payload: _request_json_contains(request, expected),
+        ):
+            return PlannerDecision(kind="finish", reason=f"The {internal_task.target_resource} workflow is complete.")
+        if _has_attempt_exact_where(
+            history,
+            method="PUT",
+            path=rendered_update_path,
+            predicate=lambda request, expected=update_payload: _request_json_contains(request, expected),
+        ):
+            return None
+        return _action(
+            reason=f"Update the resolved {internal_task.target_resource} to the requested state.",
+            method="PUT",
+            path=rendered_update_path,
+            json=update_payload,
+        )
+
+    def _next_generic_reverse_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        capability: ResourceCapability,
+        history: list[dict[str, Any]],
+        identity_ref: dict[str, Any],
+        search_params: dict[str, Any],
+    ) -> PlannerDecision | None:
+        if not capability.reverse_paths:
+            return PlannerDecision(
+                kind="finish",
+                reason=f"Reverse is not supported through a deterministic route for {internal_task.target_resource}.",
+            )
+
+        entity = _resolved_resource_entity(
+            history,
+            resource_family=internal_task.target_resource,
+            collection_path=capability.collection_path,
+            detail_path=capability.detail_path,
+            ref=identity_ref,
+        )
+        if entity is None:
+            if capability.collection_path and search_params and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path=capability.collection_path,
+                predicate=lambda request, expected=search_params: _request_contains_params(request, expected),
+            ):
+                return _action(
+                    reason=f"Resolve the {internal_task.target_resource} before reversing it.",
+                    method="GET",
+                    path=capability.collection_path,
+                    params=search_params,
+                )
+            return PlannerDecision(
+                kind="finish",
+                reason=f"Unable to resolve the {internal_task.target_resource} that should be reversed.",
+            )
+
+        entity_id = entity.get("id")
+        reverse_path = _render_detail_path(capability.reverse_paths[0], entity_id)
+        if reverse_path is None:
+            return PlannerDecision(
+                kind="finish",
+                reason=f"Reverse is not supported through a deterministic route for {internal_task.target_resource}.",
+            )
+        reverse_params = _drop_empty(
+            {
+                "date": internal_task.payload.get("date")
+                or internal_task.payload.get("reversalDate")
+                or internal_task.search.get("date"),
+            }
+        )
+        if _has_success_exact_where(
+            history,
+            method="PUT",
+            path=reverse_path,
+            predicate=lambda request, expected=reverse_params: _request_contains_params(request, expected),
+        ):
+            return PlannerDecision(kind="finish", reason=f"The {internal_task.target_resource} reverse workflow is complete.")
+        if _has_attempt_exact_where(
+            history,
+            method="PUT",
+            path=reverse_path,
+            predicate=lambda request, expected=reverse_params: _request_contains_params(request, expected),
+        ):
+            return None
+        return _action(
+            reason=f"Reverse the resolved {internal_task.target_resource} using the canonical Tripletex reverse action.",
+            method="PUT",
+            path=reverse_path,
+            params=reverse_params or None,
+        )
+
+    def _next_timesheet_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        merged = _drop_empty({**dict(internal_task.search), **dict(internal_task.payload)})
+        employee_ref = _drop_empty(
+            {
+                "email": merged.get("employeeEmail") or merged.get("email"),
+                "firstName": merged.get("employeeFirstName") or merged.get("firstName"),
+                "lastName": merged.get("employeeLastName") or merged.get("lastName"),
+                "employeeNumber": merged.get("employeeNumber"),
+            }
+        )
+        project_ref = _drop_empty(
+            {
+                "name": merged.get("projectName") or merged.get("name"),
+                "number": merged.get("projectNumber") or merged.get("number"),
+            }
+        )
+        activity_ref = _drop_empty(
+            {
+                "name": merged.get("activityName"),
+                "number": merged.get("activityNumber"),
+            }
+        )
+        entry_date = merged.get("date")
+        hours = merged.get("hours")
+        comment = merged.get("comment")
+
+        if entry_date in {None, ""}:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to execute the timesheet workflow because the entry date is missing.",
+            )
+
+        employee = _resolved_employee_by_ref(history, employee_ref)
+        if employee is None:
+            employee_search = _drop_empty(
+                {
+                    "email": employee_ref.get("email"),
+                    "firstName": employee_ref.get("firstName"),
+                    "lastName": employee_ref.get("lastName"),
+                    "employeeNumber": employee_ref.get("employeeNumber"),
+                    "count": 10,
+                    "fields": "id,version,firstName,lastName,email,employeeNumber",
+                }
+            )
+            if employee_search and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/employee",
+                predicate=lambda request, expected=employee_search: _request_contains_params(request, expected),
+            ):
+                return _action(
+                    reason="Resolve the employee before registering or deleting timesheet hours.",
+                    method="GET",
+                    path="/employee",
+                    params=employee_search,
+                )
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve the employee for the requested timesheet workflow.",
+            )
+
+        employee_id = employee.get("id")
+        if employee_id in {None, ""}:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve a valid employee id for the requested timesheet workflow.",
+            )
+
+        project = _resolved_project_by_ref(history, project_ref)
+        if project is None:
+            project_search = _drop_empty(
+                {
+                    "name": project_ref.get("name"),
+                    "number": project_ref.get("number"),
+                    "count": 10,
+                    "fields": "id,name,number,isClosed,customer",
+                }
+            )
+            if project_search and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/project",
+                predicate=lambda request, expected=project_search: _request_contains_params(request, expected),
+            ):
+                return _action(
+                    reason="Resolve the project before registering or deleting timesheet hours.",
+                    method="GET",
+                    path="/project",
+                    params=project_search,
+                )
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve the project for the requested timesheet workflow.",
+            )
+
+        project_id = project.get("id")
+        if project_id in {None, ""}:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve a valid project id for the requested timesheet workflow.",
+            )
+
+        activity = _resolved_activity_by_ref(history, activity_ref)
+        if activity is None:
+            activity_search = _drop_empty(
+                {
+                    "name": activity_ref.get("name"),
+                    "number": activity_ref.get("number"),
+                    "count": 10,
+                    "fields": "id,name,number,isChargeable,isProjectActivity",
+                }
+            )
+            if activity_search and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/activity",
+                predicate=lambda request, expected=activity_search: _request_contains_params(request, expected),
+            ):
+                return _action(
+                    reason="Resolve the activity before registering or deleting timesheet hours.",
+                    method="GET",
+                    path="/activity",
+                    params=activity_search,
+                )
+
+            activity_payload = _drop_empty(
+                {
+                    "name": activity_ref.get("name"),
+                    "number": activity_ref.get("number"),
+                    "isProjectActivity": True,
+                    "isChargeable": True,
+                }
+            )
+            if activity_payload and not _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/activity",
+                predicate=lambda request, expected=activity_payload: _request_json_contains(request, expected),
+            ):
+                return _action(
+                    reason="Create the missing activity before registering timesheet hours.",
+                    method="POST",
+                    path="/activity",
+                    json=activity_payload,
+                )
+            if activity_payload:
+                return PlannerDecision(
+                    kind="finish",
+                    reason="Unable to resolve the activity for the requested timesheet workflow.",
+                )
+
+        if activity is None:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve the activity for the requested timesheet workflow.",
+            )
+
+        activity_id = activity.get("id")
+        if activity_id in {None, ""}:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve a valid activity id for the requested timesheet workflow.",
+            )
+
+        timesheet_search = {
+            "employeeId": employee_id,
+            "projectId": project_id,
+            "activityId": activity_id,
+            "dateFrom": entry_date,
+            "dateTo": entry_date,
+            "count": 10,
+            "fields": "id,version,date,hours,projectChargeableHours,comment,chargeable,employee(id),project(id),activity(id)",
+        }
+        timesheet_entry = _resolved_timesheet_entry_from_history(
+            history,
+            employee_id=employee_id,
+            project_id=project_id,
+            activity_id=activity_id,
+            entry_date=str(entry_date),
+        )
+        if timesheet_entry is None:
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/timesheet/entry",
+                predicate=lambda request, expected=timesheet_search: _request_contains_params(request, expected),
+            ):
+                return _action(
+                    reason="Search for an existing timesheet entry before creating, updating, or deleting it.",
+                    method="GET",
+                    path="/timesheet/entry",
+                    params=timesheet_search,
+                )
+            if internal_task.operation == "delete":
+                return PlannerDecision(
+                    kind="finish",
+                    reason="The requested timesheet entry is already absent.",
+                )
+            if hours in {None, ""}:
+                return PlannerDecision(
+                    kind="finish",
+                    reason="Unable to register timesheet hours because the canonical hour amount is missing.",
+                )
+            create_entry_payload = _build_timesheet_entry_payload(
+                employee_id=employee_id,
+                project_id=project_id,
+                activity_id=activity_id,
+                entry_date=str(entry_date),
+                hours=hours,
+                hourly_rate=merged.get("hourlyRate") or 0,
+                comment=comment,
+            )
+            if _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/timesheet/entry",
+                predicate=lambda request, expected=create_entry_payload: _request_json_contains(request, expected),
+            ):
+                return None
+            return _action(
+                reason="Register the requested timesheet entry on the resolved employee, project, and activity.",
+                method="POST",
+                path="/timesheet/entry",
+                json=create_entry_payload,
+            )
+
+        entry_id = timesheet_entry.get("id")
+        if entry_id in {None, ""}:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve a valid timesheet entry id for the requested workflow.",
+            )
+
+        if internal_task.operation == "delete":
+            if timesheet_entry.get("version") in {None, ""} and not _has_attempt_exact(
+                history,
+                method="GET",
+                path=f"/timesheet/entry/{entry_id}",
+            ):
+                return _action(
+                    reason="Fetch the timesheet entry detail with version information before deleting it.",
+                    method="GET",
+                    path=f"/timesheet/entry/{entry_id}",
+                )
+            delete_params = _drop_empty({"version": timesheet_entry.get("version")})
+            if _has_success_exact(history, method="DELETE", path=f"/timesheet/entry/{entry_id}"):
+                return PlannerDecision(kind="finish", reason="The timesheet delete workflow is complete.")
+            if _has_attempt_exact(history, method="DELETE", path=f"/timesheet/entry/{entry_id}"):
+                return None
+            return _action(
+                reason="Delete the resolved timesheet entry using the canonical detail endpoint.",
+                method="DELETE",
+                path=f"/timesheet/entry/{entry_id}",
+                params=delete_params or None,
+            )
+
+        if hours in {None, ""}:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to register or update timesheet hours because the canonical hour amount is missing.",
+            )
+
+        if not _timesheet_entry_matches(
+            timesheet_entry,
+            entry_date=str(entry_date),
+            hours=hours,
+            hourly_rate=merged.get("hourlyRate") or 0,
+            comment=comment,
+        ):
+            if timesheet_entry.get("version") in {None, ""} and not _has_attempt_exact(
+                history,
+                method="GET",
+                path=f"/timesheet/entry/{entry_id}",
+            ):
+                return _action(
+                    reason="Fetch the timesheet entry detail with version information before updating it.",
+                    method="GET",
+                    path=f"/timesheet/entry/{entry_id}",
+                )
+            update_entry_payload = _build_timesheet_entry_payload(
+                employee_id=employee_id,
+                project_id=project_id,
+                activity_id=activity_id,
+                entry_date=str(entry_date),
+                hours=hours,
+                hourly_rate=merged.get("hourlyRate") or 0,
+                comment=comment,
+                entry_id=entry_id,
+                entry_version=timesheet_entry.get("version"),
+            )
+            if _has_attempt_exact_where(
+                history,
+                method="PUT",
+                path=f"/timesheet/entry/{entry_id}",
+                predicate=lambda request, expected=update_entry_payload: _request_json_contains(request, expected),
+            ):
+                return None
+            return _action(
+                reason="Update the resolved timesheet entry to the requested state.",
+                method="PUT",
+                path=f"/timesheet/entry/{entry_id}",
+                json=update_entry_payload,
+            )
+
+        return PlannerDecision(kind="finish", reason="The timesheet workflow is complete.")
+
     def _next_employee_upsert(
         self,
         *,
         internal_task: InternalTask,
         history: list[dict[str, Any]],
     ) -> PlannerDecision | None:
-        return self._next_simple_upsert(
+        return self._next_employee_onboarding_workflow(
             internal_task=internal_task,
             history=history,
-            resource_name="employee",
-            resource_path="/employee",
-            resolver=_resolved_employee_from_internal,
+        )
+
+    def _next_employee_onboarding_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        payload = dict(internal_task.payload)
+        department_ref = dict(payload.pop("departmentRef", {}) or {})
+        employment = dict(payload.pop("employment", {}) or {})
+
+        department = _resolved_department_by_ref(history, department_ref)
+        if department_ref and department is None:
+            search_params = _drop_empty(dict(department_ref))
+            if search_params and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/department",
+                predicate=lambda request: _request_contains_params(request, search_params),
+            ):
+                return _action(
+                    reason="Resolve the employee department before creating or updating the employee.",
+                    method="GET",
+                    path="/department",
+                    params=search_params,
+                )
+
+            department_payload = _department_payload_from_ref(department_ref)
+            if department_payload and not _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/department",
+                predicate=lambda request: _request_json_contains(request, department_payload),
+            ):
+                return _action(
+                    reason="Create the employee department because the onboarding workflow did not find an existing match.",
+                    method="POST",
+                    path="/department",
+                    json=department_payload,
+                )
+            return None
+
+        desired_employee = dict(payload)
+        if department is not None and department.get("id") not in {None, ""}:
+            desired_employee["department"] = {"id": department["id"]}
+
+        employee = _resolved_employee_by_ref(history, internal_task.search or desired_employee)
+        if employee is None:
+            search_params = _drop_empty(dict(internal_task.search))
+            if search_params and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/employee",
+                predicate=lambda request: _request_contains_params(request, search_params),
+            ):
+                return _action(
+                    reason="Resolve the employee before creating a duplicate profile during onboarding.",
+                    method="GET",
+                    path="/employee",
+                    params=search_params,
+                )
+
+            if not desired_employee.get("firstName") or not desired_employee.get("lastName"):
+                return None
+
+            if _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/employee",
+                predicate=lambda request: _request_json_contains(request, desired_employee),
+            ):
+                return None
+
+            return _action(
+                reason="Create the employee base profile with the resolved identity and department fields.",
+                method="POST",
+                path="/employee",
+                json=desired_employee,
+            )
+
+        employee_id = employee.get("id")
+        if employee_id in {None, ""}:
+            return None
+
+        if not _entity_matches(employee, desired_employee):
+            if employee.get("version") in {None, ""} and not _has_attempt_exact(history, method="GET", path=f"/employee/{employee_id}"):
+                return _action(
+                    reason="Fetch the employee record with version information before updating onboarding fields.",
+                    method="GET",
+                    path=f"/employee/{employee_id}",
+                )
+
+            update_payload = _build_update_payload(
+                employee,
+                desired_employee,
+                allowed_fields=(
+                    "firstName",
+                    "lastName",
+                    "email",
+                    "employeeNumber",
+                    "dateOfBirth",
+                    "nationalIdentityNumber",
+                    "bankAccountNumber",
+                    "phoneNumberMobile",
+                    "phoneNumberWork",
+                    "comments",
+                    "userType",
+                    "department",
+                ),
+            )
+            if _has_attempt_exact_where(
+                history,
+                method="PUT",
+                path=f"/employee/{employee_id}",
+                predicate=lambda request: _request_json_contains(request, update_payload),
+            ):
+                return None
+            return _action(
+                reason="Update the employee base profile to the requested onboarding state.",
+                method="PUT",
+                path=f"/employee/{employee_id}",
+                json=update_payload,
+            )
+
+        if not employment:
+            return PlannerDecision(kind="finish", reason="The employee onboarding workflow is complete.")
+
+        employment_record = _resolved_employment_for_employee(history, employee_id=employee_id)
+        if employment_record is None:
+            employment_search = {
+                "employeeId": employee_id,
+                "count": 20,
+                "fields": "id,version,startDate,endDate,employee(id),employmentDetails",
+            }
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/employee/employment",
+                predicate=lambda request: _request_contains_params(request, employment_search),
+            ):
+                return _action(
+                    reason="Resolve the employee employment record before creating a new employment.",
+                    method="GET",
+                    path="/employee/employment",
+                    params=employment_search,
+                )
+
+            create_employment_payload = _drop_empty(
+                {
+                    "employee": {"id": employee_id},
+                    "startDate": employment.get("startDate") or date.today().isoformat(),
+                }
+            )
+            if _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/employee/employment",
+                predicate=lambda request: _request_json_contains(request, create_employment_payload),
+            ):
+                return None
+            return _action(
+                reason="Create the employment record for the employee before adding employment details.",
+                method="POST",
+                path="/employee/employment",
+                json=create_employment_payload,
+            )
+
+        employment_id = employment_record.get("id")
+        if employment_id in {None, ""}:
+            return None
+
+        desired_employment = _drop_empty(
+            {
+                "employee": {"id": employee_id},
+                "startDate": employment.get("startDate") or employment_record.get("startDate"),
+                "endDate": employment.get("endDate"),
+            }
+        )
+        if desired_employment and not _entity_matches(employment_record, desired_employment):
+            if employment_record.get("version") in {None, ""} and not _has_attempt_exact(
+                history,
+                method="GET",
+                path=f"/employee/employment/{employment_id}",
+            ):
+                return _action(
+                    reason="Fetch the employment record with version information before updating start or end dates.",
+                    method="GET",
+                    path=f"/employee/employment/{employment_id}",
+                )
+
+            update_employment_payload = _build_update_payload(
+                employment_record,
+                desired_employment,
+                allowed_fields=("employee", "startDate", "endDate"),
+            )
+            if _has_attempt_exact_where(
+                history,
+                method="PUT",
+                path=f"/employee/employment/{employment_id}",
+                predicate=lambda request: _request_json_contains(request, update_employment_payload),
+            ):
+                return None
+            return _action(
+                reason="Update the employment record to the requested onboarding dates.",
+                method="PUT",
+                path=f"/employee/employment/{employment_id}",
+                json=update_employment_payload,
+            )
+
+        desired_details = _drop_empty(
+            {
+                "employment": {"id": employment_id},
+                "date": employment.get("startDate") or employment_record.get("startDate") or date.today().isoformat(),
+                "employmentForm": employment.get("employmentForm"),
+                "remunerationType": employment.get("remunerationType"),
+                "percentageOfFullTimeEquivalent": employment.get("percentageOfFullTimeEquivalent"),
+                "annualSalary": employment.get("annualSalary"),
+                "hourlyWage": employment.get("hourlyWage"),
+            }
+        )
+
+        occupation_code_ref = employment.get("occupationCodeRef")
+        if occupation_code_ref:
+            occupation_code = _resolved_occupation_code_by_ref(history, occupation_code_ref)
+            if occupation_code is None:
+                occupation_id = (occupation_code_ref or {}).get("id")
+                if occupation_id not in {None, ""} and not _has_attempt_exact(
+                    history,
+                    method="GET",
+                    path=f"/employee/employment/occupationCode/{occupation_id}",
+                ):
+                    return _action(
+                        reason="Resolve the occupation code by id before creating employment details.",
+                        method="GET",
+                        path=f"/employee/employment/occupationCode/{occupation_id}",
+                        params={"fields": "id,nameNO,code"},
+                    )
+
+                occupation_search = _drop_empty(
+                    {
+                        "code": (occupation_code_ref or {}).get("code"),
+                        "nameNO": (occupation_code_ref or {}).get("nameNO"),
+                        "count": 20,
+                        "fields": "id,nameNO,code",
+                    }
+                )
+                if occupation_search and not _has_attempt_exact_where(
+                    history,
+                    method="GET",
+                    path="/employee/employment/occupationCode",
+                    predicate=lambda request: _request_contains_params(request, occupation_search),
+                ):
+                    return _action(
+                        reason="Resolve the occupation code before creating employment details.",
+                        method="GET",
+                        path="/employee/employment/occupationCode",
+                        params=occupation_search,
+                    )
+                fallback_occupation = _drop_empty(
+                    {
+                        "code": (occupation_code_ref or {}).get("code"),
+                        "nameNO": (occupation_code_ref or {}).get("nameNO"),
+                    }
+                )
+                if fallback_occupation:
+                    desired_details["occupationCode"] = fallback_occupation
+                else:
+                    return None
+
+            if occupation_code is not None and occupation_code.get("id") not in {None, ""}:
+                desired_details["occupationCode"] = {"id": occupation_code["id"]}
+            elif "occupationCode" not in desired_details:
+                fallback_occupation = _drop_empty(
+                    {
+                        "code": (occupation_code_ref or {}).get("code"),
+                        "nameNO": (occupation_code_ref or {}).get("nameNO"),
+                    }
+                )
+                if fallback_occupation:
+                    desired_details["occupationCode"] = fallback_occupation
+
+        if len(desired_details) <= 1:
+            return PlannerDecision(kind="finish", reason="The employee onboarding workflow is complete.")
+
+        details_record = _resolved_employment_details_for_employment(history, employment_id=employment_id)
+        if details_record is None:
+            details_search = {
+                "employmentId": str(employment_id),
+                "count": 20,
+                "fields": "id,version,date,employment(id),employmentForm,remunerationType,occupationCode,percentageOfFullTimeEquivalent,annualSalary,hourlyWage",
+            }
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/employee/employment/details",
+                predicate=lambda request: _request_contains_params(request, details_search),
+            ):
+                return _action(
+                    reason="Resolve existing employment details before creating a new details record.",
+                    method="GET",
+                    path="/employee/employment/details",
+                    params=details_search,
+                )
+
+            if _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/employee/employment/details",
+                predicate=lambda request: _request_json_contains(request, desired_details),
+            ):
+                return None
+            return _action(
+                reason="Create employment details with the requested onboarding fields.",
+                method="POST",
+                path="/employee/employment/details",
+                json=desired_details,
+            )
+
+        details_id = details_record.get("id")
+        if details_id in {None, ""}:
+            return None
+
+        if _entity_matches(details_record, desired_details):
+            return PlannerDecision(kind="finish", reason="The employee onboarding workflow is complete.")
+
+        if details_record.get("version") in {None, ""} and not _has_attempt_exact(
+            history,
+            method="GET",
+            path=f"/employee/employment/details/{details_id}",
+        ):
+            return _action(
+                reason="Fetch the employment details record with version information before updating it.",
+                method="GET",
+                path=f"/employee/employment/details/{details_id}",
+                params={"fields": "id,version,date,employment(id),employmentForm,remunerationType,occupationCode,percentageOfFullTimeEquivalent,annualSalary,hourlyWage"},
+            )
+
+        update_details_payload = _build_update_payload(
+            details_record,
+            desired_details,
             allowed_fields=(
-                "firstName",
-                "lastName",
-                "email",
-                "employeeNumber",
-                "phoneNumberMobile",
-                "phoneNumberWork",
-                "comments",
-                "userType",
+                "employment",
+                "date",
+                "employmentType",
+                "employmentForm",
+                "remunerationType",
+                "workingHoursScheme",
+                "shiftDurationHours",
+                "occupationCode",
+                "percentageOfFullTimeEquivalent",
+                "annualSalary",
+                "hourlyWage",
             ),
+        )
+        if _has_attempt_exact_where(
+            history,
+            method="PUT",
+            path=f"/employee/employment/details/{details_id}",
+            predicate=lambda request: _request_json_contains(request, update_details_payload),
+        ):
+            return None
+        return _action(
+            reason="Update the employment details to the requested onboarding state.",
+            method="PUT",
+            path=f"/employee/employment/details/{details_id}",
+            json=update_details_payload,
+        )
+
+    def _next_travel_expense_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        if internal_task.operation == "delete":
+            return self._next_delete_travel_expense_workflow(
+                internal_task=internal_task,
+                history=history,
+            )
+
+        employee = _resolved_employee_from_internal(history, internal_task)
+        if employee is None:
+            search_params = _drop_empty(dict(internal_task.search))
+            if search_params and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/employee",
+                predicate=lambda request: _request_contains_params(request, search_params),
+            ):
+                return _action(
+                    reason="Resolve the employee before creating the travel expense.",
+                    method="GET",
+                    path="/employee",
+                    params=search_params,
+                )
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve the employee for the requested travel expense.",
+            )
+
+        employee_id = employee.get("id")
+        if employee_id in {None, ""}:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve a valid employee id for the requested travel expense.",
+            )
+
+        payload = dict(internal_task.payload)
+        payment_type_id: Any | None = None
+        costs = [item for item in (payload.get("costs") or []) if isinstance(item, dict)]
+        if costs:
+            payment_type = _resolved_travel_payment_type_from_history(history)
+            payment_type_search = {
+                "showOnEmployeeExpenses": True,
+                "count": 20,
+                "fields": "id,description,displayName,showOnEmployeeExpenses",
+            }
+            if payment_type is None:
+                if not _has_attempt_exact_where(
+                    history,
+                    method="GET",
+                    path="/travelExpense/paymentType",
+                    predicate=lambda request: _request_contains_params(request, payment_type_search),
+                ):
+                    return _action(
+                        reason="Resolve an employee-expense payment type before creating the travel expense costs.",
+                        method="GET",
+                        path="/travelExpense/paymentType",
+                        params=payment_type_search,
+                    )
+                return PlannerDecision(
+                    kind="finish",
+                    reason="Unable to resolve an employee-expense payment type for the requested travel expense.",
+                )
+            payment_type_id = payment_type.get("id")
+            if payment_type_id in {None, ""}:
+                return PlannerDecision(
+                    kind="finish",
+                    reason="Unable to resolve a valid payment type id for the requested travel expense.",
+                )
+
+        resolved_cost_categories: list[dict[str, Any]] = []
+        for cost in costs:
+            description = cost.get("description")
+            if _is_blank(description):
+                return PlannerDecision(
+                    kind="finish",
+                    reason="Unable to create a travel expense cost without a description.",
+                )
+            search_params = _travel_expense_cost_category_search_params(description)
+            category = _resolved_travel_cost_category_from_history(
+                history,
+                query=search_params.get("query"),
+                description=description,
+            )
+            if category is None:
+                if not _has_attempt_exact_where(
+                    history,
+                    method="GET",
+                    path="/travelExpense/costCategory",
+                    predicate=lambda request: _request_contains_params(request, search_params),
+                ):
+                    return _action(
+                        reason=f"Resolve a travel expense cost category for '{description}'.",
+                        method="GET",
+                        path="/travelExpense/costCategory",
+                        params=search_params,
+                    )
+                return PlannerDecision(
+                    kind="finish",
+                    reason=f"Unable to resolve a travel expense cost category for '{description}'.",
+                )
+            resolved_cost_categories.append(category)
+
+        create_payload = _build_travel_expense_payload(
+            internal_task=internal_task,
+            employee_id=employee_id,
+            payment_type_id=payment_type_id,
+            resolved_cost_categories=resolved_cost_categories,
+        )
+        if create_payload is None:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to build a valid travel expense payload from the provided request.",
+            )
+
+        if _has_success_exact_where(
+            history,
+            method="POST",
+            path="/travelExpense",
+            predicate=lambda request: _request_json_contains(request, create_payload),
+        ):
+            return PlannerDecision(kind="finish", reason="The travel expense workflow is complete.")
+
+        if _has_attempt_exact_where(
+            history,
+            method="POST",
+            path="/travelExpense",
+            predicate=lambda request: _request_json_contains(request, create_payload),
+        ):
+            return None
+
+        return _action(
+            reason="Create the travel expense with the resolved employee, travel details, per diem, and reimbursable costs.",
+            method="POST",
+            path="/travelExpense",
+            json=create_payload,
+        )
+
+    def _next_delete_travel_expense_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        employee = _resolved_employee_from_internal(history, internal_task)
+        if employee is None:
+            search_params = _drop_empty(dict(internal_task.search))
+            if search_params and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/employee",
+                predicate=lambda request: _request_contains_params(request, search_params),
+            ):
+                return _action(
+                    reason="Resolve the employee before locating the travel expense to delete.",
+                    method="GET",
+                    path="/employee",
+                    params=search_params,
+                )
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve the employee for the requested travel expense deletion.",
+            )
+
+        employee_id = employee.get("id")
+        if employee_id in {None, ""}:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve a valid employee id for the requested travel expense deletion.",
+            )
+
+        travel_expense = _resolved_travel_expense_from_history(
+            history,
+            employee_id=employee_id,
+            internal_task=internal_task,
+        )
+        if travel_expense is None:
+            search_params = _travel_expense_lookup_params(employee_id=employee_id, internal_task=internal_task)
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/travelExpense",
+                predicate=lambda request: _request_contains_params(request, search_params),
+            ):
+                return _action(
+                    reason="Locate the travel expense before deleting it.",
+                    method="GET",
+                    path="/travelExpense",
+                    params=search_params,
+                )
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to locate a matching travel expense to delete.",
+            )
+
+        travel_expense_id = travel_expense.get("id")
+        if travel_expense_id in {None, ""}:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve a valid travel expense id for deletion.",
+            )
+
+        if _has_success_exact(history, method="DELETE", path=f"/travelExpense/{travel_expense_id}"):
+            return PlannerDecision(kind="finish", reason="The travel expense delete workflow is complete.")
+
+        if _has_attempt_exact(history, method="DELETE", path=f"/travelExpense/{travel_expense_id}"):
+            return None
+
+        return _action(
+            reason="Delete the resolved travel expense using the canonical Tripletex delete endpoint.",
+            method="DELETE",
+            path=f"/travelExpense/{travel_expense_id}",
+        )
+
+    def _next_month_end_closing_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        voucher_date = internal_task.payload.get("voucherDate") or date.today().isoformat()
+        voucher_specs = [item for item in (internal_task.payload.get("vouchers") or []) if isinstance(item, dict)]
+        if not voucher_specs:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to derive any month-end closing vouchers from the request.",
+            )
+
+        for voucher_spec in voucher_specs:
+            unresolved_account = _first_unresolved_month_end_account_number(history, voucher_spec=voucher_spec)
+            if unresolved_account is not None:
+                search_params = {
+                    "number": unresolved_account,
+                    "count": 10,
+                    "fields": "id,number,name",
+                }
+                if not _has_attempt_exact_where(
+                    history,
+                    method="GET",
+                    path="/ledger/account",
+                    predicate=lambda request: _request_contains_params(request, search_params),
+                ):
+                    return _action(
+                        reason=f"Resolve ledger account {unresolved_account} before creating the month-end voucher.",
+                        method="GET",
+                        path="/ledger/account",
+                        params=search_params,
+                    )
+                return PlannerDecision(
+                    kind="finish",
+                    reason=f"Unable to resolve ledger account {unresolved_account} required for month-end closing.",
+                )
+
+            create_payload = _build_month_end_voucher_payload(
+                voucher_date=voucher_date,
+                voucher_spec=voucher_spec,
+                history=history,
+            )
+            if create_payload is None:
+                return PlannerDecision(
+                    kind="finish",
+                    reason="Unable to build a valid month-end voucher payload from the resolved ledger accounts.",
+                )
+
+            if _has_success_exact_where(
+                history,
+                method="POST",
+                path="/ledger/voucher",
+                predicate=lambda request: _request_json_contains(request, create_payload),
+            ):
+                continue
+
+            if _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/ledger/voucher",
+                predicate=lambda request: _request_json_contains(request, create_payload),
+            ):
+                return None
+
+            return _action(
+                reason=f"Create the month-end voucher '{voucher_spec.get('key') or voucher_spec.get('description') or 'voucher'}'.",
+                method="POST",
+                path="/ledger/voucher",
+                json=create_payload,
+            )
+
+        return PlannerDecision(kind="finish", reason="The month-end closing workflow is complete.")
+
+    def _next_expense_increase_project_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        payload = dict(internal_task.payload)
+        baseline_period = dict(payload.get("baselinePeriod") or {})
+        comparison_period = dict(payload.get("comparisonPeriod") or {})
+        top_count = int(payload.get("topCount") or 3)
+        create_activity = bool(payload.get("createActivity"))
+        is_internal = bool(payload.get("isInternal"))
+
+        for label, period in (("baseline", baseline_period), ("comparison", comparison_period)):
+            search_params = _expense_increase_posting_search_params(period)
+            if search_params is None:
+                return PlannerDecision(
+                    kind="finish",
+                    reason=f"Unable to derive the {label} ledger period required for expense-increase analysis.",
+                )
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/ledger/posting",
+                predicate=lambda request, expected=search_params: _request_contains_params(request, expected),
+            ):
+                return _action(
+                    reason=f"Load ledger postings for the {label} comparison period before creating projects.",
+                    method="GET",
+                    path="/ledger/posting",
+                    params=search_params,
+                )
+
+        top_accounts = _resolved_top_expense_increase_accounts(history, internal_task=internal_task, top_count=top_count)
+        if not top_accounts:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to identify any expense accounts with a positive increase between the requested periods.",
+            )
+
+        for account in top_accounts:
+            project_ref = {"name": account["name"]}
+            project = _resolved_project_by_ref(history, project_ref)
+            project_search = {"name": account["name"], "count": 10}
+            if project is None:
+                if not _has_attempt_exact_where(
+                    history,
+                    method="GET",
+                    path="/project",
+                    predicate=lambda request, expected=project_search: _request_contains_params(request, expected),
+                ):
+                    return _action(
+                        reason=f"Resolve whether the internal project '{account['name']}' already exists.",
+                        method="GET",
+                        path="/project",
+                        params=project_search,
+                    )
+                project_payload = _drop_empty({"name": account["name"], "isInternal": is_internal or None})
+                if not _has_attempt_exact_where(
+                    history,
+                    method="POST",
+                    path="/project",
+                    predicate=lambda request, expected=project_payload: _request_json_contains(request, expected),
+                ):
+                    return _action(
+                        reason=f"Create the internal project for expense account '{account['name']}'.",
+                        method="POST",
+                        path="/project",
+                        json=project_payload,
+                    )
+                return None
+
+            if not create_activity:
+                continue
+
+            activity_ref = {"name": account["name"]}
+            activity = _resolved_activity_by_ref(history, activity_ref)
+            activity_search = {"name": account["name"], "count": 10}
+            if activity is None:
+                if not _has_attempt_exact_where(
+                    history,
+                    method="GET",
+                    path="/activity",
+                    predicate=lambda request, expected=activity_search: _request_contains_params(request, expected),
+                ):
+                    return _action(
+                        reason=f"Resolve whether the activity '{account['name']}' already exists.",
+                        method="GET",
+                        path="/activity",
+                        params=activity_search,
+                    )
+                activity_payload = {
+                    "name": account["name"],
+                    "isProjectActivity": True,
+                    "isChargeable": False,
+                }
+                if not _has_attempt_exact_where(
+                    history,
+                    method="POST",
+                    path="/activity",
+                    predicate=lambda request, expected=activity_payload: _request_json_contains(request, expected),
+                ):
+                    return _action(
+                        reason=f"Create the activity for expense account '{account['name']}'.",
+                        method="POST",
+                        path="/activity",
+                        json=activity_payload,
+                    )
+                return None
+
+        return PlannerDecision(kind="finish", reason="The expense-increase project workflow is complete.")
+
+    def _next_salary_payroll_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        if _has_success_exact(history, method="POST", path="/salary/transaction"):
+            return PlannerDecision(kind="finish", reason="The salary payroll workflow is complete.")
+
+        employee = _resolved_employee_from_internal(history, internal_task)
+        if employee is None:
+            search_params = _drop_empty(dict(internal_task.search))
+            if search_params and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/employee",
+                predicate=lambda request: _request_contains_params(request, search_params),
+            ):
+                return _action(
+                    reason="Resolve the employee before creating the salary transaction.",
+                    method="GET",
+                    path="/employee",
+                    params=search_params,
+                )
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve the employee for the requested payroll workflow.",
+            )
+
+        employee_id = employee.get("id")
+        if employee_id in {None, ""}:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve a valid employee id for the payroll workflow.",
+            )
+
+        salary_lines = [line for line in (internal_task.payload.get("salaryLines") or []) if isinstance(line, dict)]
+        if not salary_lines:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to build any salary lines for the payroll workflow.",
+            )
+
+        resolved_salary_types: list[dict[str, Any]] = []
+        for line in salary_lines:
+            salary_type_ref = _salary_line_type_ref(line)
+            salary_type = _resolved_salary_type_by_ref(history, salary_type_ref)
+            if salary_type is None:
+                search_params = _salary_type_search_params(salary_type_ref)
+                if not search_params:
+                    return PlannerDecision(
+                        kind="finish",
+                        reason="Unable to resolve a salary type because the structured payroll line is missing a searchable salary-type reference.",
+                    )
+                if not _has_attempt_exact_where(
+                    history,
+                    method="GET",
+                    path="/salary/type",
+                    predicate=lambda request, expected=search_params: _request_contains_params(request, expected),
+                ):
+                    return _action(
+                        reason="Resolve the salary type before creating the salary transaction.",
+                        method="GET",
+                        path="/salary/type",
+                        params=search_params,
+                    )
+                return PlannerDecision(
+                    kind="finish",
+                    reason="Unable to resolve one or more salary types required for the payroll workflow.",
+                )
+            resolved_salary_types.append(salary_type)
+
+        create_payload = _build_salary_transaction_payload(
+            internal_task=internal_task,
+            employee_id=employee_id,
+            salary_types=resolved_salary_types,
+        )
+        if create_payload is None:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to build a valid salary-transaction payload from the structured payroll workflow.",
+            )
+
+        create_params = _drop_empty(
+            {
+                "generateTaxDeduction": internal_task.payload.get("generateTaxDeduction"),
+            }
+        )
+
+        if _has_attempt_exact_where(
+            history,
+            method="POST",
+            path="/salary/transaction",
+            predicate=lambda request, expected_params=create_params, expected_json=create_payload: _request_contains_params(request, expected_params)
+            and _request_json_contains(request, expected_json),
+        ):
+            return None
+
+        return _action(
+            reason="Create the salary transaction with the resolved employee and salary types.",
+            method="POST",
+            path="/salary/transaction",
+            params=create_params,
+            json=create_payload,
+        )
+
+    def _next_bank_reconciliation_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        task_analysis: TaskAnalysis,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        statement_entries = [entry for entry in (internal_task.payload.get("statementEntries") or []) if isinstance(entry, dict)]
+        if not statement_entries:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to continue bank reconciliation because the workflow did not receive any structured statement entries.",
+            )
+
+        for entry in statement_entries:
+            direction = _bank_statement_direction(entry)
+            if direction == "outgoing":
+                decision = self._next_bank_supplier_payment_entry(
+                    internal_task=internal_task,
+                    task_analysis=task_analysis,
+                    history=history,
+                    entry=entry,
+                )
+            else:
+                decision = self._next_bank_customer_payment_entry(
+                    internal_task=internal_task,
+                    task_analysis=task_analysis,
+                    history=history,
+                    entry=entry,
+                )
+            if decision is None:
+                return None
+            if decision.kind != "finish":
+                return decision
+            if _finish_reason_indicates_failure(decision.reason):
+                return decision
+
+        return PlannerDecision(kind="finish", reason="The bank reconciliation workflow is complete.")
+
+    def _next_bank_customer_payment_entry(
+        self,
+        *,
+        internal_task: InternalTask,
+        task_analysis: TaskAnalysis,
+        history: list[dict[str, Any]],
+        entry: dict[str, Any],
+    ) -> PlannerDecision | None:
+        customer_ref = dict(entry.get("customer") or {})
+        customer = _resolved_customer_by_ref(history, customer_ref)
+        customer_id = customer.get("id") if isinstance(customer, dict) else None
+        if customer_id in {None, ""} and customer_ref:
+            customer_search = _drop_empty(
+                {
+                    "organizationNumber": customer_ref.get("organizationNumber"),
+                    "customerName": customer_ref.get("customerName") or customer_ref.get("name"),
+                    "email": customer_ref.get("email"),
+                    "count": 10,
+                }
+            )
+            if customer_search and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/customer",
+                predicate=lambda request, expected=customer_search: _request_contains_params(request, expected),
+            ):
+                return _action(
+                    reason=f"Resolve the customer for bank statement entry {entry.get('entryId') or 'entry'}.",
+                    method="GET",
+                    path="/customer",
+                    params=customer_search,
+                )
+            customer = _resolved_customer_by_ref(history, customer_ref)
+            customer_id = customer.get("id") if isinstance(customer, dict) else None
+
+        invoice = _resolved_bank_customer_invoice_from_history(
+            history,
+            entry=entry,
+            customer_id=customer_id,
+        )
+        if invoice is None:
+            invoice_search = _bank_customer_invoice_search_params(
+                entry=entry,
+                customer_id=customer_id,
+                internal_task=internal_task,
+                task_analysis=task_analysis,
+            )
+            if invoice_search is None:
+                return PlannerDecision(
+                    kind="finish",
+                    reason=f"Unable to search for an outgoing invoice for bank statement entry {entry.get('entryId') or 'entry'}.",
+                )
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/invoice",
+                predicate=lambda request, expected=invoice_search: _request_contains_params(request, expected),
+            ):
+                return _action(
+                    reason=f"Locate the outgoing invoice for bank statement entry {entry.get('entryId') or 'entry'}.",
+                    method="GET",
+                    path="/invoice",
+                    params=invoice_search,
+                )
+            return PlannerDecision(
+                kind="finish",
+                reason=f"Unable to resolve a matching outgoing invoice for bank statement entry {entry.get('entryId') or 'entry'}.",
+            )
+
+        invoice_id = invoice.get("id")
+        if invoice_id in {None, ""}:
+            return PlannerDecision(
+                kind="finish",
+                reason=f"Unable to resolve a valid outgoing invoice id for bank statement entry {entry.get('entryId') or 'entry'}.",
+            )
+
+        payment_type_id = _fallback_first_payment_type_id(history)
+        if payment_type_id in {None, ""}:
+            payment_type_params = {"count": 10}
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/invoice/paymentType",
+                predicate=lambda request, expected=payment_type_params: _request_contains_params(request, expected),
+            ):
+                return _action(
+                    reason=f"Resolve an outgoing invoice payment type for bank statement entry {entry.get('entryId') or 'entry'}.",
+                    method="GET",
+                    path="/invoice/paymentType",
+                    params=payment_type_params,
+                )
+            return PlannerDecision(
+                kind="finish",
+                reason=f"Unable to resolve an outgoing invoice payment type for bank statement entry {entry.get('entryId') or 'entry'}.",
+            )
+
+        payment_params = _drop_empty(
+            {
+                "paymentDate": entry.get("paymentDate"),
+                "paymentTypeId": payment_type_id,
+                "paidAmount": _bank_entry_paid_amount(entry),
+            }
+        )
+        if _has_success_exact_where(
+            history,
+            method="PUT",
+            path=f"/invoice/{invoice_id}/:payment",
+            predicate=lambda request, expected=payment_params: _request_contains_params(request, expected),
+        ):
+            return PlannerDecision(kind="finish", reason="The current bank customer-payment entry is complete.")
+
+        if _has_attempt_exact_where(
+            history,
+            method="PUT",
+            path=f"/invoice/{invoice_id}/:payment",
+            predicate=lambda request, expected=payment_params: _request_contains_params(request, expected),
+        ):
+            return None
+
+        return _action(
+            reason=f"Register the outgoing-invoice payment for bank statement entry {entry.get('entryId') or 'entry'}.",
+            method="PUT",
+            path=f"/invoice/{invoice_id}/:payment",
+            params=payment_params,
+        )
+
+    def _next_bank_supplier_payment_entry(
+        self,
+        *,
+        internal_task: InternalTask,
+        task_analysis: TaskAnalysis,
+        history: list[dict[str, Any]],
+        entry: dict[str, Any],
+    ) -> PlannerDecision | None:
+        supplier_ref = dict(entry.get("supplier") or {})
+        supplier = _resolved_supplier_by_ref(history, supplier_ref)
+        supplier_id = supplier.get("id") if isinstance(supplier, dict) else None
+        if supplier_id in {None, ""} and supplier_ref:
+            supplier_search = _drop_empty(
+                {
+                    "organizationNumber": supplier_ref.get("organizationNumber"),
+                    "supplierName": supplier_ref.get("supplierName") or supplier_ref.get("name"),
+                    "email": supplier_ref.get("email"),
+                    "count": 10,
+                    "fields": "id,name,organizationNumber,email,invoiceEmail",
+                }
+            )
+            if supplier_search and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/supplier",
+                predicate=lambda request, expected=supplier_search: _request_contains_params(request, expected),
+            ):
+                return _action(
+                    reason=f"Resolve the supplier for bank statement entry {entry.get('entryId') or 'entry'}.",
+                    method="GET",
+                    path="/supplier",
+                    params=supplier_search,
+                )
+            supplier = _resolved_supplier_by_ref(history, supplier_ref)
+            supplier_id = supplier.get("id") if isinstance(supplier, dict) else None
+
+        incoming_invoice = _resolved_bank_supplier_invoice_from_history(
+            history,
+            entry=entry,
+            supplier_id=supplier_id,
+        )
+        if incoming_invoice is None:
+            incoming_invoice_search = _bank_supplier_invoice_search_params(
+                entry=entry,
+                supplier_id=supplier_id,
+                internal_task=internal_task,
+                task_analysis=task_analysis,
+            )
+            if incoming_invoice_search is None:
+                return PlannerDecision(
+                    kind="finish",
+                    reason=f"Unable to search for a supplier invoice for bank statement entry {entry.get('entryId') or 'entry'}.",
+                )
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/incomingInvoice/search",
+                predicate=lambda request, expected=incoming_invoice_search: _request_contains_params(request, expected),
+            ):
+                return _action(
+                    reason=f"Locate the supplier invoice for bank statement entry {entry.get('entryId') or 'entry'}.",
+                    method="GET",
+                    path="/incomingInvoice/search",
+                    params=incoming_invoice_search,
+                )
+            return PlannerDecision(
+                kind="finish",
+                reason=f"Unable to resolve a matching supplier invoice for bank statement entry {entry.get('entryId') or 'entry'}.",
+            )
+
+        voucher_id = incoming_invoice.get("voucherId") or incoming_invoice.get("id")
+        if voucher_id in {None, ""}:
+            return PlannerDecision(
+                kind="finish",
+                reason=f"Unable to resolve a valid incoming-invoice voucher id for bank statement entry {entry.get('entryId') or 'entry'}.",
+            )
+
+        payment_payload = _drop_empty(
+            {
+                "amountCurrency": _bank_entry_paid_amount(entry),
+                "paymentDate": entry.get("paymentDate"),
+                "partialPayment": _bank_supplier_partial_payment(entry, incoming_invoice=incoming_invoice),
+                "useDefaultPaymentType": True,
+            }
+        )
+        if _has_success_exact_where(
+            history,
+            method="POST",
+            path=f"/incomingInvoice/{voucher_id}/addPayment",
+            predicate=lambda request, expected=payment_payload: _request_json_contains(request, expected),
+        ):
+            return PlannerDecision(kind="finish", reason="The current bank supplier-payment entry is complete.")
+
+        if _has_attempt_exact_where(
+            history,
+            method="POST",
+            path=f"/incomingInvoice/{voucher_id}/addPayment",
+            predicate=lambda request, expected=payment_payload: _request_json_contains(request, expected),
+        ):
+            return None
+
+        return _action(
+            reason=f"Register the supplier-invoice payment for bank statement entry {entry.get('entryId') or 'entry'}.",
+            method="POST",
+            path=f"/incomingInvoice/{voucher_id}/addPayment",
+            json=payment_payload,
+        )
+
+    def _next_invoice_payment_reversal_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        task_analysis: TaskAnalysis,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        if _has_success(history, method="PUT", path_suffix="/:reverse"):
+            return PlannerDecision(kind="finish", reason="The invoice payment reversal workflow is complete.")
+
+        customer = _resolved_customer_by_ref(history, internal_task.search or internal_task.payload.get("customer"))
+        if customer is None:
+            search_params = _drop_empty(dict(internal_task.search))
+            if search_params and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/customer",
+                predicate=lambda request: _request_contains_params(request, search_params),
+            ):
+                return _action(
+                    reason="Resolve the customer before locating the returned payment voucher.",
+                    method="GET",
+                    path="/customer",
+                    params=search_params,
+                )
+            return None
+
+        customer_id = customer.get("id")
+        if customer_id in {None, ""}:
+            return None
+
+        invoice = _resolved_credit_note_target_invoice(history, internal_task=internal_task)
+        if invoice is None:
+            invoice_search = _credit_note_invoice_search_params(
+                task_analysis,
+                customer_id=customer_id,
+                invoice_number=internal_task.payload.get("invoiceNumber"),
+            )
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/invoice",
+                predicate=lambda request: _request_contains_params(request, invoice_search),
+            ):
+                return _action(
+                    reason="Locate the invoice whose payment should be reversed.",
+                    method="GET",
+                    path="/invoice",
+                    params=invoice_search,
+                )
+            return None
+
+        posting = _resolved_payment_reversal_posting(history, invoice=invoice, internal_task=internal_task)
+        if posting is None:
+            posting_search = _payment_reversal_posting_search_params(task_analysis, customer_id=customer_id)
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/ledger/posting",
+                predicate=lambda request: _request_contains_params(request, posting_search),
+            ):
+                return _action(
+                    reason="Locate the payment posting voucher before reversing the returned invoice payment.",
+                    method="GET",
+                    path="/ledger/posting",
+                    params=posting_search,
+                )
+
+            relaxed_posting_search = _payment_reversal_posting_search_params(
+                task_analysis,
+                customer_id=customer_id,
+                include_type=False,
+            )
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/ledger/posting",
+                predicate=lambda request: _request_contains_params(request, relaxed_posting_search),
+            ):
+                return _action(
+                    reason="Retry voucher discovery without a posting-type filter to handle sandbox variance in returned-payment postings.",
+                    method="GET",
+                    path="/ledger/posting",
+                    params=relaxed_posting_search,
+                )
+            return None
+
+        voucher_id = _entity_id(posting.get("voucher"))
+        if voucher_id in {None, ""}:
+            return None
+
+        reverse_params = {
+            "date": internal_task.payload.get("reversalDate") or default_action_date(task_analysis, "reversalDate", "date"),
+        }
+        if _has_attempt_exact_where(
+            history,
+            method="PUT",
+            path=f"/ledger/voucher/{voucher_id}/:reverse",
+            predicate=lambda request: _request_contains_params(request, reverse_params),
+        ):
+            return None
+        return _action(
+            reason="Reverse the voucher tied to the returned invoice payment so the invoice becomes outstanding again.",
+            method="PUT",
+            path=f"/ledger/voucher/{voucher_id}/:reverse",
+            params=reverse_params,
         )
 
     def _next_project_upsert(
@@ -179,54 +2233,101 @@ class DeterministicWorkflowRouter:
 
         customer = _resolved_customer_by_ref(history, customer_ref)
         if customer_ref and customer is None:
-            search_params = _drop_empty(dict(customer_ref))
-            if not _has_attempt_exact_where(
-                history,
-                method="GET",
-                path="/customer",
-                predicate=lambda request: _request_contains_params(request, search_params),
-            ):
-                return _action(
-                    reason="Resolve the project customer before creating or updating the project.",
-                    method="GET",
-                    path="/customer",
-                    params=search_params,
-                )
-            return None
+            customer_task = InternalTask(
+                method_name="UpsertCustomer",
+                flow_kind=FlowKind.CUSTOMER_UPSERT,
+                operation="create",
+                target_resource="customer",
+                objective=internal_task.objective,
+                search=_drop_empty(
+                    {
+                        "organizationNumber": (customer_ref or {}).get("organizationNumber"),
+                        "customerName": (customer_ref or {}).get("customerName") or (customer_ref or {}).get("name"),
+                        "email": (customer_ref or {}).get("email"),
+                        "count": 10,
+                    }
+                ),
+                payload=_drop_empty(
+                    {
+                        "name": (customer_ref or {}).get("customerName") or (customer_ref or {}).get("name"),
+                        "organizationNumber": (customer_ref or {}).get("organizationNumber"),
+                        "email": (customer_ref or {}).get("email"),
+                    }
+                ),
+                notes=internal_task.notes,
+            )
+            customer_decision = self._next_customer_upsert(internal_task=customer_task, history=history)
+            if customer_decision is not None:
+                if customer_decision.kind == "finish" and _finish_reason_indicates_failure(customer_decision.reason):
+                    return customer_decision
+                if customer_decision.kind != "finish":
+                    return customer_decision
+            customer = _resolved_customer_by_ref(history, customer_ref)
+            if customer is None:
+                return None
 
         department = _resolved_department_by_ref(history, department_ref)
         if department_ref and department is None:
-            search_params = _drop_empty(dict(department_ref))
-            if not _has_attempt_exact_where(
-                history,
-                method="GET",
-                path="/department",
-                predicate=lambda request: _request_contains_params(request, search_params),
-            ):
-                return _action(
-                    reason="Resolve the department before creating or updating the project.",
-                    method="GET",
-                    path="/department",
-                    params=search_params,
-                )
-            return None
+            department_task = InternalTask(
+                method_name="UpsertDepartment",
+                flow_kind=FlowKind.DEPARTMENT_UPSERT,
+                operation="create",
+                target_resource="department",
+                objective=internal_task.objective,
+                search=_drop_empty(
+                    {
+                        "departmentNumber": (department_ref or {}).get("departmentNumber"),
+                        "name": (department_ref or {}).get("name"),
+                        "count": 10,
+                    }
+                ),
+                payload=_department_payload_from_ref(department_ref) or {},
+                notes=internal_task.notes,
+            )
+            department_decision = self._next_department_upsert(internal_task=department_task, history=history)
+            if department_decision is not None:
+                if department_decision.kind == "finish" and _finish_reason_indicates_failure(department_decision.reason):
+                    return department_decision
+                if department_decision.kind != "finish":
+                    return department_decision
+            department = _resolved_department_by_ref(history, department_ref)
+            if department is None:
+                return None
 
         manager = _resolved_employee_by_ref(history, manager_ref)
         if manager_ref and manager is None:
-            search_params = _drop_empty(dict(manager_ref))
-            if not _has_attempt_exact_where(
-                history,
-                method="GET",
-                path="/employee",
-                predicate=lambda request: _request_contains_params(request, search_params),
-            ):
-                return _action(
-                    reason="Resolve the project manager before creating or updating the project.",
-                    method="GET",
-                    path="/employee",
-                    params=search_params,
-                )
-            return None
+            manager_task = InternalTask(
+                method_name="UpsertEmployee",
+                flow_kind=FlowKind.EMPLOYEE_UPSERT,
+                operation="create",
+                target_resource="employee",
+                objective=internal_task.objective,
+                search=_drop_empty(
+                    {
+                        "email": (manager_ref or {}).get("email"),
+                        "firstName": (manager_ref or {}).get("firstName"),
+                        "lastName": (manager_ref or {}).get("lastName"),
+                        "count": 10,
+                    }
+                ),
+                payload=_drop_empty(
+                    {
+                        "firstName": (manager_ref or {}).get("firstName"),
+                        "lastName": (manager_ref or {}).get("lastName"),
+                        "email": (manager_ref or {}).get("email"),
+                    }
+                ),
+                notes=internal_task.notes,
+            )
+            manager_decision = self._next_employee_upsert(internal_task=manager_task, history=history)
+            if manager_decision is not None:
+                if manager_decision.kind == "finish" and _finish_reason_indicates_failure(manager_decision.reason):
+                    return manager_decision
+                if manager_decision.kind != "finish":
+                    return manager_decision
+            manager = _resolved_employee_by_ref(history, manager_ref)
+            if manager is None:
+                return None
 
         desired = dict(payload)
         if customer is not None and customer.get("id") not in {None, ""}:
@@ -285,6 +2386,8 @@ class DeterministicWorkflowRouter:
                 "overdueNoticeEmail",
                 "isFixedPrice",
                 "fixedprice",
+                "isPriceCeiling",
+                "priceCeilingAmount",
                 "customer",
                 "department",
                 "projectManager",
@@ -575,17 +2678,31 @@ class DeterministicWorkflowRouter:
                     path="/supplier",
                     json=supplier_payload,
                 )
-            return PlannerDecision(
-                kind="finish",
-                reason="Unable to resolve or create the supplier needed for the supplier invoice workflow.",
-            )
+            return None
 
         account_number = internal_task.payload.get("accountNumber")
         if account_number in {None, ""}:
-            return PlannerDecision(
-                kind="finish",
-                reason="Unable to determine the ledger account needed for the supplier invoice workflow.",
-            )
+            default_account = _resolved_default_supplier_invoice_account(history)
+            if default_account is None:
+                default_account_search = {
+                    "isApplicableForSupplierInvoice": True,
+                    "count": 100,
+                    "fields": "id,number,name,isApplicableForSupplierInvoice,vatLocked",
+                }
+                if not _has_attempt_exact_where(
+                    history,
+                    method="GET",
+                    path="/ledger/account",
+                    predicate=lambda request: _request_contains_params(request, default_account_search),
+                ):
+                    return _action(
+                        reason="Resolve a default supplier-invoice ledger account because the prompt did not specify one.",
+                        method="GET",
+                        path="/ledger/account",
+                        params=default_account_search,
+                    )
+                return None
+            account_number = default_account.get("number")
 
         account = _resolved_ledger_account_from_history(history, account_number=account_number)
         if account is None:
@@ -593,7 +2710,7 @@ class DeterministicWorkflowRouter:
                 "number": account_number,
                 "isApplicableForSupplierInvoice": True,
                 "count": 10,
-                "fields": "id,number,name,isApplicableForSupplierInvoice",
+                "fields": "id,number,name,isApplicableForSupplierInvoice,vatLocked",
             }
             if not _has_attempt_exact_where(
                 history,
@@ -611,7 +2728,7 @@ class DeterministicWorkflowRouter:
             fallback_account_search = {
                 "number": account_number,
                 "count": 10,
-                "fields": "id,number,name,isApplicableForSupplierInvoice",
+                "fields": "id,number,name,isApplicableForSupplierInvoice,vatLocked",
             }
             if not _has_attempt_exact_where(
                 history,
@@ -625,18 +2742,24 @@ class DeterministicWorkflowRouter:
                     path="/ledger/account",
                     params=fallback_account_search,
                 )
-            return PlannerDecision(
-                kind="finish",
-                reason="Unable to resolve the ledger account needed for the supplier invoice workflow.",
-            )
+            return None
 
         vat_type_ref = internal_task.payload.get("vatType")
         vat_type = None
+        account_default_vat_type_id = account.get("vatTypeId") if isinstance(account, dict) else None
         if isinstance(vat_type_ref, dict):
             vat_type = _resolved_vat_type_by_ref(history, vat_type_ref)
-            if vat_type is None:
+            requested_percentage = vat_type_ref.get("percentage")
+            logger.info(
+                "supplier_invoice.vat_resolution requested_percentage=%s account_vat_type_id=%s resolved_vat_type_id=%s",
+                requested_percentage,
+                account_default_vat_type_id,
+                vat_type.get("id") if isinstance(vat_type, dict) else None,
+            )
+            if vat_type is None and account_default_vat_type_id in {None, ""}:
                 vat_type_search = {
-                    "typeOfVat": "IN",
+                    "typeOfVat": "INCOMING_INVOICE",
+                    "vatDate": internal_task.payload.get("invoiceDate"),
                     "count": 100,
                     "fields": "id,name,displayName,number,percentage",
                 }
@@ -652,9 +2775,29 @@ class DeterministicWorkflowRouter:
                         path="/ledger/vatType",
                         params=vat_type_search,
                     )
-                return PlannerDecision(
-                    kind="finish",
-                    reason="Unable to resolve the incoming VAT type needed for the supplier invoice workflow.",
+                fallback_vat_type_search = {
+                    "typeOfVat": "INCOMING",
+                    "vatDate": internal_task.payload.get("invoiceDate"),
+                    "count": 100,
+                    "fields": "id,name,displayName,number,percentage",
+                }
+                if not _has_attempt_exact_where(
+                    history,
+                    method="GET",
+                    path="/ledger/vatType",
+                    predicate=lambda request: _request_contains_params(request, fallback_vat_type_search),
+                ):
+                    return _action(
+                        reason="Retry incoming VAT resolution with the generic incoming VAT bucket after the invoice-specific bucket did not yield a usable result.",
+                        method="GET",
+                        path="/ledger/vatType",
+                        params=fallback_vat_type_search,
+                    )
+                return None
+            if vat_type is None and account_default_vat_type_id not in {None, ""}:
+                logger.info(
+                    "supplier_invoice.vat_resolution using_account_default_vat_type_id=%s",
+                    account_default_vat_type_id,
                 )
 
         invoice_payload = _build_incoming_invoice_payload_from_internal(
@@ -668,10 +2811,7 @@ class DeterministicWorkflowRouter:
             ),
         )
         if invoice_payload is None:
-            return PlannerDecision(
-                kind="finish",
-                reason="Unable to assemble a valid incoming-invoice payload from the resolved supplier, account, and VAT data.",
-            )
+            return None
 
         if _has_api_error_exact_where(
             history,
@@ -679,6 +2819,20 @@ class DeterministicWorkflowRouter:
             path="/incomingInvoice",
             predicate=lambda request: _request_json_contains(request, invoice_payload),
         ):
+            latest_error = _latest_api_error_exact_where(
+                history,
+                method="POST",
+                path="/incomingInvoice",
+                predicate=lambda request: _request_json_contains(request, invoice_payload),
+            )
+            if latest_error is not None and latest_error.get("status_code") in {401, 403}:
+                return PlannerDecision(
+                    kind="finish",
+                    reason=(
+                        "Unable to register the supplier invoice through the canonical incoming-invoice workflow. "
+                        f"Latest Tripletex error: {_tripletex_error_summary(latest_error)}"
+                    ),
+                )
             voucher_type_search = {"count": 50, "fields": "id,name"}
             voucher_type_name = internal_task.payload.get("voucherTypeName")
             if voucher_type_name not in {None, ""}:
@@ -695,9 +2849,14 @@ class DeterministicWorkflowRouter:
                     path="/ledger/voucherType",
                     params=voucher_type_search,
                 )
+            if latest_error is None:
+                return None
             return PlannerDecision(
                 kind="finish",
-                reason="Unable to register the supplier invoice after resolving supplier, account, VAT, and voucher-type prerequisites.",
+                reason=(
+                    "Unable to register the supplier invoice through the canonical incoming-invoice workflow. "
+                    f"Latest Tripletex error: {_tripletex_error_summary(latest_error)}"
+                ),
             )
 
         if _has_attempt_exact_where(
@@ -740,10 +2899,7 @@ class DeterministicWorkflowRouter:
                     path="/customer",
                     params=search_params,
                 )
-            return PlannerDecision(
-                kind="finish",
-                reason="Unable to resolve the customer needed to locate the invoice for the requested credit note workflow.",
-            )
+            return None
 
         invoice = _resolved_credit_note_target_invoice(history, internal_task=internal_task)
         if invoice is None:
@@ -764,17 +2920,11 @@ class DeterministicWorkflowRouter:
                     path="/invoice",
                     params=search_params,
                 )
-            return PlannerDecision(
-                kind="finish",
-                reason="Unable to locate the target invoice for the requested credit note workflow.",
-            )
+            return None
 
         invoice_id = invoice.get("id")
         if invoice_id in {None, ""}:
-            return PlannerDecision(
-                kind="finish",
-                reason="Unable to determine the invoice id needed to create the requested credit note.",
-            )
+            return None
 
         credit_note_params = _drop_empty(
             {
@@ -1206,6 +3356,341 @@ class DeterministicWorkflowRouter:
             params=invoice_action_params,
         )
 
+    def _next_project_lifecycle_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        task_analysis: TaskAnalysis,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        payload = dict(internal_task.payload)
+        project_payload = dict(payload.get("project") or {})
+        customer_ref = dict(payload.get("customerRef") or project_payload.get("customerRef") or {})
+        default_activity_ref = dict(payload.get("defaultActivity") or {})
+        timesheet_entries = [entry for entry in (payload.get("timesheetEntries") or []) if isinstance(entry, dict)]
+        supplier_invoice = dict(payload.get("supplierInvoice") or {})
+        invoice_payload = dict(payload.get("invoice") or {})
+
+        project_task = InternalTask(
+            method_name="UpsertProject",
+            flow_kind=FlowKind.PROJECT_UPSERT,
+            operation="update",
+            target_resource="project",
+            objective=internal_task.objective,
+            search=_drop_empty(
+                {
+                    "name": project_payload.get("name"),
+                    "number": project_payload.get("number"),
+                    "count": 10,
+                }
+            ),
+            payload=project_payload,
+            notes=internal_task.notes,
+        )
+        project_decision = self._next_project_upsert(internal_task=project_task, history=history)
+        if project_decision is not None:
+            if project_decision.kind == "finish" and _finish_reason_indicates_failure(project_decision.reason):
+                return project_decision
+            if project_decision.kind != "finish":
+                return project_decision
+
+        project = _resolved_project_by_ref(
+            history,
+            {
+                "name": project_payload.get("name"),
+                "number": project_payload.get("number"),
+            },
+        )
+        if project is None:
+            return None
+
+        project_id = project.get("id")
+        if project_id in {None, ""}:
+            return None
+
+        activity_ref = dict(default_activity_ref or {"name": "Project work", "isChargeable": True, "isProjectActivity": True})
+        activity = _resolved_activity_by_ref(history, activity_ref)
+        if activity is None:
+            activity_search = _drop_empty(
+                {
+                    "name": activity_ref.get("name"),
+                    "number": activity_ref.get("number"),
+                    "isChargeable": True,
+                    "count": 10,
+                    "fields": "id,name,number,isChargeable,isProjectActivity",
+                }
+            )
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/activity",
+                predicate=lambda request: _request_contains_params(request, activity_search),
+            ):
+                return _action(
+                    reason="Resolve the project activity before registering project lifecycle hours.",
+                    method="GET",
+                    path="/activity",
+                    params=activity_search,
+                )
+
+            activity_payload = _drop_empty(
+                {
+                    "name": activity_ref.get("name") or "Project work",
+                    "number": activity_ref.get("number"),
+                    "isProjectActivity": activity_ref.get("isProjectActivity", True),
+                    "isChargeable": activity_ref.get("isChargeable", True),
+                }
+            )
+            if not _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/activity",
+                predicate=lambda request: _request_json_contains(request, activity_payload),
+            ):
+                return _action(
+                    reason="Create a default chargeable project activity for the lifecycle workflow.",
+                    method="POST",
+                    path="/activity",
+                    json=activity_payload,
+                )
+            return None
+
+        activity_id = activity.get("id")
+        if activity_id in {None, ""}:
+            return None
+
+        for entry in timesheet_entries:
+            employee_ref = dict(entry.get("employeeRef") or {})
+            employee_task = InternalTask(
+                method_name="UpsertEmployee",
+                flow_kind=FlowKind.EMPLOYEE_UPSERT,
+                operation="update",
+                target_resource="employee",
+                objective=internal_task.objective,
+                search=_drop_empty(
+                    {
+                        "email": employee_ref.get("email"),
+                        "firstName": employee_ref.get("firstName"),
+                        "lastName": employee_ref.get("lastName"),
+                        "count": 10,
+                    }
+                ),
+                payload=_drop_empty(
+                    {
+                        "firstName": employee_ref.get("firstName"),
+                        "lastName": employee_ref.get("lastName"),
+                        "email": employee_ref.get("email"),
+                    }
+                ),
+                notes=internal_task.notes,
+            )
+            employee_decision = self._next_employee_upsert(internal_task=employee_task, history=history)
+            if employee_decision is not None:
+                if employee_decision.kind == "finish" and _finish_reason_indicates_failure(employee_decision.reason):
+                    return employee_decision
+                if employee_decision.kind != "finish":
+                    return employee_decision
+
+            employee = _resolved_employee_by_ref(history, employee_ref)
+            if employee is None:
+                return None
+
+            employee_id = employee.get("id")
+            if employee_id in {None, ""}:
+                return None
+
+            entry_date = entry.get("date") or default_action_date(task_analysis, "date")
+            hours = entry.get("hours")
+            if hours in {None, ""}:
+                continue
+            comment = entry.get("comment")
+            timesheet_search = {
+                "employeeId": employee_id,
+                "projectId": project_id,
+                "activityId": activity_id,
+                "dateFrom": entry_date,
+                "dateTo": entry_date,
+                "count": 10,
+                "fields": "id,version,date,hours,projectChargeableHours,comment,chargeable",
+            }
+            timesheet_entry = _resolved_timesheet_entry_from_history(
+                history,
+                employee_id=employee_id,
+                project_id=project_id,
+                activity_id=activity_id,
+                entry_date=entry_date,
+            )
+            if timesheet_entry is None:
+                if not _has_attempt_exact_where(
+                    history,
+                    method="GET",
+                    path="/timesheet/entry",
+                    predicate=lambda request: _request_contains_params(request, timesheet_search),
+                ):
+                    return _action(
+                        reason="Resolve any existing project timesheet entry before creating a duplicate entry.",
+                        method="GET",
+                        path="/timesheet/entry",
+                        params=timesheet_search,
+                    )
+
+                create_entry_payload = _build_timesheet_entry_payload(
+                    employee_id=employee_id,
+                    project_id=project_id,
+                    activity_id=activity_id,
+                    entry_date=entry_date,
+                    hours=hours,
+                    hourly_rate=entry.get("hourlyRate") or 0,
+                    comment=comment,
+                )
+                if _has_attempt_exact_where(
+                    history,
+                    method="POST",
+                    path="/timesheet/entry",
+                    predicate=lambda request: _request_json_contains(request, create_entry_payload),
+                ):
+                    return None
+                return _action(
+                    reason="Register the project lifecycle timesheet entry for the resolved employee.",
+                    method="POST",
+                    path="/timesheet/entry",
+                    json=create_entry_payload,
+                )
+
+            if not _timesheet_entry_matches(
+                timesheet_entry,
+                entry_date=entry_date,
+                hours=hours,
+                hourly_rate=entry.get("hourlyRate") or 0,
+                comment=comment,
+            ):
+                entry_id = timesheet_entry.get("id")
+                entry_version = timesheet_entry.get("version")
+                if entry_id in {None, ""} or entry_version in {None, ""}:
+                    return None
+                update_entry_payload = _build_timesheet_entry_payload(
+                    employee_id=employee_id,
+                    project_id=project_id,
+                    activity_id=activity_id,
+                    entry_date=entry_date,
+                    hours=hours,
+                    hourly_rate=entry.get("hourlyRate") or 0,
+                    comment=comment,
+                    entry_id=entry_id,
+                    entry_version=entry_version,
+                )
+                if _has_attempt_exact_where(
+                    history,
+                    method="PUT",
+                    path=f"/timesheet/entry/{entry_id}",
+                    predicate=lambda request: _request_json_contains(request, update_entry_payload),
+                ):
+                    return None
+                return _action(
+                    reason="Update the project lifecycle timesheet entry to the requested hours.",
+                    method="PUT",
+                    path=f"/timesheet/entry/{entry_id}",
+                    json=update_entry_payload,
+                )
+
+        if supplier_invoice:
+            supplier_task = InternalTask(
+                method_name="RegisterSupplierInvoice",
+                flow_kind=FlowKind.SUPPLIER_INVOICE_WORKFLOW,
+                operation="create",
+                target_resource="supplierinvoice",
+                objective=internal_task.objective,
+                search=_drop_empty(
+                    {
+                        "organizationNumber": supplier_invoice.get("supplierOrganizationNumber"),
+                        "email": supplier_invoice.get("supplierEmail"),
+                        "count": 10,
+                        "fields": "id,name,organizationNumber,email,invoiceEmail",
+                    }
+                ),
+                payload=_drop_empty(
+                    {
+                        "supplier": {
+                            "name": supplier_invoice.get("supplierName"),
+                            "organizationNumber": supplier_invoice.get("supplierOrganizationNumber"),
+                            "email": supplier_invoice.get("supplierEmail"),
+                        },
+                        "invoiceNumber": supplier_invoice.get("invoiceNumber"),
+                        "description": supplier_invoice.get("description"),
+                        "accountNumber": supplier_invoice.get("accountNumber"),
+                        "amountIncludingVat": supplier_invoice.get("amountIncludingVat"),
+                        "vatType": {
+                            "direction": "INCOMING",
+                            "percentage": supplier_invoice.get("vatRate"),
+                        },
+                        "invoiceDate": supplier_invoice.get("invoiceDate") or invoice_payload.get("invoiceDate"),
+                        "dueDate": supplier_invoice.get("dueDate") or invoice_payload.get("invoiceDate"),
+                        "voucherTypeName": supplier_invoice.get("voucherTypeName"),
+                    }
+                ),
+                notes=internal_task.notes,
+            )
+            supplier_decision = self._next_supplier_invoice_workflow(
+                internal_task=supplier_task,
+                task_analysis=task_analysis,
+                history=history,
+            )
+            if supplier_decision is not None:
+                if supplier_decision.kind == "finish" and _finish_reason_indicates_failure(supplier_decision.reason):
+                    return supplier_decision
+                if supplier_decision.kind != "finish":
+                    return supplier_decision
+
+        sales_order_lines = _project_lifecycle_order_lines(
+            project_name=project.get("name") or project_payload.get("name"),
+            timesheet_entries=timesheet_entries,
+            budget_amount=invoice_payload.get("budgetAmount"),
+        )
+        if not sales_order_lines:
+            return None
+
+        sales_task = InternalTask(
+            method_name="RunSalesWorkflow",
+            flow_kind=FlowKind.SALES_WORKFLOW,
+            operation="invoice",
+            target_resource="invoice",
+            objective=internal_task.objective,
+            search=_drop_empty(
+                {
+                    "organizationNumber": customer_ref.get("organizationNumber"),
+                    "customerName": customer_ref.get("customerName"),
+                    "count": 10,
+                }
+            ),
+            payload=_drop_empty(
+                {
+                    "customer": {
+                        "name": customer_ref.get("customerName"),
+                        "organizationNumber": customer_ref.get("organizationNumber"),
+                    },
+                    "project": {"id": project_id},
+                    "orderLines": sales_order_lines,
+                    "orderDate": invoice_payload.get("invoiceDate") or default_action_date(task_analysis, "date"),
+                    "deliveryDate": invoice_payload.get("invoiceDate") or default_action_date(task_analysis, "date"),
+                    "invoiceDate": invoice_payload.get("invoiceDate") or default_action_date(task_analysis, "date"),
+                    "invoiceDueDate": invoice_payload.get("invoiceDueDate") or invoice_payload.get("invoiceDate"),
+                    "createInvoice": True,
+                }
+            ),
+            notes=internal_task.notes,
+        )
+        sales_decision = self._next_sales_workflow(
+            internal_task=sales_task,
+            task_analysis=task_analysis,
+            history=history,
+        )
+        if sales_decision is not None:
+            if sales_decision.kind == "finish":
+                return PlannerDecision(kind="finish", reason="The project lifecycle workflow is complete.")
+            return sales_decision
+
+        return None
+
     def _next_invoice_payment(
         self,
         *,
@@ -1216,22 +3701,48 @@ class DeterministicWorkflowRouter:
         if _has_success(history, method="PUT", path_suffix="/:payment"):
             return PlannerDecision(kind="finish", reason="Invoice payment action already completed.")
 
-        invoice = resolved_invoice_from_history(history, task_analysis)
+        customer_ref = _invoice_payment_customer_ref(internal_task)
+        customer = _resolved_customer_by_ref(history, customer_ref)
+        customer_id = internal_task.search.get("customerId")
+        if customer_id in {None, ""} and customer is None and customer_ref:
+            customer_search = _invoice_payment_customer_search_params(internal_task)
+            if customer_search and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/customer",
+                predicate=lambda request, expected=customer_search: _request_contains_params(request, expected),
+            ):
+                return _action(
+                    reason="Resolve the customer before locating the outgoing invoice to register payment on.",
+                    method="GET",
+                    path="/customer",
+                    params=customer_search,
+                )
+            if customer_search:
+                customer = _resolved_customer_by_ref(history, customer_ref)
+        if customer_id in {None, ""} and customer is not None:
+            customer_id = customer.get("id")
+
+        invoice = _resolved_invoice_payment_target_invoice(
+            history,
+            internal_task=internal_task,
+            task_analysis=task_analysis,
+            customer_id=customer_id,
+        )
         if invoice is None:
+            search_params = _invoice_payment_invoice_search_params(
+                internal_task=internal_task,
+                task_analysis=task_analysis,
+                customer_id=customer_id,
+            )
+            if search_params is None:
+                return None
             if _has_attempt_exact_where(
                 history,
                 method="GET",
                 path="/invoice",
-                predicate=lambda request: _request_contains_params(request, _invoice_search_params(task_analysis) or {}),
+                predicate=lambda request, expected=search_params: _request_contains_params(request, expected),
             ):
-                return None
-            search_params = _invoice_search_params(task_analysis)
-            if internal_task.search.get("invoiceNumber") not in {None, ""}:
-                search_params = {
-                    **(search_params or {}),
-                    "invoiceNumber": internal_task.search["invoiceNumber"],
-                }
-            if search_params is None:
                 return None
             return _action(
                 reason="Resolve the target invoice with a spec-valid invoice search before registering payment.",
@@ -1720,6 +4231,207 @@ def _drop_empty(mapping: dict[str, Any]) -> dict[str, Any]:
     return cleaned
 
 
+def _generic_search_params(capability: ResourceCapability, search: dict[str, Any] | None) -> dict[str, Any]:
+    raw_search = _drop_empty(dict(search or {}))
+    if not raw_search:
+        return {}
+    allowed = set(capability.search_parameters) | {"count", "from", "fields", "sorting"}
+    if capability.search_parameters:
+        filtered = {key: value for key, value in raw_search.items() if key in allowed}
+    else:
+        filtered = dict(raw_search)
+    if filtered and "count" not in filtered and capability.collection_path is not None:
+        filtered["count"] = 10
+    return filtered
+
+
+def _generic_identity_ref(search: dict[str, Any] | None, payload: dict[str, Any] | None) -> dict[str, Any]:
+    ref: dict[str, Any] = {}
+    for source in (search or {}, payload or {}):
+        for key, value in source.items():
+            if isinstance(value, (dict, list)):
+                continue
+            if _is_blank(value):
+                continue
+            normalized = _normalized_generic_key(key)
+            if normalized in {
+                "id",
+                "name",
+                "title",
+                "description",
+                "number",
+                "departmentnumber",
+                "employeenumber",
+                "productnumber",
+                "projectnumber",
+                "activitynumber",
+                "invoicenumber",
+                "organizationnumber",
+                "customerorganizationnumber",
+                "supplierorganizationnumber",
+                "email",
+                "employeeemail",
+                "customeremail",
+                "supplieremail",
+                "customername",
+                "suppliername",
+                "projectname",
+                "departmentname",
+                "activityname",
+                "productname",
+                "code",
+                "date",
+            }:
+                ref.setdefault(key, value)
+    return ref
+
+
+def _normalized_generic_key(value: Any) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(value or "").casefold())
+
+
+def _generic_candidate_aliases(key: str) -> tuple[str, ...]:
+    normalized = _normalized_generic_key(key)
+    aliases = {
+        "id": ("id",),
+        "name": ("name", "title", "description"),
+        "title": ("title", "name"),
+        "description": ("description", "name", "title"),
+        "customername": ("name",),
+        "suppliername": ("name",),
+        "projectname": ("name",),
+        "departmentname": ("name",),
+        "activityname": ("name",),
+        "productname": ("name",),
+        "number": ("number",),
+        "departmentnumber": ("departmentNumber", "number"),
+        "employeenumber": ("employeeNumber", "number"),
+        "productnumber": ("number",),
+        "projectnumber": ("number",),
+        "activitynumber": ("number",),
+        "invoicenumber": ("invoiceNumber", "number"),
+        "organizationnumber": ("organizationNumber",),
+        "customerorganizationnumber": ("organizationNumber",),
+        "supplierorganizationnumber": ("organizationNumber",),
+        "email": ("email", "invoiceEmail"),
+        "employeeemail": ("email",),
+        "customeremail": ("email", "invoiceEmail"),
+        "supplieremail": ("email", "invoiceEmail"),
+        "code": ("code",),
+        "date": ("date",),
+    }
+    return aliases.get(normalized, (str(key),))
+
+
+def _generic_entity_matches_ref(candidate: dict[str, Any], ref: dict[str, Any] | None) -> bool:
+    if not ref:
+        return True
+    matched = False
+    for key, value in ref.items():
+        aliases = _generic_candidate_aliases(key)
+        expected_text = _normalized_text_match(value)
+        expected_raw = str(value)
+        matched_this_key = False
+        for alias in aliases:
+            actual = candidate.get(alias)
+            if isinstance(actual, dict):
+                actual = actual.get("id")
+            if actual in {None, ""}:
+                continue
+            if alias in {"id", "number", "departmentNumber", "employeeNumber", "invoiceNumber", "organizationNumber", "code"}:
+                if str(actual) == expected_raw:
+                    matched_this_key = True
+                    break
+            else:
+                actual_text = _normalized_text_match(actual)
+                if expected_text and actual_text and (expected_text == actual_text or expected_text in actual_text or actual_text in expected_text):
+                    matched_this_key = True
+                    break
+        if matched_this_key:
+            matched = True
+            continue
+        return False
+    return matched
+
+
+def _path_matches_template_path(template_path: str | None, actual_path: str) -> bool:
+    if template_path in {None, ""}:
+        return False
+    pattern = re.sub(r"\{[^/]+\}", r"[^/]+", re.escape(str(template_path)).replace("\\{", "{").replace("\\}", "}"))
+    return re.fullmatch(pattern, actual_path) is not None
+
+
+def _render_detail_path(template_path: str | None, entity_id: Any) -> str | None:
+    if template_path in {None, ""} or entity_id in {None, ""}:
+        return None
+    normalized_entity_id = str(entity_id)
+    if "{" not in str(template_path):
+        return str(template_path)
+    return re.sub(r"\{[^/]+\}", normalized_entity_id, str(template_path))
+
+
+def _resolved_resource_entity(
+    history: list[dict[str, Any]],
+    *,
+    resource_family: str,
+    collection_path: str | None,
+    detail_path: str | None,
+    ref: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    if resource_family == "customer":
+        return _resolved_customer_by_ref(history, ref)
+    if resource_family == "supplier":
+        return _resolved_supplier_by_ref(history, ref)
+    if resource_family == "product":
+        return _resolved_product_by_ref(history, ref)
+    if resource_family == "employee":
+        return _resolved_employee_by_ref(history, ref)
+    if resource_family == "department":
+        return _resolved_department_by_ref(history, ref)
+    if resource_family == "project":
+        return _resolved_project_by_ref(history, ref)
+    if resource_family == "activity":
+        return _resolved_activity_by_ref(history, ref)
+    return _resolved_generic_entity(
+        history,
+        collection_path=collection_path,
+        detail_path=detail_path,
+        ref=ref,
+    )
+
+
+def _resolved_generic_entity(
+    history: list[dict[str, Any]],
+    *,
+    collection_path: str | None,
+    detail_path: str | None,
+    ref: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        method = str(request.get("method") or "").upper()
+        path = str(request.get("path") or "")
+        candidates: list[dict[str, Any]] = []
+        if collection_path and path == collection_path:
+            if method in {"GET"} and isinstance(response.get("values"), list):
+                candidates = [candidate for candidate in response["values"] if isinstance(candidate, dict)]
+            elif method in {"POST", "PUT"} and isinstance(response.get("value"), dict):
+                candidates = [response["value"]]
+        elif detail_path and _path_matches_template_path(detail_path, path):
+            if method in {"GET", "PUT"} and isinstance(response.get("value"), dict):
+                candidates = [response["value"]]
+
+        for candidate in candidates:
+            if _generic_entity_matches_ref(candidate, ref):
+                return candidate
+        if len(candidates) == 1 and not ref:
+            return candidates[0]
+    return None
+
+
 def _is_blank(value: Any) -> bool:
     return value is None or value == ""
 
@@ -1949,6 +4661,18 @@ def _resolved_department_by_ref(history: list[dict[str, Any]], ref: dict[str, An
     return None
 
 
+def _department_payload_from_ref(ref: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not ref:
+        return None
+    payload = _drop_empty(
+        {
+            "name": ref.get("name"),
+            "departmentNumber": ref.get("departmentNumber"),
+        }
+    )
+    return payload or None
+
+
 def _resolved_project_by_ref(history: list[dict[str, Any]], ref: dict[str, Any] | None) -> dict[str, Any] | None:
     if not ref:
         return None
@@ -2013,6 +4737,93 @@ def _resolved_activity_by_ref(history: list[dict[str, Any]], ref: dict[str, Any]
             if target_name and str(candidate.get("name") or "").lower() == target_name:
                 return candidate
         if len(candidates) == 1 and not any((target_number, target_name)):
+            return candidates[0]
+    return None
+
+
+def _resolved_employment_for_employee(history: list[dict[str, Any]], *, employee_id: Any) -> dict[str, Any] | None:
+    target_employee_id = str(employee_id)
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        method = str(request.get("method") or "").upper()
+        path = str(request.get("path") or "")
+        candidates: list[dict[str, Any]] = []
+        if path == "/employee/employment" and method == "POST" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+        elif path == "/employee/employment" and method == "GET" and isinstance(response.get("values"), list):
+            candidates = [candidate for candidate in response["values"] if isinstance(candidate, dict)]
+        elif path.startswith("/employee/employment/") and method == "GET" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+
+        for candidate in candidates:
+            candidate_employee_id = _entity_id(candidate.get("employee"))
+            if candidate_employee_id not in {None, ""} and str(candidate_employee_id) == target_employee_id:
+                return candidate
+        if len(candidates) == 1 and not target_employee_id:
+            return candidates[0]
+    return None
+
+
+def _resolved_employment_details_for_employment(history: list[dict[str, Any]], *, employment_id: Any) -> dict[str, Any] | None:
+    target_employment_id = str(employment_id)
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        method = str(request.get("method") or "").upper()
+        path = str(request.get("path") or "")
+        candidates: list[dict[str, Any]] = []
+        if path == "/employee/employment/details" and method == "POST" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+        elif path == "/employee/employment/details" and method == "GET" and isinstance(response.get("values"), list):
+            candidates = [candidate for candidate in response["values"] if isinstance(candidate, dict)]
+        elif path.startswith("/employee/employment/details/") and method == "GET" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+
+        for candidate in candidates:
+            candidate_employment_id = _entity_id(candidate.get("employment"))
+            if candidate_employment_id not in {None, ""} and str(candidate_employment_id) == target_employment_id:
+                return candidate
+        if len(candidates) == 1 and not target_employment_id:
+            return candidates[0]
+    return None
+
+
+def _resolved_occupation_code_by_ref(history: list[dict[str, Any]], ref: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not ref:
+        return None
+    target_id = ref.get("id")
+    target_code = ref.get("code")
+    target_name = ref.get("nameNO")
+    target_id = str(target_id) if not _is_blank(target_id) else None
+    target_code = str(target_code) if not _is_blank(target_code) else None
+    target_name = str(target_name).lower() if not _is_blank(target_name) else None
+
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        method = str(request.get("method") or "").upper()
+        path = str(request.get("path") or "")
+        candidates: list[dict[str, Any]] = []
+        if path == "/employee/employment/occupationCode" and method == "GET" and isinstance(response.get("values"), list):
+            candidates = [candidate for candidate in response["values"] if isinstance(candidate, dict)]
+        elif path.startswith("/employee/employment/occupationCode/") and method == "GET" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+
+        for candidate in candidates:
+            if target_id and str(candidate.get("id") or "") == target_id:
+                return candidate
+            if target_code and str(candidate.get("code") or "") == target_code:
+                return candidate
+            if target_name and str(candidate.get("nameNO") or "").lower() == target_name:
+                return candidate
+        if len(candidates) == 1 and not any((target_id, target_code, target_name)):
             return candidates[0]
     return None
 
@@ -2223,6 +5034,12 @@ def _build_incoming_invoice_payload_from_internal(
 
     order_line = {
         "row": 1,
+        "externalId": _incoming_invoice_external_id(
+            supplier_id=supplier_id,
+            invoice_number=invoice_number,
+            invoice_date=invoice_date,
+            description=description,
+        ),
         "description": description,
         "accountId": account_id,
         "count": 1,
@@ -2230,11 +5047,355 @@ def _build_incoming_invoice_payload_from_internal(
     }
     if isinstance(vat_type, dict) and vat_type.get("id") not in {None, ""}:
         order_line["vatTypeId"] = vat_type["id"]
+    elif account.get("vatTypeId") not in {None, ""}:
+        order_line["vatTypeId"] = account["vatTypeId"]
 
     return {
         "invoiceHeader": invoice_header,
         "orderLines": [order_line],
     }
+
+
+def _salary_line_type_ref(line: dict[str, Any]) -> dict[str, Any]:
+    salary_type = line.get("salaryType") if isinstance(line.get("salaryType"), dict) else {}
+    return _drop_empty(
+        {
+            "id": line.get("salaryTypeId") or salary_type.get("id"),
+            "number": line.get("salaryTypeNumber") or line.get("typeNumber") or salary_type.get("number"),
+            "name": line.get("salaryTypeName") or line.get("typeName") or salary_type.get("name"),
+            "description": line.get("salaryTypeDescription") or salary_type.get("description"),
+        }
+    )
+
+
+def _resolved_salary_type_by_ref(history: list[dict[str, Any]], ref: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not ref:
+        return None
+    target_id = ref.get("id")
+    target_number = ref.get("number")
+    target_name = _normalized_text_match(ref.get("name"))
+    target_description = _normalized_text_match(ref.get("description"))
+    target_id = str(target_id) if target_id not in {None, ""} else None
+    target_number = str(target_number) if target_number not in {None, ""} else None
+
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        method = str(request.get("method") or "").upper()
+        path = str(request.get("path") or "")
+        candidates: list[dict[str, Any]] = []
+        if path == "/salary/type" and method == "GET" and isinstance(response.get("values"), list):
+            candidates = [candidate for candidate in response["values"] if isinstance(candidate, dict)]
+        elif path.startswith("/salary/type/") and method == "GET" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+
+        for candidate in candidates:
+            if target_id and str(candidate.get("id") or "") == target_id:
+                return candidate
+            if target_number and str(candidate.get("number") or "") == target_number:
+                return candidate
+            candidate_name = _normalized_text_match(candidate.get("name"))
+            if target_name and candidate_name and (target_name == candidate_name or target_name in candidate_name or candidate_name in target_name):
+                return candidate
+            candidate_description = _normalized_text_match(candidate.get("description"))
+            if (
+                target_description
+                and candidate_description
+                and (
+                    target_description == candidate_description
+                    or target_description in candidate_description
+                    or candidate_description in target_description
+                )
+            ):
+                return candidate
+        if len(candidates) == 1 and not any((target_id, target_number, target_name, target_description)):
+            return candidates[0]
+    return None
+
+
+def _salary_type_search_params(ref: dict[str, Any] | None) -> dict[str, Any]:
+    if not ref:
+        return {}
+    return _drop_empty(
+        {
+            "id": ref.get("id"),
+            "number": ref.get("number"),
+            "name": ref.get("name"),
+            "description": ref.get("description"),
+            "count": 20,
+            "fields": "id,number,name,description",
+        }
+    )
+
+
+def _build_salary_transaction_payload(
+    *,
+    internal_task: InternalTask,
+    employee_id: Any,
+    salary_types: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    if employee_id in {None, ""}:
+        return None
+    payroll_date = internal_task.payload.get("date") or date.today().isoformat()
+    payroll_month = internal_task.payload.get("month")
+    payroll_year = internal_task.payload.get("year")
+    salary_lines = [line for line in (internal_task.payload.get("salaryLines") or []) if isinstance(line, dict)]
+    if not salary_lines or len(salary_lines) != len(salary_types):
+        return None
+
+    specifications: list[dict[str, Any]] = []
+    for line, salary_type in zip(salary_lines, salary_types):
+        salary_type_id = salary_type.get("id")
+        if salary_type_id in {None, ""}:
+            return None
+        specification = _drop_empty(
+            {
+                "employee": {"id": employee_id},
+                "salaryType": {"id": salary_type_id},
+                "year": int(payroll_year) if payroll_year not in {None, ""} else None,
+                "month": int(payroll_month) if payroll_month not in {None, ""} else None,
+                "amount": _safe_float(line.get("amount")),
+                "rate": _safe_float(line.get("rate")),
+                "count": _safe_float(line.get("count")),
+                "description": line.get("description"),
+            }
+        )
+        if not any(key in specification for key in ("amount", "rate", "count")):
+            return None
+        specifications.append(specification)
+
+    return _drop_empty(
+        {
+            "date": payroll_date,
+            "year": int(payroll_year) if payroll_year not in {None, ""} else None,
+            "month": int(payroll_month) if payroll_month not in {None, ""} else None,
+            "isHistorical": internal_task.payload.get("isHistorical"),
+            "paySlipsAvailableDate": internal_task.payload.get("paySlipsAvailableDate"),
+            "payslips": [
+                _drop_empty(
+                    {
+                        "employee": {"id": employee_id},
+                        "date": payroll_date,
+                        "year": int(payroll_year) if payroll_year not in {None, ""} else None,
+                        "month": int(payroll_month) if payroll_month not in {None, ""} else None,
+                        "specifications": specifications,
+                    }
+                )
+            ],
+        }
+    )
+
+
+def _bank_statement_direction(entry: dict[str, Any]) -> str:
+    raw_direction = _normalized_text_match(entry.get("direction"))
+    if raw_direction in {"incoming", "credit", "customer", "in"}:
+        return "incoming"
+    if raw_direction in {"outgoing", "debit", "supplier", "out"}:
+        return "outgoing"
+    amount = _safe_float(entry.get("amount"))
+    if amount is not None:
+        return "outgoing" if amount < 0 else "incoming"
+    if isinstance(entry.get("supplier"), dict) and entry["supplier"]:
+        return "outgoing"
+    return "incoming"
+
+
+def _bank_entry_paid_amount(entry: dict[str, Any]) -> float | None:
+    amount = _safe_float(
+        entry.get("amount")
+        or entry.get("amountCurrency")
+        or entry.get("paidAmount")
+        or entry.get("paymentAmount")
+    )
+    if amount is None:
+        return None
+    return round(abs(amount), 2)
+
+
+def _resolved_bank_customer_invoice_from_history(
+    history: list[dict[str, Any]],
+    *,
+    entry: dict[str, Any],
+    customer_id: Any | None,
+) -> dict[str, Any] | None:
+    target_invoice_number = str(entry.get("invoiceNumber")) if entry.get("invoiceNumber") not in {None, ""} else None
+    target_customer_id = str(customer_id) if customer_id not in {None, ""} else None
+    target_amount = _bank_entry_paid_amount(entry)
+    target_description = _normalized_text_match(entry.get("description"))
+    matches: list[dict[str, Any]] = []
+
+    for history_entry in reversed(history):
+        response = history_entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = history_entry.get("request") or {}
+        if str(request.get("method") or "").upper() != "GET" or str(request.get("path") or "") != "/invoice":
+            continue
+        values = [candidate for candidate in (response.get("values") or []) if isinstance(candidate, dict)]
+        if target_invoice_number:
+            for candidate in values:
+                if str(candidate.get("invoiceNumber") or "") == target_invoice_number:
+                    return candidate
+        for candidate in values:
+            candidate_customer_id = _entity_id(candidate.get("customer")) or candidate.get("customerId")
+            if target_customer_id and str(candidate_customer_id or "") not in {target_customer_id, ""}:
+                continue
+            if target_amount is not None and not _invoice_candidate_matches_amount(candidate, target_amount):
+                continue
+            if target_description and not _invoice_candidate_matches_description(candidate, target_description):
+                continue
+            matches.append(candidate)
+        if len(values) == 1 and not any((target_invoice_number, target_customer_id, target_amount is not None)):
+            return values[0]
+
+    if len(matches) == 1:
+        return matches[0]
+    return None
+
+
+def _bank_customer_invoice_search_params(
+    *,
+    entry: dict[str, Any],
+    customer_id: Any | None,
+    internal_task: InternalTask,
+    task_analysis: TaskAnalysis,
+) -> dict[str, Any] | None:
+    invoice_number = entry.get("invoiceNumber")
+    date_from = entry.get("invoiceDateFrom") or internal_task.payload.get("fromDate") or internal_task.search.get("fromDate")
+    date_to = entry.get("invoiceDateTo") or internal_task.payload.get("toDate") or internal_task.search.get("toDate")
+    if date_from in {None, ""} or date_to in {None, ""}:
+        fallback_from, fallback_to = best_effort_date_window(
+            task_analysis,
+            start_key="fromDate",
+            end_key="toDate",
+        )
+        date_from = date_from or fallback_from
+        date_to = date_to or fallback_to
+    params = _drop_empty(
+        {
+            "invoiceDateFrom": date_from,
+            "invoiceDateTo": date_to,
+            "invoiceNumber": invoice_number,
+            "customerId": customer_id,
+            "count": 50,
+            "fields": "id,invoiceNumber,amount,amountCurrency,amountExcludingVat,amountExcludingVatCurrency,invoiceDate,invoiceComment,invoiceRemarks,customer(id),orderLines(description)",
+        }
+    )
+    if not any(key in params for key in ("invoiceNumber", "customerId")):
+        return None
+    return params
+
+
+def _resolved_bank_supplier_invoice_from_history(
+    history: list[dict[str, Any]],
+    *,
+    entry: dict[str, Any],
+    supplier_id: Any | None,
+) -> dict[str, Any] | None:
+    target_invoice_number = str(entry.get("invoiceNumber")) if entry.get("invoiceNumber") not in {None, ""} else None
+    target_supplier_id = str(supplier_id) if supplier_id not in {None, ""} else None
+    target_amount = _bank_entry_paid_amount(entry)
+    matches: list[dict[str, Any]] = []
+
+    for history_entry in reversed(history):
+        response = history_entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = history_entry.get("request") or {}
+        method = str(request.get("method") or "").upper()
+        path = str(request.get("path") or "")
+        values: list[dict[str, Any]] = []
+        if method == "GET" and path == "/incomingInvoice/search" and isinstance(response.get("values"), list):
+            values = [candidate for candidate in response["values"] if isinstance(candidate, dict)]
+        elif method == "POST" and path == "/incomingInvoice" and isinstance(response.get("value"), dict):
+            values = [response["value"]]
+        elif method == "GET" and path.startswith("/incomingInvoice/") and isinstance(response.get("value"), dict):
+            values = [response["value"]]
+        if not values:
+            continue
+        if target_invoice_number:
+            for candidate in values:
+                if str(candidate.get("invoiceNumber") or "") == target_invoice_number:
+                    return candidate
+        for candidate in values:
+            candidate_supplier_id = (
+                _entity_id(candidate.get("vendor"))
+                or candidate.get("vendorId")
+                or _entity_id(candidate.get("supplier"))
+            )
+            if target_supplier_id and str(candidate_supplier_id or "") not in {target_supplier_id, ""}:
+                continue
+            candidate_amount = _safe_float(
+                candidate.get("remainingAmount")
+                or candidate.get("invoiceAmount")
+                or candidate.get("amount")
+                or candidate.get("amountCurrency")
+            )
+            if target_amount is not None and candidate_amount is not None and round(abs(candidate_amount), 2) != round(target_amount, 2):
+                if candidate_amount < target_amount:
+                    continue
+            matches.append(candidate)
+        if len(values) == 1 and not any((target_invoice_number, target_supplier_id, target_amount is not None)):
+            return values[0]
+
+    if len(matches) == 1:
+        return matches[0]
+    return None
+
+
+def _bank_supplier_invoice_search_params(
+    *,
+    entry: dict[str, Any],
+    supplier_id: Any | None,
+    internal_task: InternalTask,
+    task_analysis: TaskAnalysis,
+) -> dict[str, Any] | None:
+    invoice_number = entry.get("invoiceNumber")
+    date_from = entry.get("invoiceDateFrom") or internal_task.payload.get("fromDate") or internal_task.search.get("fromDate")
+    date_to = entry.get("invoiceDateTo") or internal_task.payload.get("toDate") or internal_task.search.get("toDate")
+    if date_from in {None, ""} or date_to in {None, ""}:
+        fallback_from, fallback_to = best_effort_date_window(
+            task_analysis,
+            start_key="fromDate",
+            end_key="toDate",
+        )
+        date_from = date_from or fallback_from
+        date_to = date_to or fallback_to
+    params = _drop_empty(
+        {
+            "invoiceDateFrom": date_from,
+            "invoiceDateTo": date_to,
+            "invoiceNumber": invoice_number,
+            "vendorId": supplier_id,
+            "count": 50,
+            "fields": "voucherId,invoiceNumber,invoiceAmount,amountCurrency,remainingAmount,vendor(id,name,organizationNumber)",
+        }
+    )
+    if not any(key in params for key in ("invoiceNumber", "vendorId")):
+        return None
+    return params
+
+
+def _bank_supplier_partial_payment(entry: dict[str, Any], *, incoming_invoice: dict[str, Any]) -> bool:
+    explicit = entry.get("partialPayment")
+    if isinstance(explicit, bool):
+        return explicit
+    paid_amount = _bank_entry_paid_amount(entry)
+    if paid_amount is None:
+        return False
+    remaining_amount = _safe_float(incoming_invoice.get("remainingAmount"))
+    if remaining_amount is not None:
+        return round(paid_amount, 2) < round(abs(remaining_amount), 2)
+    invoice_amount = _safe_float(
+        incoming_invoice.get("invoiceAmount")
+        or incoming_invoice.get("amount")
+        or incoming_invoice.get("amountCurrency")
+    )
+    if invoice_amount is not None:
+        return round(paid_amount, 2) < round(abs(invoice_amount), 2)
+    return False
 
 
 def _vat_type_lookup_params(
@@ -2267,6 +5428,10 @@ def _all_order_line_vat_types_resolved(history: list[dict[str, Any]], order_line
 
 def _resolved_customer_from_internal(history: list[dict[str, Any]], internal_task: InternalTask) -> dict[str, Any] | None:
     return _resolved_customer_by_ref(history, internal_task.search or internal_task.payload)
+
+
+def _resolved_supplier_from_internal(history: list[dict[str, Any]], internal_task: InternalTask) -> dict[str, Any] | None:
+    return _resolved_supplier_by_ref(history, internal_task.search or internal_task.payload)
 
 
 def _resolved_product_from_internal(history: list[dict[str, Any]], internal_task: InternalTask) -> dict[str, Any] | None:
@@ -2461,6 +5626,168 @@ def _resolved_ledger_account_from_history(
     return None
 
 
+def _resolved_default_supplier_invoice_account(history: list[dict[str, Any]]) -> dict[str, Any] | None:
+    preferred_numbers = ("6500", "4300", "4000", "4500")
+    fallback: dict[str, Any] | None = None
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        if str(request.get("method") or "").upper() != "GET" or str(request.get("path") or "") != "/ledger/account":
+            continue
+        values = [candidate for candidate in (response.get("values") or []) if isinstance(candidate, dict)]
+        for candidate in values:
+            if candidate.get("isApplicableForSupplierInvoice") is not True:
+                continue
+            if str(candidate.get("number") or "") in preferred_numbers:
+                return candidate
+            if fallback is None:
+                fallback = candidate
+    return fallback
+
+
+def _payment_reversal_posting_search_params(
+    task_analysis: TaskAnalysis,
+    *,
+    customer_id: Any,
+    include_type: bool = True,
+) -> dict[str, Any]:
+    date_from, date_to = best_effort_date_window(
+        task_analysis,
+        start_key="paymentDateFrom",
+        end_key="paymentDateTo",
+    )
+    params = {
+        "dateFrom": date_from,
+        "dateTo": date_to,
+        "customerId": customer_id,
+        "count": 200,
+        "fields": "id,date,type,invoiceNumber,description,amount,voucher(id,description,date,version)",
+    }
+    if include_type:
+        params["type"] = "INCOMING_PAYMENT"
+    return _drop_empty(params)
+
+
+def _resolved_payment_reversal_posting(
+    history: list[dict[str, Any]],
+    *,
+    invoice: dict[str, Any],
+    internal_task: InternalTask,
+) -> dict[str, Any] | None:
+    target_invoice_number = invoice.get("invoiceNumber") or internal_task.payload.get("invoiceNumber")
+    target_invoice_number = str(target_invoice_number) if target_invoice_number not in {None, ""} else None
+    target_description = _normalized_text_match(
+        internal_task.payload.get("description")
+        or invoice.get("invoiceComment")
+        or invoice.get("invoiceRemarks")
+    )
+    target_amount = _safe_float(
+        internal_task.payload.get("amountExcludingVat")
+        or invoice.get("amountExcludingVat")
+        or internal_task.payload.get("amount")
+        or invoice.get("amount")
+    )
+    candidates: list[tuple[int, dict[str, Any]]] = []
+
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        if str(request.get("method") or "").upper() != "GET" or str(request.get("path") or "") != "/ledger/posting":
+            continue
+        values = [candidate for candidate in (response.get("values") or []) if isinstance(candidate, dict)]
+        for candidate in values:
+            score = 0
+            candidate_invoice_number = candidate.get("invoiceNumber")
+            if target_invoice_number and str(candidate_invoice_number or "") == target_invoice_number:
+                score += 100
+            description_fields = [
+                candidate.get("description"),
+                (candidate.get("voucher") or {}).get("description") if isinstance(candidate.get("voucher"), dict) else None,
+            ]
+            if target_description and any(
+                target_description in normalized or normalized in target_description
+                for normalized in (_normalized_text_match(value) for value in description_fields)
+                if normalized
+            ):
+                score += 10
+            candidate_amount = _safe_float(candidate.get("amount"))
+            if target_amount is not None and candidate_amount is not None:
+                if round(abs(candidate_amount), 2) == round(abs(target_amount), 2):
+                    score += 5
+            if _entity_id(candidate.get("voucher")) not in {None, ""}:
+                score += 1
+            if score > 0:
+                candidates.append((score, candidate))
+        if len(values) == 1 and not any((target_invoice_number, target_description, target_amount is not None)):
+            return values[0]
+
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    top_score = candidates[0][0]
+    top_candidates = [candidate for score, candidate in candidates if score == top_score]
+    if len(top_candidates) == 1:
+        return top_candidates[0]
+    for candidate in top_candidates:
+        if _entity_id(candidate.get("voucher")) not in {None, ""}:
+            return candidate
+    return top_candidates[0]
+
+
+def _project_lifecycle_order_lines(
+    *,
+    project_name: Any,
+    timesheet_entries: list[dict[str, Any]],
+    budget_amount: Any,
+) -> list[dict[str, Any]]:
+    normalized_budget = _safe_float(budget_amount)
+    if normalized_budget not in {None, 0.0}:
+        name = str(project_name or "Project").strip() or "Project"
+        return [
+            {
+                "description": f"{name} project budget",
+                "count": 1,
+                "unitPriceExcludingVatCurrency": round(float(normalized_budget), 2),
+            }
+        ]
+
+    order_lines: list[dict[str, Any]] = []
+    for entry in timesheet_entries:
+        hours = _safe_float(entry.get("hours"))
+        hourly_rate = _safe_float(entry.get("hourlyRate"))
+        if hours in {None, 0.0}:
+            continue
+        if hourly_rate is None:
+            return []
+
+        employee_ref = entry.get("employeeRef") if isinstance(entry.get("employeeRef"), dict) else {}
+        employee_name = " ".join(
+            part
+            for part in (
+                str((employee_ref or {}).get("firstName") or "").strip(),
+                str((employee_ref or {}).get("lastName") or "").strip(),
+            )
+            if part
+        )
+        description_parts = [str(project_name or "Project work").strip() or "Project work"]
+        if employee_name:
+            description_parts.append(employee_name)
+        if not _is_blank(entry.get("comment")):
+            description_parts.append(str(entry.get("comment")).strip())
+        order_lines.append(
+            {
+                "description": " - ".join(part for part in description_parts if part),
+                "count": float(hours),
+                "unitPriceExcludingVatCurrency": float(hourly_rate),
+            }
+        )
+    return order_lines
+
+
 def _resolved_currency_from_history(history: list[dict[str, Any]], *, code: str) -> dict[str, Any] | None:
     target_code = str(code).upper()
     for entry in reversed(history):
@@ -2522,6 +5849,258 @@ def _build_ledger_dimension_voucher_payload(
     }
 
 
+def _travel_expense_cost_category_search_params(description: Any) -> dict[str, Any]:
+    return {
+        "query": _travel_cost_category_query(description),
+        "showOnEmployeeExpenses": True,
+        "count": 20,
+        "fields": "id,description,displayName,showOnEmployeeExpenses",
+    }
+
+
+def _travel_expense_lookup_params(*, employee_id: Any, internal_task: InternalTask) -> dict[str, Any]:
+    params = _drop_empty(
+        {
+            "employeeId": employee_id,
+            "title": internal_task.payload.get("title"),
+            "departureDateFrom": (internal_task.payload.get("travelDetails") or {}).get("departureDate"),
+            "returnDateTo": (internal_task.payload.get("travelDetails") or {}).get("returnDate"),
+            "count": 20,
+            "fields": "id,version,title,travelDetails,employee(id)",
+        }
+    )
+    if "departureDateFrom" not in params and internal_task.search.get("departureDate") not in {None, ""}:
+        params["departureDateFrom"] = internal_task.search.get("departureDate")
+    if "returnDateTo" not in params and internal_task.search.get("returnDate") not in {None, ""}:
+        params["returnDateTo"] = internal_task.search.get("returnDate")
+    return params
+
+
+def _resolved_travel_expense_from_history(
+    history: list[dict[str, Any]],
+    *,
+    employee_id: Any,
+    internal_task: InternalTask,
+) -> dict[str, Any] | None:
+    target_employee_id = str(employee_id)
+    target_title = _normalized_text_match(internal_task.payload.get("title"))
+    target_departure = (
+        (internal_task.payload.get("travelDetails") or {}).get("departureDate")
+        or internal_task.search.get("departureDate")
+    )
+    target_return = (
+        (internal_task.payload.get("travelDetails") or {}).get("returnDate")
+        or internal_task.search.get("returnDate")
+    )
+
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        method = str(request.get("method") or "").upper()
+        path = str(request.get("path") or "")
+        candidates: list[dict[str, Any]] = []
+        if path == "/travelExpense" and method == "GET" and isinstance(response.get("values"), list):
+            candidates = [candidate for candidate in response["values"] if isinstance(candidate, dict)]
+        elif path == "/travelExpense" and method == "POST" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+        elif path.startswith("/travelExpense/") and method in {"GET", "PUT"} and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+
+        for candidate in candidates:
+            if str(_entity_id(candidate.get("employee"))) != target_employee_id:
+                continue
+            candidate_title = _normalized_text_match(candidate.get("title"))
+            if target_title and candidate_title and target_title != candidate_title:
+                continue
+            travel_details = candidate.get("travelDetails") if isinstance(candidate.get("travelDetails"), dict) else {}
+            if target_departure not in {None, ""} and str(travel_details.get("departureDate") or "") != str(target_departure):
+                continue
+            if target_return not in {None, ""} and str(travel_details.get("returnDate") or "") != str(target_return):
+                continue
+            return candidate
+        if len(candidates) == 1 and not any((target_title, target_departure, target_return)):
+            candidate = candidates[0]
+            if str(_entity_id(candidate.get("employee"))) == target_employee_id:
+                return candidate
+    return None
+
+
+def _travel_cost_category_query(description: Any) -> str:
+    normalized = _normalized_text_match(description) or ""
+    keyword_map = (
+        (("flight", "flug", "fly", "airfare", "ticket", "billett"), "flight"),
+        (("taxi", "cab"), "taxi"),
+        (("hotel", "lodging", "overnight"), "hotel"),
+        (("parking", "parkering"), "parking"),
+        (("train", "rail", "tog"), "train"),
+        (("meal", "restaurant", "food", "mat"), "meal"),
+    )
+    for keywords, query in keyword_map:
+        if any(keyword in normalized for keyword in keywords):
+            return query
+    return str(description or "").strip()
+
+
+def _resolved_travel_payment_type_from_history(history: list[dict[str, Any]]) -> dict[str, Any] | None:
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        if str(request.get("method") or "").upper() != "GET" or str(request.get("path") or "") != "/travelExpense/paymentType":
+            continue
+        params = request.get("params") or {}
+        if params.get("showOnEmployeeExpenses") is not True:
+            continue
+        values = [candidate for candidate in (response.get("values") or []) if isinstance(candidate, dict)]
+        if values:
+            return values[0]
+    return None
+
+
+def _resolved_travel_cost_category_from_history(
+    history: list[dict[str, Any]],
+    *,
+    query: Any,
+    description: Any,
+) -> dict[str, Any] | None:
+    target_query = _normalized_text_match(query)
+    target_description = _normalized_text_match(description)
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        if str(request.get("method") or "").upper() != "GET" or str(request.get("path") or "") != "/travelExpense/costCategory":
+            continue
+        params = request.get("params") or {}
+        if params.get("showOnEmployeeExpenses") is not True:
+            continue
+        if target_query and _normalized_text_match(params.get("query")) != target_query:
+            continue
+        values = [candidate for candidate in (response.get("values") or []) if isinstance(candidate, dict)]
+        for candidate in values:
+            candidate_labels = (
+                _normalized_text_match(candidate.get("description")),
+                _normalized_text_match(candidate.get("displayName")),
+            )
+            if target_description and any(
+                label and (target_description in label or label in target_description) for label in candidate_labels
+            ):
+                return candidate
+            if target_query and any(label and (target_query in label or label in target_query) for label in candidate_labels):
+                return candidate
+        if len(values) == 1:
+            return values[0]
+    return None
+
+
+def _build_travel_expense_payload(
+    *,
+    internal_task: InternalTask,
+    employee_id: Any,
+    payment_type_id: Any | None,
+    resolved_cost_categories: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    if employee_id in {None, ""}:
+        return None
+    payload = dict(internal_task.payload)
+    travel_details = dict(payload.get("travelDetails") or {})
+    title = payload.get("title")
+    if not travel_details or title in {None, ""}:
+        return None
+
+    normalized_costs: list[dict[str, Any]] = []
+    source_costs = [item for item in (payload.get("costs") or []) if isinstance(item, dict)]
+    for cost, category in zip(source_costs, resolved_cost_categories):
+        category_id = category.get("id")
+        amount = _safe_float(cost.get("amount"))
+        if category_id in {None, ""} or amount is None:
+            return None
+        cost_payload = _drop_empty(
+            {
+                "date": cost.get("date") or travel_details.get("departureDate"),
+                "comments": cost.get("description"),
+                "amountCurrencyIncVat": round(amount, 2),
+                "costCategory": {"id": category_id},
+                "paymentType": {"id": payment_type_id} if payment_type_id not in {None, ""} else None,
+            }
+        )
+        normalized_costs.append(cost_payload)
+
+    per_diems: list[dict[str, Any]] = []
+    for item in payload.get("perDiemCompensations") or []:
+        if not isinstance(item, dict):
+            continue
+        per_diems.append(_drop_empty(dict(item)))
+
+    return _drop_empty(
+        {
+            "employee": {"id": employee_id},
+            "title": title,
+            "travelDetails": travel_details,
+            "perDiemCompensations": per_diems,
+            "costs": normalized_costs,
+        }
+    )
+
+
+def _first_unresolved_month_end_account_number(
+    history: list[dict[str, Any]],
+    *,
+    voucher_spec: dict[str, Any],
+) -> str | None:
+    for posting in voucher_spec.get("postings") or []:
+        if not isinstance(posting, dict):
+            continue
+        account_number = posting.get("accountNumber")
+        if account_number in {None, ""}:
+            return None
+        resolved = _resolved_ledger_account_from_history(history, account_number=account_number)
+        if resolved is None or resolved.get("id") in {None, ""}:
+            return str(account_number)
+    return None
+
+
+def _build_month_end_voucher_payload(
+    *,
+    voucher_date: str,
+    voucher_spec: dict[str, Any],
+    history: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    description = str(voucher_spec.get("description") or "Month-end voucher").strip()
+    if not description:
+        description = "Month-end voucher"
+    postings_payload: list[dict[str, Any]] = []
+    for row_number, posting in enumerate(voucher_spec.get("postings") or [], start=1):
+        if not isinstance(posting, dict):
+            continue
+        account_number = posting.get("accountNumber")
+        account = _resolved_ledger_account_from_history(history, account_number=account_number)
+        amount = _safe_float(posting.get("amount"))
+        if account is None or account.get("id") in {None, ""} or amount is None:
+            return None
+        postings_payload.append(
+            {
+                "row": row_number,
+                "date": voucher_date,
+                "description": description,
+                "account": {"id": account["id"]},
+                "amountGross": round(amount, 2),
+                "amountGrossCurrency": round(amount, 2),
+            }
+        )
+    if not postings_payload:
+        return None
+    return {
+        "date": voucher_date,
+        "description": description,
+        "postings": postings_payload,
+    }
+
+
 def _entity_id(value: Any) -> Any | None:
     if isinstance(value, dict):
         return value.get("id")
@@ -2572,6 +6151,211 @@ def _invoice_search_params(task_analysis: TaskAnalysis) -> dict[str, Any] | None
     if customer_id not in {None, ""}:
         params["customerId"] = customer_id
     return params
+
+
+def _invoice_payment_customer_ref(internal_task: InternalTask) -> dict[str, Any]:
+    return _drop_empty(
+        {
+            "id": internal_task.search.get("customerId"),
+            "organizationNumber": internal_task.search.get("customerOrganizationNumber"),
+            "customerName": internal_task.search.get("customerName"),
+        }
+    )
+
+
+def _invoice_payment_customer_search_params(internal_task: InternalTask) -> dict[str, Any]:
+    return _drop_empty(
+        {
+            "organizationNumber": internal_task.search.get("customerOrganizationNumber"),
+            "customerName": internal_task.search.get("customerName"),
+            "count": 10,
+        }
+    )
+
+
+def _invoice_payment_invoice_search_params(
+    *,
+    internal_task: InternalTask,
+    task_analysis: TaskAnalysis,
+    customer_id: Any | None,
+) -> dict[str, Any] | None:
+    invoice_number = internal_task.search.get("invoiceNumber")
+    if invoice_number in {None, ""} and customer_id in {None, ""}:
+        return None
+    date_from = internal_task.search.get("invoiceDateFrom")
+    date_to = internal_task.search.get("invoiceDateTo")
+    if date_from in {None, ""} or date_to in {None, ""}:
+        date_from, date_to = best_effort_date_window(
+            task_analysis,
+            start_key="invoiceDateFrom",
+            end_key="invoiceDateTo",
+        )
+    params: dict[str, Any] = {
+        "invoiceDateFrom": date_from,
+        "invoiceDateTo": date_to,
+        "count": 50,
+        "fields": "id,invoiceNumber,amount,amountCurrency,amountExcludingVat,amountExcludingVatCurrency,invoiceDate,invoiceComment,invoiceRemarks,orderLines(description)",
+    }
+    if invoice_number not in {None, ""}:
+        params["invoiceNumber"] = invoice_number
+    if customer_id not in {None, ""}:
+        params["customerId"] = customer_id
+    return params
+
+
+def _resolved_invoice_payment_target_invoice(
+    history: list[dict[str, Any]],
+    *,
+    internal_task: InternalTask,
+    task_analysis: TaskAnalysis,
+    customer_id: Any | None,
+) -> dict[str, Any] | None:
+    target_invoice_number = internal_task.search.get("invoiceNumber")
+    target_invoice_number = str(target_invoice_number) if target_invoice_number not in {None, ""} else None
+    target_amount = _safe_float(internal_task.search.get("invoiceAmount") or internal_task.payload.get("paidAmount"))
+    invoice = resolved_invoice_from_history(history, task_analysis)
+    if invoice is not None and (
+        target_invoice_number is None or str(invoice.get("invoiceNumber") or "") == target_invoice_number
+    ):
+        if target_amount is None or _invoice_candidate_matches_amount(invoice, target_amount):
+            return invoice
+
+    expected_search = _invoice_payment_invoice_search_params(
+        internal_task=internal_task,
+        task_analysis=task_analysis,
+        customer_id=customer_id,
+    )
+    if expected_search is None:
+        return None
+
+    matches: list[dict[str, Any]] = []
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        if str(request.get("method") or "").upper() != "GET" or str(request.get("path") or "") != "/invoice":
+            continue
+        if not _request_contains_params(request, expected_search):
+            continue
+        values = [candidate for candidate in (response.get("values") or []) if isinstance(candidate, dict)]
+        if target_invoice_number is not None:
+            for candidate in values:
+                if str(candidate.get("invoiceNumber") or "") == target_invoice_number:
+                    return candidate
+        for candidate in values:
+            if target_amount is not None and not _invoice_candidate_matches_amount(candidate, target_amount):
+                continue
+            matches.append(candidate)
+        if target_amount is None and len(values) == 1:
+            return values[0]
+
+    if len(matches) == 1:
+        return matches[0]
+    return None
+
+
+def _expense_increase_posting_search_params(period: dict[str, Any]) -> dict[str, Any] | None:
+    date_from = period.get("dateFrom")
+    date_to = period.get("dateTo")
+    if date_from in {None, ""} or date_to in {None, ""}:
+        return None
+    return {
+        "dateFrom": date_from,
+        "dateTo": date_to,
+        "count": 1000,
+        "fields": "amount,account(id,number,name)",
+    }
+
+
+def _resolved_top_expense_increase_accounts(
+    history: list[dict[str, Any]],
+    *,
+    internal_task: InternalTask,
+    top_count: int,
+) -> list[dict[str, Any]]:
+    baseline_period = dict(internal_task.payload.get("baselinePeriod") or {})
+    comparison_period = dict(internal_task.payload.get("comparisonPeriod") or {})
+    baseline_params = _expense_increase_posting_search_params(baseline_period)
+    comparison_params = _expense_increase_posting_search_params(comparison_period)
+    if baseline_params is None or comparison_params is None:
+        return []
+
+    baseline_totals = _expense_account_totals(
+        _posting_values_for_search(history, expected_params=baseline_params),
+    )
+    comparison_totals = _expense_account_totals(
+        _posting_values_for_search(history, expected_params=comparison_params),
+    )
+
+    increases: list[dict[str, Any]] = []
+    for account_key, comparison_value in comparison_totals.items():
+        baseline_total = baseline_totals.get(account_key, {}).get("total", 0.0)
+        increase = round(comparison_value["total"] - baseline_total, 2)
+        if increase <= 0:
+            continue
+        increases.append(
+            {
+                "key": account_key,
+                "id": comparison_value.get("id"),
+                "number": comparison_value.get("number"),
+                "name": comparison_value.get("name"),
+                "increase": increase,
+            }
+        )
+
+    increases.sort(key=lambda item: (-float(item["increase"]), str(item.get("name") or "")))
+    return increases[: max(top_count, 1)]
+
+
+def _posting_values_for_search(history: list[dict[str, Any]], *, expected_params: dict[str, Any]) -> list[dict[str, Any]]:
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        if str(request.get("method") or "").upper() != "GET" or str(request.get("path") or "") != "/ledger/posting":
+            continue
+        if not _request_contains_params(request, expected_params):
+            continue
+        values = response.get("values") or []
+        if isinstance(values, list):
+            return [candidate for candidate in values if isinstance(candidate, dict)]
+    return []
+
+
+def _expense_account_totals(values: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    totals: dict[str, dict[str, Any]] = {}
+    for candidate in values:
+        account = candidate.get("account")
+        if not isinstance(account, dict):
+            continue
+        number_value = account.get("number")
+        if not _is_expense_account_number(number_value):
+            continue
+        account_key = str(number_value)
+        amount = _safe_float(candidate.get("amount"))
+        if amount is None:
+            continue
+        entry = totals.setdefault(
+            account_key,
+            {
+                "id": account.get("id"),
+                "number": number_value,
+                "name": account.get("name") or account_key,
+                "total": 0.0,
+            },
+        )
+        entry["total"] = round(float(entry["total"]) + amount, 2)
+    return totals
+
+
+def _is_expense_account_number(value: Any) -> bool:
+    try:
+        number = int(str(value))
+    except (TypeError, ValueError):
+        return False
+    return 4000 <= number < 9000
 
 
 def _resolved_credit_note_target_invoice(
@@ -3105,3 +6889,141 @@ def _has_api_error_exact_where(
             continue
         return True
     return False
+
+
+def _latest_api_error_exact_where(
+    history: list[dict[str, Any]],
+    *,
+    method: str,
+    path: str,
+    predicate: Any | None,
+) -> dict[str, Any] | None:
+    for entry in reversed(history):
+        error = entry.get("error")
+        if not isinstance(error, dict):
+            continue
+        request = entry.get("request") or {}
+        if str(request.get("method") or "").upper() != method.upper():
+            continue
+        if str(request.get("path") or "") != path:
+            continue
+        if error.get("type") != "tripletex_api":
+            continue
+        if predicate is not None and not predicate(request):
+            continue
+        return error
+    return None
+
+
+def _tripletex_error_summary(error: dict[str, Any]) -> str:
+    status_code = error.get("status_code")
+    message = str(error.get("message") or "").strip()
+    if message:
+        if status_code in {None, ""}:
+            return message
+        return f"{status_code} {message}"
+    if status_code not in {None, ""}:
+        return f"{status_code}"
+    return "unknown Tripletex API error"
+
+
+def _incoming_invoice_external_id(
+    *,
+    supplier_id: Any,
+    invoice_number: Any,
+    invoice_date: Any,
+    description: Any,
+) -> str:
+    raw_value = invoice_number or f"{supplier_id}-{invoice_date or description or 'supplier-invoice'}"
+    normalized = re.sub(r"[^A-Za-z0-9._-]+", "-", str(raw_value)).strip("-")
+    if not normalized:
+        normalized = f"supplier-invoice-{supplier_id}"
+    return normalized[:120]
+
+
+def _finish_reason_indicates_failure(reason: str) -> bool:
+    normalized = " ".join(str(reason).strip().lower().split())
+    return any(
+        token in normalized
+        for token in (
+            "unable to",
+            "cannot ",
+            "can't ",
+            "could not",
+            "did not",
+            "not found",
+            "no results",
+            "no matching",
+            "failed to",
+            "cannot proceed",
+            "couldn't",
+        )
+    )
+
+
+def _trim_payload(value: Any, *, max_depth: int = 3, max_items: int = 5) -> Any:
+    if max_depth <= 0:
+        return "<truncated>"
+    if isinstance(value, dict):
+        trimmed: dict[str, Any] = {}
+        for index, (key, item) in enumerate(value.items()):
+            if index >= max_items:
+                trimmed["..."] = "<truncated>"
+                break
+            trimmed[str(key)] = _trim_payload(item, max_depth=max_depth - 1, max_items=max_items)
+        return trimmed
+    if isinstance(value, list):
+        return [_trim_payload(item, max_depth=max_depth - 1, max_items=max_items) for item in value[:max_items]]
+    return value
+
+
+def _history_tail_signature(history: list[dict[str, Any]], *, max_entries: int = 4) -> list[dict[str, Any]]:
+    tail: list[dict[str, Any]] = []
+    for entry in history[-max_entries:]:
+        request = entry.get("request") or {}
+        item: dict[str, Any] = {
+            "reason": str(entry.get("reason") or "")[:120],
+            "method": request.get("method") or request.get("kind"),
+            "path": request.get("path") or request.get("method_name"),
+        }
+        if "response" in entry:
+            item["response"] = _payload_signature(entry.get("response"))
+        if "error" in entry:
+            item["error"] = _trim_payload(entry.get("error"), max_depth=2, max_items=4)
+        tail.append(item)
+    return tail
+
+
+def _payload_signature(value: Any) -> Any:
+    if isinstance(value, dict):
+        summary: dict[str, Any] = {"type": "dict", "keys": list(value.keys())[:8]}
+        if isinstance(value.get("values"), list):
+            summary["values_count"] = len(value["values"])
+        if isinstance(value.get("value"), dict) and value["value"].get("id") not in {None, ""}:
+            summary["value_id"] = value["value"]["id"]
+        return summary
+    if isinstance(value, list):
+        return {"type": "list", "items": len(value)}
+    return {"type": type(value).__name__, "value": str(value)[:160]}
+
+
+def _decision_signature(decision: PlannerDecision | None) -> Any:
+    if decision is None:
+        return {"kind": "none"}
+    if decision.kind == "action" and decision.action is not None:
+        return {
+            "kind": "action",
+            "method": decision.action.method,
+            "path": decision.action.path,
+            "params": _trim_payload(decision.action.params, max_depth=2, max_items=4),
+            "json": _trim_payload(decision.action.json_body, max_depth=2, max_items=4),
+            "reason": decision.reason[:160],
+        }
+    if decision.kind == "method" and decision.method_call is not None:
+        return {
+            "kind": "method",
+            "method_name": decision.method_call.method_name,
+            "arguments": _trim_payload(decision.method_call.arguments, max_depth=2, max_items=4),
+            "reason": decision.reason[:160],
+        }
+    return {"kind": decision.kind, "reason": decision.reason[:160]}

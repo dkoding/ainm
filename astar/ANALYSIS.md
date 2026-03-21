@@ -149,6 +149,13 @@ Good query plans concentrate on:
 - contested frontiers
 - representative regions across multiple seeds
 
+The current scaffold now implements this as an adaptive information-gain planner:
+
+- unique tiled windows are prioritized first
+- repeat samples are reserved for windows with the highest posterior uncertainty
+- shared round evidence can shift the value of later queries across seeds
+- historical round-prior disagreement can raise the value of windows that are informative about shared hidden parameters
+
 Bad query plans waste budget on:
 
 - open ocean
@@ -181,6 +188,7 @@ Stronger versions should add:
 - per-cell or per-region predictive models
 - cross-seed transfer of round-level behavior
 - post-round learning from `/analysis/{round_id}/{seed_index}`
+- observation-conditioned updates that move unsampled cells, not only directly sampled windows
 
 ## 5.5 Submission management
 
@@ -218,6 +226,8 @@ Train on completed rounds using `/analysis`:
 - derive supervised targets from organizer ground truth tensors
 - build features from initial map topology and visible settlements
 - fit models for class probabilities or class logits
+- weight training more heavily toward high-entropy cells, because those dominate the official score
+- calibrate on held-out rounds, not on the same training predictions used to fit the model
 
 Likely useful toolkits:
 
@@ -241,6 +251,19 @@ This can be approximated by:
 - repeated queries on strategically chosen windows
 - summary statistics over observed outcomes
 - using those statistics as inputs to seed-specific prediction models
+- using early observations to update a global observation-conditioned variant that changes unsampled cells as well as sampled windows
+
+## 6.1 Submission policy
+
+The docs say the last submission for a seed is what counts.
+
+Operationally that means the safest strategy is not "submit exactly once at the very end". It is:
+
+1. get a valid nonzero tensor onto the server early
+2. improve it with simulation and analysis
+3. overwrite it later with the stronger final tensor
+
+This matters because missing a seed gives zero, while an overwritten weaker early submission still protects the round if the stronger final run fails.
 
 ## 7. Operational Implications
 
@@ -257,6 +280,8 @@ Live verification on March 20, 2026 confirmed:
 - live rounds so far have used `165` minute windows, but automation should still trust the API timestamps rather than hard-coding cadence
 
 The scaffold should therefore treat public reads separately from team-authenticated actions.
+
+The current loop now also records score feedback, heartbeat artifacts, and per-tick event logs so regressions can be tied back to concrete round decisions.
 
 ## 7.2 Cloud Run note
 

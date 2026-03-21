@@ -7,7 +7,7 @@ from typing import Any
 
 from config import DEFAULT_HISTORY_CACHE_PREFIX, DEFAULT_OUTPUT_DIR, DEFAULT_PREDICTION_FLOOR
 from history_cache import load_history_index
-from scoring import round_score, seed_score
+from scoring import round_score, score_breakdown, seed_score
 from sklearn_model import build_round_predictions_from_model, train_random_forest_from_history
 
 
@@ -62,6 +62,7 @@ def evaluate_sklearn_history(
 
     rounds_report: list[dict[str, Any]] = []
     all_seed_scores: list[float] = []
+    all_dynamic_seed_scores: list[float] = []
 
     for round_entry in index.get("rounds", []):
         round_id = str(round_entry["round_id"])
@@ -83,8 +84,10 @@ def evaluate_sklearn_history(
             analysis_path = root_path / cache_prefix / "rounds" / round_id / "team" / "analysis" / f"seed_{int(seed_index)}.json"
             analysis = json.loads(analysis_path.read_text())
             score = seed_score(analysis["ground_truth"], predictions[int(seed_index)])
-            seed_reports.append({"seed_index": int(seed_index), "score": score})
+            breakdown = score_breakdown(analysis["ground_truth"], predictions[int(seed_index)])
+            seed_reports.append({"seed_index": int(seed_index), "score": score, "breakdown": breakdown})
             all_seed_scores.append(score)
+            all_dynamic_seed_scores.append(float(breakdown["dynamic_score"]))
 
         rounds_report.append(
             {
@@ -93,6 +96,7 @@ def evaluate_sklearn_history(
                 "training_summary": artifact.training_summary,
                 "seed_reports": seed_reports,
                 "round_score": round_score([item["score"] for item in seed_reports]),
+                "dynamic_round_score": round_score([float(item["breakdown"]["dynamic_score"]) for item in seed_reports]),
             }
         )
 
@@ -101,6 +105,8 @@ def evaluate_sklearn_history(
         "seed_scores_evaluated": len(all_seed_scores),
         "mean_seed_score": float(sum(all_seed_scores) / len(all_seed_scores)) if all_seed_scores else 0.0,
         "mean_round_score": float(sum(item["round_score"] for item in rounds_report) / len(rounds_report)) if rounds_report else 0.0,
+        "mean_dynamic_seed_score": float(sum(all_dynamic_seed_scores) / len(all_dynamic_seed_scores)) if all_dynamic_seed_scores else 0.0,
+        "mean_dynamic_round_score": float(sum(item["dynamic_round_score"] for item in rounds_report) / len(rounds_report)) if rounds_report else 0.0,
         "floor": floor,
         "neighborhood_radius": neighborhood_radius,
         "n_estimators": n_estimators,

@@ -16,10 +16,14 @@ If you use Cloud Run Jobs in this repo, inject `AINM_ACCESS_TOKEN` as a runtime 
 The default runner now follows this order:
 
 1. sync completed rounds
-2. retrain and re-evaluate on completed rounds only
-3. compare prediction variants on completed rounds and keep the best historical variant
-4. predict the active round
-5. submit only after predictions are written and validated
+2. tune baseline floor and history-prior strength when default values are still in use
+3. retrain on completed rounds only with entropy-aware sample weighting and held-out round calibration
+4. compare prediction variants on completed rounds using replayed observations
+5. if `--submit` and `--simulate` are enabled, place an early safe submission first
+6. if simulation is enabled, spend live budget through the adaptive information-gain planner
+7. infer round-regime weights from live observations and build observation-conditioned variants
+8. predict the active round
+9. overwrite the earlier safe submission with the final tensor after validation
 
 The loop runner uses the API timestamps and statuses to decide when to wake up. Do not hard-code a round schedule in external cron unless you have to. The docs and live API expose `prediction_window_minutes`, `started_at`, and `closes_at`, and current rounds have used `165` minute windows.
 
@@ -73,7 +77,7 @@ python3 validate_predictions.py --round-id "<round-id>"
 python3 run_round.py --token "$AINM_ACCESS_TOKEN" --sync-history --simulate --total-queries 50 --submit
 ```
 
-If the server has moved from round 7 to round 8, the runner should first ingest round 7 `/analysis`, retrain, re-evaluate, and only then produce round 8 predictions.
+If the server has moved from round 7 to round 8, the runner should first ingest round 7 `/analysis`, retrain, re-evaluate, place the early safe submit for round 8, and only then produce the stronger overwrite submission.
 
 ## 3.1 Loop Mode
 
@@ -90,6 +94,13 @@ Loop behavior:
 3. run post-round review for newly completed rounds with team submissions
 4. when a new active round appears and no predictions are on the server yet, run `run_round.py`
 5. when a partial submission state is detected, run `resume_round.py`
+6. write `loop/events.jsonl`, `loop/heartbeat.json`, and `loop/loop.lock` so loop state is auditable and duplicate runners are easier to detect
+
+If you want the watcher restarted automatically when it exits or stops heartbeating, run it through:
+
+```bash
+python3 supervise_round_loop.py -- --total-queries 50 --submit
+```
 
 ## 4. Query Budget Policy
 
@@ -98,9 +109,11 @@ The Astar budget is `50` simulation queries for the whole round, not per seed.
 Current default policy:
 
 - use `--total-queries`, not `--queries-per-seed`
-- default target is `50`: `45` tiled sweep queries plus `5` targeted repeat queries
-- if you use a smaller budget such as `20`, let the planner spread tiled windows across seeds before repeating any area
+- default target is `50`: up to `45` unique tiled windows plus `5` repeat queries chosen from the highest-uncertainty windows
+- the planner now includes a regime-disagreement term so early windows help distinguish shared round-wide hidden dynamics
+- if you use a smaller budget such as `20`, let the planner use the adaptive information-gain policy rather than hard-coding a per-seed split
 - in `auto` mode, let the runner compare completed-round variant scores and keep the best historical variant
+- in `auto` mode, recent official regression feedback can now block a repeatedly underperforming variant and force fallback to the next-ranked candidate
 
 Do not use `10 queries per seed` unless you explicitly intend to spend the entire round budget.
 
@@ -109,10 +122,13 @@ Do not use `10 queries per seed` unless you explicitly intend to spend the entir
 Every run should produce:
 
 - `report.json`
+- `predictions_initial/seed_*.json` when staged submit is used
 - `predictions/seed_*.json`
 - `team/observation_plan.json` when simulation is used
+- `team/submissions_initial/seed_*.json` when staged submit is used
 - `team/submissions/seed_*.json` when submission is used
 - `team/my_predictions.json` after submit
+- `loop/events.jsonl` and `loop/heartbeat.json` for long-running watcher mode
 
 Review:
 
@@ -146,6 +162,16 @@ If some seeds were accepted and others were not:
 
 The organizer API keeps the latest submission per seed, so safe re-submission is better than leaving missing seeds.
 
+### Early safe submit without final overwrite yet
+
+If the process dies after the early safe submit but before the stronger overwrite is finished:
+
+1. do not panic, because the round already has a nonzero fallback submission on the server
+2. if cached simulations exist, rerun `resume_round.py --round-id "<round-id>" --submit`
+3. otherwise rerun `run_round.py --round-id "<round-id>" --simulate --submit`
+
+`round_loop.py` now detects this staged-only state and will try to continue to the final overwrite instead of treating the round as fully done.
+
 ### No active round
 
 If `run_round.py` reports no active round:
@@ -178,3 +204,5 @@ python3 evaluate_history.py
 
 4. compare the new round against the previous evaluation baseline
 5. update `TASKS.md` if the modeling plan changed
+
+If the organizer exposes `/analysis` during `scoring`, the history sync can now ingest that data before the final `completed` transition as well.

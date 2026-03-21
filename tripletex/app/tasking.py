@@ -5,6 +5,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+TASK_ANALYSIS_CONTRACT_VERSION = "tripletex.task_analysis.v1"
+
 
 class AttachmentContext(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -21,11 +23,12 @@ class AttachmentContext(BaseModel):
 class TaskAnalysis(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    contract_version: Literal["tripletex.task_analysis.v1"] = TASK_ANALYSIS_CONTRACT_VERSION
     objective: str = Field(min_length=1)
     task_family: str = Field(min_length=1)
     operation: str = Field(min_length=1)
     target_resource: str | None = None
-    method_name: str = "UnknownMethod"
+    method_name: str = Field(min_length=1)
     method_arguments: dict[str, Any] = Field(default_factory=dict)
     missing_required_arguments: list[str] = Field(default_factory=list)
     detected_language: str = "unknown"

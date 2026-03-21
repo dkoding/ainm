@@ -14,9 +14,12 @@ from .client import TripletexAPIError, TripletexClient
 from .execution import CommandExecutionError, TripletexCommandExecutor
 from .generated_methods import GeneratedAPIMethodRegistry, GeneratedMethodError
 from .internal_tasks import (
+    METHOD_SPECS,
     derive_internal_task,
     normalize_task_analysis_method_selection,
     resolved_missing_required_arguments,
+    startup_coverage_audit_lines,
+    validate_task_analysis_contract,
 )
 from .models import SolveRequest, SolveResponse
 from .openapi_registry import OpenAPIRegistryError, TripletexOpenAPIRegistry
@@ -39,6 +42,10 @@ class TaskInputError(SolveError):
     pass
 
 
+class TaskPreconditionError(SolveError):
+    pass
+
+
 class TripletexSolver:
     def __init__(self) -> None:
         self.expected_api_key = os.getenv("TRIPLETEX_API_KEY", "").strip()
@@ -46,18 +53,34 @@ class TripletexSolver:
         self.max_planner_steps = int(os.getenv("TRIPLETEX_MAX_PLANNER_STEPS", legacy_steps or "12"))
         self.max_api_calls = int(os.getenv("TRIPLETEX_MAX_API_CALLS", legacy_steps or "12"))
         self.timeout_seconds = float(os.getenv("TRIPLETEX_REQUEST_TIMEOUT", "30"))
+        self.solve_budget_seconds = min(
+            300.0,
+            float(os.getenv("TRIPLETEX_SOLVE_BUDGET_SECONDS", "300")),
+        )
         self.allow_noop = os.getenv("TRIPLETEX_ALLOW_NOOP", "false").strip().lower() in {"1", "true", "yes"}
+        self.enable_llm_step_planning = (
+            os.getenv("TRIPLETEX_ENABLE_LLM_STEP_PLANNING", "false").strip().lower() in {"1", "true", "yes"}
+        )
+        if not getattr(self.__class__, "_coverage_audit_logged", False):
+            for line in startup_coverage_audit_lines():
+                logger.info(line)
+            self.__class__._coverage_audit_logged = True
 
     def solve(self, payload: SolveRequest, authorization_header: str | None) -> SolveResponse:
         started_at = time.monotonic()
         self._verify_api_key(authorization_header)
         logger.info(
-            "solve.start prompt_chars=%s files=%s base_url=%s",
+            "solve.start prompt_chars=%s files=%s base_url=%s max_planner_steps=%s max_api_calls=%s timeout_seconds=%s solve_budget_seconds=%s enable_llm_step_planning=%s",
             len(payload.prompt),
             len(payload.files),
             _redact_base_url(payload.tripletex_credentials.base_url),
+            self.max_planner_steps,
+            self.max_api_calls,
+            self.timeout_seconds,
+            self.solve_budget_seconds,
+            self.enable_llm_step_planning,
         )
-        planner = build_planner(allow_noop=self.allow_noop)
+        planner = None
         client = TripletexClient(
             base_url=payload.tripletex_credentials.base_url,
             session_token=payload.tripletex_credentials.session_token,
@@ -66,7 +89,13 @@ class TripletexSolver:
         registry = TripletexOpenAPIRegistry.from_default_spec()
         generated_methods = GeneratedAPIMethodRegistry.from_default_spec()
         executor = TripletexCommandExecutor(client, registry)
-        router = DeterministicWorkflowRouter()
+        router = DeterministicWorkflowRouter(registry=registry)
+
+        def ensure_planner():
+            nonlocal planner
+            if planner is None:
+                planner = build_planner(allow_noop=self.allow_noop)
+            return planner
 
         with tempfile.TemporaryDirectory(prefix="tripletex-attachments-") as temp_dir:
             saved_attachments = self._save_attachments(payload, Path(temp_dir))
@@ -75,12 +104,17 @@ class TripletexSolver:
             logger.info("solve.attachments.prepared attachments=%s", _summarize_prepared_attachments(attachments))
 
             analysis_started_at = time.monotonic()
-            task_analysis = planner.analyze_task(
+            analysis_source = "planner"
+            task_analysis = ensure_planner().analyze_task(
                 task_prompt=payload.prompt,
                 attachments=attachments,
             )
+            try:
+                validate_task_analysis_contract(task_analysis)
+            except ValueError as exc:
+                raise PlannerError(f"Planner contract violation: {exc}") from exc
+            self._ensure_budget_remaining(started_at, stage="analysis")
             normalized_task_analysis = normalize_task_analysis_method_selection(
-                task_prompt=payload.prompt,
                 task_analysis=task_analysis,
             )
             if (
@@ -96,7 +130,8 @@ class TripletexSolver:
                 )
             task_analysis = normalized_task_analysis
             logger.info(
-                "solve.analysis.complete elapsed_ms=%s method=%s missing_required_arguments=%s task_family=%s operation=%s target_resource=%s risk=%s attachment_required=%s search_hints=%s payload_fields=%s ambiguity_notes=%s",
+                "solve.analysis.complete source=%s elapsed_ms=%s method=%s missing_required_arguments=%s task_family=%s operation=%s target_resource=%s risk=%s attachment_required=%s search_hints=%s payload_fields=%s ambiguity_notes=%s",
+                analysis_source,
                 round((time.monotonic() - analysis_started_at) * 1000, 1),
                 task_analysis.method_name,
                 task_analysis.missing_required_arguments,
@@ -109,24 +144,42 @@ class TripletexSolver:
                 sorted(task_analysis.payload_fields.keys()),
                 task_analysis.ambiguity_notes[:4],
             )
-            internal_task = derive_internal_task(task_prompt=payload.prompt, task_analysis=task_analysis)
+            internal_task = derive_internal_task(task_analysis=task_analysis)
+            method_spec = METHOD_SPECS.get(internal_task.method_name)
             missing_required_arguments = resolved_missing_required_arguments(
                 task_analysis,
                 method_name=internal_task.method_name,
                 internal_payload=internal_task.payload,
             )
             logger.info(
-                "solve.method.extract method=%s arguments=%s missing_required_arguments=%s flow_kind=%s operation=%s target_resource=%s search=%s payload=%s notes=%s",
+                "solve.method.extract method=%s arguments=%s missing_required_arguments=%s flow_kind=%s operation=%s target_resource=%s execution_strategy=%s coded_route=%s search=%s payload=%s notes=%s workflow_context=%s",
                 internal_task.method_name,
                 _trim_payload(task_analysis.method_arguments),
                 missing_required_arguments,
                 internal_task.flow_kind.value,
                 internal_task.operation,
                 internal_task.target_resource,
+                method_spec.execution_strategy if method_spec is not None else "unknown",
+                bool(method_spec and method_spec.coverage_status == "coded"),
                 _trim_payload(internal_task.search),
                 _trim_payload(internal_task.payload),
                 list(internal_task.notes),
+                _workflow_context(internal_task),
             )
+            if method_spec is not None:
+                logger.info(
+                    "metric.solve.workflow_selection count=1 method=%s execution_strategy=%s coverage_status=%s target_resource=%s",
+                    internal_task.method_name,
+                    method_spec.execution_strategy,
+                    method_spec.coverage_status,
+                    internal_task.target_resource,
+                )
+                if method_spec.coverage_status == "wrapper_only":
+                    logger.info(
+                        "metric.solve.wrapper_only_selection count=1 method=%s target_resource=%s",
+                        internal_task.method_name,
+                        internal_task.target_resource,
+                    )
             if internal_task.is_supported and missing_required_arguments:
                 raise TaskInputError(
                     "Method extraction is incomplete. "
@@ -140,6 +193,7 @@ class TripletexSolver:
             api_calls_used = 0
 
             for attempt_index in range(self.max_planner_steps):
+                self._ensure_budget_remaining(started_at, stage=f"step_{attempt_index + 1}_planning")
                 logger.info(
                     "solve.step.start step=%s remaining_steps=%s api_calls_used=%s remaining_api_calls=%s history_entries=%s",
                     attempt_index + 1,
@@ -153,36 +207,60 @@ class TripletexSolver:
                 if internal_task.is_supported:
                     decision = router.next_step(
                         internal_task=internal_task,
-                        task_prompt=payload.prompt,
                         task_analysis=task_analysis,
                         history=history,
                     )
                     if decision is None:
-                        decision_source = "planner_fallback"
-                        logger.warning(
-                            "solve.step.router_exhausted step=%s method=%s flow_kind=%s history_entries=%s payload=%s notes=%s",
+                        logger.error(
+                            "solve.step.router_exhausted step=%s method=%s flow_kind=%s history_entries=%s payload=%s notes=%s enable_llm_step_planning=%s",
                             attempt_index + 1,
                             internal_task.method_name,
                             internal_task.flow_kind.value,
                             len(history),
                             _trim_payload(internal_task.payload),
                             list(internal_task.notes),
+                            self.enable_llm_step_planning,
                         )
-                        decision = planner.next_step(
+                        logger.warning(
+                            "metric.solve.missing_deterministic_route count=1 method=%s flow_kind=%s target_resource=%s",
+                            internal_task.method_name,
+                            internal_task.flow_kind.value,
+                            internal_task.target_resource,
+                        )
+                        if not self.enable_llm_step_planning:
+                            raise TaskInputError(
+                                "No coded deterministic workflow is available for the analyzed task. "
+                                f"method={internal_task.method_name} "
+                                f"flow_kind={internal_task.flow_kind.value} "
+                                f"task_analysis={_compact_task_analysis(task_analysis)} "
+                                f"history={_summarize_history(history)}"
+                            )
+                        decision_source = "planner_fallback"
+                        decision = ensure_planner().next_step(
                             task_prompt=payload.prompt,
                             task_analysis=task_analysis,
                             attachments=attachments,
                             history=history,
                             remaining_steps=self.max_planner_steps - attempt_index,
+                            active_method_name=internal_task.method_name,
+                            active_workflow_context=_workflow_context(internal_task),
                         )
                 else:
+                    if not self.enable_llm_step_planning:
+                        raise SolveError(
+                            "Task analysis selected a non-deterministic workflow, but LLM step planning is disabled. "
+                            f"method={internal_task.method_name} "
+                            f"flow_kind={internal_task.flow_kind.value} "
+                            f"task_analysis={_compact_task_analysis(task_analysis)}"
+                        )
                     decision_source = "planner"
-                    decision = planner.next_step(
+                    decision = ensure_planner().next_step(
                         task_prompt=payload.prompt,
                         task_analysis=task_analysis,
                         attachments=attachments,
                         history=history,
                         remaining_steps=self.max_planner_steps - attempt_index,
+                        active_method_name=task_analysis.method_name,
                     )
                 logger.info(
                     "solve.step.decision step=%s source=%s kind=%s elapsed_ms=%s reason=%r",
@@ -193,7 +271,84 @@ class TripletexSolver:
                     decision.reason[:240],
                 )
                 if decision.kind == "finish":
+                    if (
+                        _finish_reason_indicates_failure(decision.reason)
+                        and self.enable_llm_step_planning
+                        and internal_task.is_supported
+                        and decision_source in {"method", "planner_fallback"}
+                    ):
+                        logger.warning(
+                            "solve.finish.workflow_recovery step=%s method=%s flow_kind=%s source=%s reason=%r",
+                            attempt_index + 1,
+                            internal_task.method_name,
+                            internal_task.flow_kind.value,
+                            decision_source,
+                            decision.reason[:240],
+                        )
+                        history.append(
+                            {
+                                "reason": decision.reason,
+                                "request": {
+                                    "kind": "workflow_finish",
+                                    "status": "unsuccessful",
+                                    "method_name": internal_task.method_name,
+                                    "flow_kind": internal_task.flow_kind.value,
+                                },
+                                "error": {
+                                    "type": "workflow_finish",
+                                    "message": decision.reason,
+                                },
+                            }
+                        )
+                        decision = ensure_planner().next_step(
+                            task_prompt=payload.prompt,
+                            task_analysis=task_analysis,
+                            attachments=attachments,
+                            history=history,
+                            remaining_steps=self.max_planner_steps - attempt_index,
+                            active_method_name=internal_task.method_name,
+                            active_workflow_context=_workflow_context(internal_task),
+                        )
+                        decision_source = "planner_recovery"
+                        logger.info(
+                            "solve.step.decision step=%s source=%s kind=%s elapsed_ms=%s reason=%r",
+                            attempt_index + 1,
+                            decision_source,
+                            decision.kind,
+                            round((time.monotonic() - planning_started_at) * 1000, 1),
+                            decision.reason[:240],
+                        )
+
                     if _finish_reason_indicates_failure(decision.reason):
+                        precondition_detail = _latest_tripletex_validation_detail(history)
+                        if precondition_detail is not None:
+                            message = decision.reason.strip()
+                            if precondition_detail.lower() not in " ".join(message.lower().split()):
+                                message = f"{message} Tripletex validation: {precondition_detail}"
+                            logger.warning(
+                                "solve.finish.precondition_failed step=%s total_elapsed_ms=%s reason=%r detail=%r history=%s",
+                                attempt_index + 1,
+                                round((time.monotonic() - started_at) * 1000, 1),
+                                decision.reason[:240],
+                                precondition_detail,
+                                _summarize_history(history),
+                            )
+                            raise TaskPreconditionError(message)
+                        if internal_task.is_supported and not self.enable_llm_step_planning:
+                            logger.warning(
+                                "solve.finish.deterministic_failed step=%s total_elapsed_ms=%s reason=%r history=%s",
+                                attempt_index + 1,
+                                round((time.monotonic() - started_at) * 1000, 1),
+                                decision.reason[:240],
+                                _summarize_history(history),
+                            )
+                            logger.warning(
+                                "metric.solve.deterministic_failure count=1 method=%s flow_kind=%s target_resource=%s",
+                                internal_task.method_name,
+                                internal_task.flow_kind.value,
+                                internal_task.target_resource,
+                            )
+                            raise TaskPreconditionError(decision.reason.strip())
                         logger.error(
                             "solve.finish.unsuccessful step=%s total_elapsed_ms=%s reason=%r history=%s",
                             attempt_index + 1,
@@ -269,32 +424,44 @@ class TripletexSolver:
                     history=history,
                     registry=registry,
                 )
+                original_command = command
                 command = repair_result.command
                 if repair_result.notes:
                     logger.info(
-                        "solve.command.repaired step=%s method=%s path=%s repairs=%s",
+                        "solve.command.repaired step=%s repairs=%s before=%s after=%s",
                         attempt_index + 1,
-                        command.method,
-                        command.path,
                         list(repair_result.notes),
+                        _command_signature(original_command),
+                        _command_signature(command),
                     )
                 logger.info(
-                    "solve.command step=%s method=%s path=%s params=%s json=%s",
+                    "solve.command step=%s method=%s path=%s reason=%r params=%s json=%s history_tail=%s",
                     attempt_index + 1,
                     command.method,
                     command.path,
+                    command.reason[:240],
                     _trim_payload(command.params),
                     _trim_payload(command.json_body),
+                    _summarize_history(history[-3:]),
                 )
+                client.timeout_seconds = min(
+                    self.timeout_seconds,
+                    self._remaining_budget_seconds(started_at, reserve_seconds=1.0),
+                )
+                if client.timeout_seconds <= 0:
+                    raise SolveError(
+                        f"The solve budget expired before executing the next Tripletex API call. method={command.method} path={command.path}"
+                    )
                 execution_started_at = time.monotonic()
                 duplicate_error = _prior_repeatable_tripletex_error(history, command)
                 if duplicate_error is not None:
                     logger.warning(
-                        "solve.command.skipped_duplicate_api_failure step=%s method=%s path=%s status=%s",
+                        "solve.command.skipped_duplicate_api_failure step=%s method=%s path=%s status=%s prior_error=%s",
                         attempt_index + 1,
                         command.method,
                         command.path,
                         duplicate_error.get("status_code"),
+                        _trim_payload(duplicate_error),
                     )
                     history.append(
                         {
@@ -327,11 +494,12 @@ class TripletexSolver:
                     response_payload = executor.execute_prevalidated(command)
                 except CommandExecutionError as exc:
                     logger.warning(
-                        "solve.command.validation_failed step=%s method=%s path=%s error=%r",
+                        "solve.command.validation_failed step=%s method=%s path=%s error=%r command=%s",
                         attempt_index + 1,
                         command.method,
                         command.path,
                         str(exc),
+                        _command_signature(command),
                     )
                     history.append(
                         {
@@ -351,12 +519,15 @@ class TripletexSolver:
                     continue
                 except TripletexAPIError as exc:
                     logger.warning(
-                        "solve.command.api_failed step=%s method=%s path=%s status=%s error=%s",
+                        "solve.command.api_failed step=%s method=%s path=%s status=%s error=%s payload=%s validation_detail=%r command=%s",
                         attempt_index + 1,
                         command.method,
                         command.path,
                         exc.status_code,
                         str(exc),
+                        _payload_signature(exc.payload),
+                        _extract_validation_detail(exc.payload),
+                        _command_signature(command),
                     )
                     history.append(
                         {
@@ -375,14 +546,20 @@ class TripletexSolver:
                             },
                         }
                     )
+                    if exc.status_code in {401, 403}:
+                        raise TaskPreconditionError(
+                            "Tripletex rejected a deterministic workflow step due to missing or invalid access. "
+                            f"{exc}"
+                        ) from exc
                     continue
                 logger.info(
-                    "solve.command.complete step=%s method=%s path=%s elapsed_ms=%s response=%s",
+                    "solve.command.complete step=%s method=%s path=%s elapsed_ms=%s response=%s history_entries=%s",
                     attempt_index + 1,
                     command.method,
                     command.path,
                     round((time.monotonic() - execution_started_at) * 1000, 1),
                     _payload_signature(response_payload),
+                    len(history) + 1,
                 )
                 history.append(
                     {
@@ -425,6 +602,17 @@ class TripletexSolver:
             f"task_analysis={_compact_task_analysis(task_analysis)} "
             f"history={_summarize_history(history)}"
         )
+
+    def _remaining_budget_seconds(self, started_at: float, *, reserve_seconds: float = 0.0) -> float:
+        return self.solve_budget_seconds - (time.monotonic() - started_at) - reserve_seconds
+
+    def _ensure_budget_remaining(self, started_at: float, *, stage: str) -> None:
+        remaining = self._remaining_budget_seconds(started_at)
+        logger.info("solve.budget stage=%s remaining_seconds=%s", stage, round(max(remaining, 0.0), 3))
+        if remaining <= 0:
+            raise SolveError(
+                f"The solve budget of {self.solve_budget_seconds}s was exhausted during {stage}."
+            )
 
     def _verify_api_key(self, authorization_header: str | None) -> None:
         if not self.expected_api_key:
@@ -470,12 +658,41 @@ def _trim_payload(value: Any, *, max_depth: int = 3, max_items: int = 5) -> Any:
     return value
 
 
+def _workflow_context(internal_task: Any) -> dict[str, Any]:
+    return {
+        "method_name": internal_task.method_name,
+        "flow_kind": internal_task.flow_kind.value,
+        "operation": internal_task.operation,
+        "target_resource": internal_task.target_resource,
+        "search": _trim_payload(internal_task.search),
+        "payload": _trim_payload(internal_task.payload),
+        "notes": list(internal_task.notes),
+    }
+
+
 def _payload_signature(value: Any) -> Any:
     if isinstance(value, dict):
-        return {"type": "dict", "keys": list(value.keys())[:10]}
+        summary: dict[str, Any] = {"type": "dict", "keys": list(value.keys())[:10]}
+        if isinstance(value.get("values"), list):
+            summary["values_count"] = len(value["values"])
+        if isinstance(value.get("value"), dict) and value["value"].get("id") not in {None, ""}:
+            summary["value_id"] = value["value"]["id"]
+        validation_detail = _extract_validation_detail(value)
+        if validation_detail is not None:
+            summary["validation_detail"] = validation_detail
+        return summary
     if isinstance(value, list):
         return {"type": "list", "items": len(value)}
     return {"type": type(value).__name__, "value": str(value)[:240]}
+
+
+def _command_signature(command: Any) -> dict[str, Any]:
+    return {
+        "method": command.method,
+        "path": command.path,
+        "params": _trim_payload(command.params),
+        "json": _trim_payload(command.json_body),
+    }
 
 
 def _summarize_saved_attachments(saved_attachments: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -508,6 +725,7 @@ def _summarize_prepared_attachments(attachments: list[Any]) -> list[dict[str, An
 
 
 def _redact_base_url(base_url: str) -> str:
+    base_url = str(base_url)
     if "://" not in base_url:
         return base_url[:120]
     scheme, rest = base_url.split("://", 1)
@@ -589,11 +807,70 @@ def _finish_reason_indicates_failure(reason: str) -> bool:
     )
 
 
+def _latest_tripletex_validation_detail(history: list[dict[str, Any]]) -> str | None:
+    for entry in reversed(history):
+        error = entry.get("error")
+        if not isinstance(error, dict):
+            continue
+        if error.get("type") not in {"tripletex_api", "duplicate_tripletex_api"}:
+            continue
+        status_code = error.get("status_code")
+        payload = error.get("payload")
+        if status_code != 422 or not isinstance(payload, dict):
+            continue
+        detail = _extract_validation_detail(payload)
+        if detail is None:
+            continue
+        return detail
+    return None
+
+
+def _extract_validation_detail(payload: Any) -> str | None:
+    if not isinstance(payload, dict):
+        return None
+    validation_messages = payload.get("validationMessages")
+    developer_message = str(payload.get("developerMessage") or "").upper()
+    if developer_message != "VALIDATION_ERROR" and not (
+        isinstance(validation_messages, list) and validation_messages
+    ):
+        return None
+    details: list[str] = []
+    if isinstance(validation_messages, list):
+        for item in validation_messages[:3]:
+            if isinstance(item, dict):
+                message = item.get("message") or item.get("developerMessage")
+                if message not in {None, ""}:
+                    details.append(str(message))
+            elif item not in {None, ""}:
+                details.append(str(item))
+    if not details:
+        message = payload.get("message")
+        if message not in {None, ""}:
+            details.append(str(message))
+    return "; ".join(_dedupe_preserve_order(details))[:400] or None
+
+
+def _dedupe_preserve_order(values: list[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        normalized = " ".join(str(value).strip().split())
+        if not normalized:
+            continue
+        lowered = normalized.lower()
+        if lowered in seen:
+            continue
+        seen.add(lowered)
+        deduped.append(normalized)
+    return deduped
+
+
 __all__ = [
     "PlannerError",
     "CommandExecutionError",
     "OpenAPIRegistryError",
     "SolveError",
+    "TaskPreconditionError",
     "TripletexAPIError",
     "TripletexSolver",
     "UnauthorizedError",

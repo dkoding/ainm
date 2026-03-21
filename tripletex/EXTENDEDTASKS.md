@@ -1,6 +1,15 @@
 # Extended Tasks For The Tripletex Solver
 
-This file defines the second-phase work after the base solver is stable.
+Historical planning document.
+
+This file records the earlier second-phase backlog that followed the original base-solver plan. It is kept for context, but it does not define the live architecture or the current completion bar.
+
+Current architecture references:
+
+- `README.md`
+- `NEWANALYSIS.md`
+- `DELTAS.md`
+- `DELTATASKS.md`
 
 Constraints for this plan:
 

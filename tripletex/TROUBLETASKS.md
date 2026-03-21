@@ -1,6 +1,15 @@
 # Tripletex Trouble Tasks
 
-This file turns the findings from `TROUBLESHOOTING.md` into a concrete implementation checklist.
+Historical remediation ledger.
+
+This file captures an earlier remediation pass that improved the baseline solver. It remains useful as an implementation record, but it is no longer the authoritative description of the current method-centric architecture.
+
+Current architecture references:
+
+- `README.md`
+- `NEWANALYSIS.md`
+- `DELTAS.md`
+- `DELTATASKS.md`
 
 The goal is not to rewrite the whole solver at once. The goal is to close the highest-value gaps between:
 

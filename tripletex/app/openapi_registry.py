@@ -29,6 +29,8 @@ class OperationSpec:
     path_parameters: frozenset[str]
     request_body_required: bool
     allows_request_body: bool
+    request_body_content_types: tuple[str, ...]
+    request_body_schema_summary: str | None
     _path_pattern: re.Pattern[str]
 
     def matches(self, *, method: str, path: str) -> bool:
@@ -42,7 +44,45 @@ class OperationSpec:
             "required_query_parameters": sorted(self.required_query_parameters),
             "allows_request_body": self.allows_request_body,
             "request_body_required": self.request_body_required,
+            "request_body_content_types": list(self.request_body_content_types),
+            "request_body_schema_summary": self.request_body_schema_summary,
         }
+
+
+@dataclass(frozen=True)
+class ResourceCapability:
+    resource_family: str
+    primary_prefix: str | None
+    collection_path: str | None
+    detail_path: str | None
+    create_path: str | None
+    update_path: str | None
+    delete_path: str | None
+    reverse_paths: tuple[str, ...]
+    supported_methods: tuple[str, ...]
+    search_parameters: tuple[str, ...]
+    required_path_parameters: tuple[str, ...]
+    request_body_summaries: tuple[str, ...]
+
+    @property
+    def supports_create(self) -> bool:
+        return self.create_path is not None
+
+    @property
+    def supports_update(self) -> bool:
+        return self.update_path is not None
+
+    @property
+    def supports_delete(self) -> bool:
+        return self.delete_path is not None
+
+    @property
+    def supports_reverse(self) -> bool:
+        return bool(self.reverse_paths)
+
+    @property
+    def supports_search(self) -> bool:
+        return self.collection_path is not None
 
 
 class TripletexOpenAPIRegistry:
@@ -128,6 +168,33 @@ class TripletexOpenAPIRegistry:
                 break
         return fallback
 
+    def resource_capability(self, resource_family: str | None) -> ResourceCapability:
+        return _resource_capability(canonical_resource_family(resource_family), tuple(self.operations))
+
+    def capability_report(self) -> list[dict[str, Any]]:
+        report: list[dict[str, Any]] = []
+        for resource_family, _label in workflow_resource_families():
+            capability = self.resource_capability(resource_family)
+            report.append(
+                {
+                    "resource_family": resource_family,
+                    "primary_prefix": capability.primary_prefix,
+                    "collection_path": capability.collection_path,
+                    "detail_path": capability.detail_path,
+                    "create_path": capability.create_path,
+                    "update_path": capability.update_path,
+                    "delete_path": capability.delete_path,
+                    "reverse_paths": list(capability.reverse_paths),
+                    "supported_methods": list(capability.supported_methods),
+                    "search_parameters": list(capability.search_parameters),
+                    "required_path_parameters": list(capability.required_path_parameters),
+                    "request_body_summaries": list(capability.request_body_summaries),
+                    "verification_support": capability.supports_search or capability.detail_path is not None,
+                    "destructive_support": capability.supports_delete or capability.supports_reverse,
+                }
+            )
+        return report
+
 
 @lru_cache(maxsize=1)
 def _load_default_registry() -> TripletexOpenAPIRegistry:
@@ -174,6 +241,7 @@ def _load_default_registry() -> TripletexOpenAPIRegistry:
             request_body = operation.get("requestBody")
             allows_request_body = isinstance(request_body, dict)
             request_body_required = bool(allows_request_body and request_body.get("required"))
+            request_body_content_types, request_body_schema_summary = _request_body_metadata(request_body)
             operations.append(
                 OperationSpec(
                     method=method.upper(),
@@ -185,6 +253,8 @@ def _load_default_registry() -> TripletexOpenAPIRegistry:
                     path_parameters=frozenset(path_parameters),
                     request_body_required=request_body_required,
                     allows_request_body=allows_request_body,
+                    request_body_content_types=request_body_content_types,
+                    request_body_schema_summary=request_body_schema_summary,
                     _path_pattern=_compile_path_pattern(str(template_path)),
                 )
             )
@@ -373,8 +443,35 @@ SEMANTIC_RESOURCE_KEYWORDS: dict[str, tuple[str, ...]] = {
 }
 
 
+def _resource_method_label_from_prefix(prefix: str) -> str:
+    segment = prefix.strip("/").split("/", 1)[0]
+    words = _split_identifier_words(segment)
+    if not words:
+        return "Generic"
+    return "".join(word.capitalize() for word in words)
+
+
+@lru_cache(maxsize=1)
+def workflow_resource_families() -> tuple[tuple[str, str], ...]:
+    families: dict[str, str] = {}
+    for key, prefix in _primary_prefix_lookup().items():
+        families[key] = _resource_method_label_from_prefix(prefix)
+    for key in SEMANTIC_RESOURCE_PREFIXES:
+        families.setdefault(key, _resource_method_label_from_prefix(f"/{key}"))
+    families["other"] = "Generic"
+    return tuple(sorted(families.items()))
+
+
+def canonical_resource_family(value: str | None) -> str:
+    key = _normalized_resource_key(value or "other")
+    known = {resource for resource, _ in workflow_resource_families()}
+    if key in known:
+        return key
+    return "other"
+
+
 def _resource_prefixes(target_resource: str | None) -> tuple[str, ...]:
-    key = _normalized_resource_key(target_resource or "other")
+    key = canonical_resource_family(target_resource)
     if key in {"", "other"}:
         return _primary_path_prefixes()
     semantic_prefixes = SEMANTIC_RESOURCE_PREFIXES.get(key)
@@ -462,5 +559,179 @@ def planner_prefixes_for_task(*, task_prompt: str, task_analysis: TaskAnalysis |
     return tuple(selected_prefixes)
 
 
+@lru_cache(maxsize=None)
+def _resource_capability(resource_family: str, operations: tuple[OperationSpec, ...]) -> ResourceCapability:
+    if resource_family in {"", "other"}:
+        return ResourceCapability(
+            resource_family=resource_family or "other",
+            primary_prefix=None,
+            collection_path=None,
+            detail_path=None,
+            create_path=None,
+            update_path=None,
+            delete_path=None,
+            reverse_paths=(),
+            supported_methods=(),
+            search_parameters=(),
+            required_path_parameters=(),
+            request_body_summaries=(),
+        )
+
+    primary_prefix = _primary_prefix_lookup().get(resource_family)
+    if primary_prefix is None:
+        return ResourceCapability(
+            resource_family=resource_family,
+            primary_prefix=None,
+            collection_path=None,
+            detail_path=None,
+            create_path=None,
+            update_path=None,
+            delete_path=None,
+            reverse_paths=(),
+            supported_methods=(),
+            search_parameters=(),
+            required_path_parameters=(),
+            request_body_summaries=(),
+        )
+
+    scoped_operations = tuple(
+        operation
+        for operation in operations
+        if operation.template_path.startswith(primary_prefix)
+    )
+    collection_candidates: list[str] = []
+    detail_candidates: list[str] = []
+    reverse_paths: list[str] = []
+    supported_methods: set[str] = set()
+    search_parameters: set[str] = set()
+    required_path_parameters: set[str] = set()
+    request_body_summaries: set[str] = set()
+    create_path: str | None = None
+    update_path: str | None = None
+    delete_path: str | None = None
+
+    for operation in scoped_operations:
+        supported_methods.add(operation.method)
+        required_path_parameters.update(operation.path_parameters)
+        if operation.method == "GET" and not operation.path_parameters:
+            search_parameters.update(operation.query_parameters)
+        if operation.allows_request_body:
+            summary = operation.request_body_schema_summary or "body"
+            request_body_summaries.add(
+                f"{operation.method} {operation.template_path}: {summary}"
+            )
+        if ":reverse" in operation.template_path:
+            reverse_paths.append(operation.template_path)
+        if operation.path_parameters:
+            detail_candidates.append(operation.template_path)
+            if operation.method == "PUT" and update_path is None:
+                update_path = operation.template_path
+            if operation.method == "DELETE" and delete_path is None:
+                delete_path = operation.template_path
+        else:
+            collection_candidates.append(operation.template_path)
+            if operation.method == "POST" and create_path is None:
+                create_path = operation.template_path
+            if operation.method == "PUT" and update_path is None:
+                update_path = operation.template_path
+
+    collection_path = _best_collection_path(collection_candidates, operations=scoped_operations)
+    detail_path = _best_detail_path(detail_candidates)
+    if update_path is None and detail_path is not None and _path_supports_method(scoped_operations, detail_path, "PUT"):
+        update_path = detail_path
+    if delete_path is None and detail_path is not None and _path_supports_method(scoped_operations, detail_path, "DELETE"):
+        delete_path = detail_path
+    if create_path is None and collection_path is not None and _path_supports_method(scoped_operations, collection_path, "POST"):
+        create_path = collection_path
+
+    return ResourceCapability(
+        resource_family=resource_family,
+        primary_prefix=primary_prefix,
+        collection_path=collection_path,
+        detail_path=detail_path,
+        create_path=create_path,
+        update_path=update_path,
+        delete_path=delete_path,
+        reverse_paths=tuple(sorted(set(reverse_paths))),
+        supported_methods=tuple(sorted(supported_methods)),
+        search_parameters=tuple(sorted(search_parameters)),
+        required_path_parameters=tuple(sorted(required_path_parameters)),
+        request_body_summaries=tuple(sorted(request_body_summaries)),
+    )
+
+
+def _best_collection_path(paths: list[str], *, operations: tuple[OperationSpec, ...]) -> str | None:
+    if not paths:
+        return None
+    unique_paths = sorted(set(paths), key=lambda path: (path.count("/"), len(path), path))
+    scored: list[tuple[int, int, int, str]] = []
+    for path in unique_paths:
+        supports_post = _path_supports_method(operations, path, "POST")
+        supports_get = _path_supports_method(operations, path, "GET")
+        score = (0 if supports_post else 1, 0 if supports_get else 1, path.count("/"), path)
+        scored.append(score)
+    return min(scored)[-1]
+
+
+def _best_detail_path(paths: list[str]) -> str | None:
+    if not paths:
+        return None
+    unique_paths = sorted(set(paths), key=lambda path: (path.count("/"), len(path), path))
+    return unique_paths[0]
+
+
+def _path_supports_method(operations: tuple[OperationSpec, ...], template_path: str, method: str) -> bool:
+    return any(
+        operation.template_path == template_path and operation.method == method
+        for operation in operations
+    )
+
+
 def _placeholder_count(template_path: str) -> int:
     return len(re.findall(r"\{[^/]+\}", template_path))
+
+
+def _request_body_metadata(request_body: Any) -> tuple[tuple[str, ...], str | None]:
+    if not isinstance(request_body, dict):
+        return (), None
+    content = request_body.get("content")
+    if not isinstance(content, dict):
+        return (), None
+    content_types = tuple(sorted(str(key) for key in content.keys()))
+    summaries: list[str] = []
+    for content_type, content_spec in content.items():
+        if not isinstance(content_spec, dict):
+            continue
+        schema_summary = _schema_summary(content_spec.get("schema"))
+        if schema_summary is None:
+            summaries.append(str(content_type))
+            continue
+        summaries.append(f"{content_type}: {schema_summary}")
+    return content_types, "; ".join(summaries) or None
+
+
+def _schema_summary(schema: Any) -> str | None:
+    if not isinstance(schema, dict):
+        return None
+    ref = schema.get("$ref")
+    if isinstance(ref, str) and ref:
+        return ref.rsplit("/", 1)[-1]
+    schema_type = schema.get("type")
+    if schema_type == "array":
+        item_summary = _schema_summary(schema.get("items"))
+        return f"array[{item_summary or 'object'}]"
+    if schema_type == "object":
+        properties = schema.get("properties")
+        if isinstance(properties, dict) and properties:
+            preview = ",".join(list(properties.keys())[:3])
+            return f"object({preview})"
+        return "object"
+    if isinstance(schema_type, str) and schema_type:
+        return schema_type
+    for union_key in ("oneOf", "anyOf", "allOf"):
+        value = schema.get(union_key)
+        if isinstance(value, list) and value:
+            parts = [summary for item in value if (summary := _schema_summary(item))]
+            if parts:
+                return f"{union_key}[{'|'.join(parts[:3])}]"
+    return None

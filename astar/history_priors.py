@@ -20,6 +20,7 @@ class RoundPrior:
     settlement_probs: dict[bool, np.ndarray]
     settlement_counts: dict[bool, int]
     global_class_probs: np.ndarray
+    summary_features: dict[str, float]
     seeds_used: int
     cells_used: int
 
@@ -123,6 +124,14 @@ class HistoryPriorModel:
                 item
                 for item in top_round_weights
                 if item["weight"] > 0
+            ],
+            "round_summaries": [
+                {
+                    "round_id": round_prior.round_id,
+                    "round_number": round_prior.round_number,
+                    **round_prior.summary_features,
+                }
+                for round_prior in self.round_priors
             ],
         }
 
@@ -235,6 +244,10 @@ def build_history_prior_model(
                 },
                 settlement_counts=settlement_counts,
                 global_class_probs=global_totals / global_totals.sum(),
+                summary_features=_build_round_summary_features(
+                    global_class_probs=global_totals / global_totals.sum(),
+                    settlement_counts=settlement_counts,
+                ),
                 seeds_used=seeds_used,
                 cells_used=cells_used,
             )
@@ -264,15 +277,18 @@ def infer_regime_history_prior_model(
         return None, None
     observations_by_seed = observations_by_seed or {}
     if not observations_by_seed:
+        observed_summary = summarize_observed_round_behavior(observations_by_seed)
         summary = {
             "observed_cells": 0,
             "round_weights": history_prior_model.to_summary().get("round_weights", []),
             "temperature": temperature,
             "uniform_mixture": uniform_mixture,
+            "observed_round_summary": observed_summary,
         }
         return history_prior_model, summary
 
     log_scores: dict[str, float] = {}
+    alignment_scores: dict[str, float] = {}
     observed_cells = 0
     states = round_detail.get("initial_states", [])
     settlement_maps = [
@@ -317,10 +333,22 @@ def infer_regime_history_prior_model(
     if not log_scores:
         return history_prior_model, None
 
-    max_score = max(log_scores.values())
+    observed_summary = summarize_observed_round_behavior(observations_by_seed)
+    for round_prior in history_prior_model.round_priors:
+        alignment_scores[round_prior.round_id] = _round_summary_alignment(
+            observed_summary=observed_summary,
+            round_summary=round_prior.summary_features,
+        )
+
+    combined_scores = {
+        round_id: log_scores[round_id] + (0.35 * alignment_scores.get(round_id, 0.0))
+        for round_id in log_scores
+    }
+    max_score = max(combined_scores.values())
     scaled = {}
     for round_id, score in log_scores.items():
-        scaled[round_id] = float(np.exp((score - max_score) / max(temperature, 1e-6)))
+        combined_score = combined_scores[round_id]
+        scaled[round_id] = float(np.exp((combined_score - max_score) / max(temperature, 1e-6)))
     total_scaled = sum(scaled.values())
     if total_scaled <= 0:
         return history_prior_model, None
@@ -337,6 +365,16 @@ def infer_regime_history_prior_model(
         "observed_cells": observed_cells,
         "temperature": temperature,
         "uniform_mixture": uniform_mixture,
+        "observed_round_summary": observed_summary,
+        "round_alignment_scores": [
+            {
+                "round_id": round_prior.round_id,
+                "round_number": round_prior.round_number,
+                "alignment_score": float(alignment_scores.get(round_prior.round_id, 0.0)),
+                **round_prior.summary_features,
+            }
+            for round_prior in history_prior_model.round_priors
+        ],
         "round_weights": adjusted_model.to_summary().get("round_weights", []),
     }
     return adjusted_model, summary
@@ -358,3 +396,85 @@ def _normalize_round_weights(
         uniform_weight = 1.0 / len(round_priors)
         return {round_prior.round_id: uniform_weight for round_prior in round_priors}
     return {round_prior.round_id: cleaned.get(round_prior.round_id, 0.0) / total for round_prior in round_priors}
+
+
+def summarize_observed_round_behavior(observations_by_seed: dict[int, list[dict[str, Any]]] | None) -> dict[str, float]:
+    observations_by_seed = observations_by_seed or {}
+    class_counts = np.zeros(CLASS_COUNT, dtype=float)
+    settlement_total = 0
+    port_total = 0
+    alive_total = 0
+    owner_diversity_values: list[float] = []
+    population_values: list[float] = []
+    food_values: list[float] = []
+    wealth_values: list[float] = []
+    defense_values: list[float] = []
+
+    for samples in observations_by_seed.values():
+        for sample in samples:
+            grid = np.asarray(sample["grid"], dtype=int)
+            for value in grid.ravel():
+                class_counts[terrain_code_to_class_index(int(value))] += 1.0
+            settlements = sample.get("settlements", [])
+            settlement_total += len(settlements)
+            port_total += sum(1 for settlement in settlements if settlement.get("has_port"))
+            alive_total += sum(1 for settlement in settlements if settlement.get("alive", True))
+            owners = {settlement.get("owner_id") for settlement in settlements if settlement.get("owner_id") is not None}
+            if settlements:
+                owner_diversity_values.append(float(len(owners)) / float(len(settlements)))
+            for settlement in settlements:
+                population_values.append(float(settlement.get("population", 0.0) or 0.0))
+                food_values.append(float(settlement.get("food", 0.0) or 0.0))
+                wealth_values.append(float(settlement.get("wealth", 0.0) or 0.0))
+                defense_values.append(float(settlement.get("defense", 0.0) or 0.0))
+
+    total_cells = float(class_counts.sum())
+    class_probs = class_counts / total_cells if total_cells > 0 else np.full(CLASS_COUNT, 1.0 / CLASS_COUNT, dtype=float)
+    settlement_strength = _saturating_signal(np.mean(population_values) + np.mean(food_values) + np.mean(wealth_values)) if population_values else 0.0
+    conflict_pressure = _saturating_signal(np.mean(defense_values)) if defense_values else 0.0
+    owner_diversity = float(np.mean(owner_diversity_values)) if owner_diversity_values else 0.0
+    port_ratio = float(port_total / settlement_total) if settlement_total > 0 else 0.0
+    development_signal = float(np.clip(class_probs[1] + class_probs[2] + 0.20 * settlement_strength, 0.0, 1.0))
+    conflict_signal = float(np.clip(class_probs[3] + 0.25 * conflict_pressure + 0.20 * owner_diversity, 0.0, 1.0))
+    forest_signal = float(class_probs[4])
+    return {
+        "observed_cells": int(total_cells),
+        "observed_settlements": int(settlement_total),
+        "observed_ports": int(port_total),
+        "alive_ratio": float(alive_total / settlement_total) if settlement_total > 0 else 0.0,
+        "owner_diversity": owner_diversity,
+        "mean_population": float(np.mean(population_values)) if population_values else 0.0,
+        "mean_food": float(np.mean(food_values)) if food_values else 0.0,
+        "mean_wealth": float(np.mean(wealth_values)) if wealth_values else 0.0,
+        "mean_defense": float(np.mean(defense_values)) if defense_values else 0.0,
+        "class_probs": class_probs.tolist(),
+        "development_signal": development_signal,
+        "conflict_signal": conflict_signal,
+        "port_signal": port_ratio,
+        "forest_signal": forest_signal,
+    }
+
+
+def _build_round_summary_features(global_class_probs: np.ndarray, settlement_counts: dict[bool, int]) -> dict[str, float]:
+    settlement_total = float(sum(int(value) for value in settlement_counts.values()))
+    port_ratio = float(settlement_counts.get(True, 0) / settlement_total) if settlement_total > 0 else 0.0
+    return {
+        "development_mass": float(global_class_probs[1] + global_class_probs[2]),
+        "conflict_mass": float(global_class_probs[3]),
+        "port_mass": float(global_class_probs[2]),
+        "forest_mass": float(global_class_probs[4]),
+        "mountain_mass": float(global_class_probs[5]),
+        "port_ratio": port_ratio,
+    }
+
+
+def _round_summary_alignment(observed_summary: dict[str, float], round_summary: dict[str, float]) -> float:
+    development_gap = abs(float(observed_summary.get("development_signal", 0.0)) - float(round_summary.get("development_mass", 0.0)))
+    conflict_gap = abs(float(observed_summary.get("conflict_signal", 0.0)) - float(round_summary.get("conflict_mass", 0.0)))
+    port_gap = abs(float(observed_summary.get("port_signal", 0.0)) - float(round_summary.get("port_ratio", 0.0)))
+    forest_gap = abs(float(observed_summary.get("forest_signal", 0.0)) - float(round_summary.get("forest_mass", 0.0)))
+    return float(-1.3 * development_gap - 1.1 * conflict_gap - 0.6 * port_gap - 0.3 * forest_gap)
+
+
+def _saturating_signal(value: float) -> float:
+    return float(1.0 - np.exp(-max(float(value), 0.0) / 100.0))

@@ -1,6 +1,15 @@
 # Tripletex Task-Solving Analysis
 
-This document analyzes how to solve the NM i AI Tripletex tasks using the task docs plus the Tripletex OpenAPI spec.
+Historical architectural analysis.
+
+This document captures the earlier solution analysis that informed the first implementation passes. It is still useful background, but it is not the live audit or the canonical statement of repository status.
+
+Current architecture references:
+
+- `README.md`
+- `NEWANALYSIS.md`
+- `DELTAS.md`
+- `DELTATASKS.md`
 
 It is intentionally solution-oriented, but contains no code.
 

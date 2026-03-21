@@ -1,6 +1,15 @@
 # Base Tasks For The Tripletex Solver
 
-This file defines the baseline implementation scope for a competition-ready Tripletex solver.
+Historical planning document.
+
+This file records the original baseline implementation scope that guided the early scaffold. It is retained as archive material, not as the current architectural source of truth.
+
+Current architecture references:
+
+- `README.md` for the live method-centric runtime
+- `NEWANALYSIS.md` for the current architectural audit
+- `DELTAS.md` for the strict gap analysis against the competition requirements
+- `DELTATASKS.md` for the execution ledger and completion record
 
 Constraints for this plan:
 

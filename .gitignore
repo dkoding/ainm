@@ -1,5 +1,6 @@
 /tripletex/.env
 /astar/.env
+/.idea/
 __pycache__/
 /.gcloud/
 /**/*.zip
@@ -18,4 +19,4 @@ __pycache__/
 /norgesgruppen-data/runs
 /norgesgruppen-data/.tmp*
 /norgesgruppen-data/.torch_home
-/astar/artifacts
+/astar/artifacts/

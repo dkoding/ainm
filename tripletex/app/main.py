@@ -11,7 +11,14 @@ from .execution import CommandExecutionError
 from .logging_utils import configure_logging, reset_request_id, set_request_id
 from .models import SolveRequest, SolveResponse
 from .openapi_registry import OpenAPIRegistryError
-from .solver import PlannerError, SolveError, TaskInputError, TripletexSolver, UnauthorizedError
+from .solver import (
+    PlannerError,
+    SolveError,
+    TaskInputError,
+    TaskPreconditionError,
+    TripletexSolver,
+    UnauthorizedError,
+)
 
 configure_logging()
 
@@ -86,6 +93,9 @@ def _handle_solve(request: SolveRequest, authorization: str | None) -> SolveResp
     except TaskInputError as exc:
         logger.warning("TaskInputError while handling /solve: %s", exc)
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except TaskPreconditionError as exc:
+        logger.warning("TaskPreconditionError while handling /solve: %s", exc)
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except PlannerError as exc:
         logger.exception("PlannerError while handling /solve")
         raise HTTPException(status_code=_planner_status_code(exc), detail=_planner_detail(exc)) from exc
@@ -146,6 +156,7 @@ def _summarize_solve_request(request: SolveRequest, authorization: str | None) -
 
 
 def _redact_base_url(base_url: str) -> str:
+    base_url = str(base_url)
     if "://" not in base_url:
         return base_url[:120]
     scheme, rest = base_url.split("://", 1)
