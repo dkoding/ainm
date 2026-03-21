@@ -108,6 +108,12 @@ Recommended canonical internal language:
 - English for field names
 - ISO formats for dates, currency codes, country codes, language codes
 
+This does not require a manual per-language support matrix.
+
+Natural-language understanding and normalization belong to the LLM.
+
+The implementation requirement is that one-shot prompt composition must reliably force the same canonical JSON contract regardless of input language.
+
 ### 2.4 Whole-API ready
 
 Per `DESC.md`, the entire `openapi.json` surface is in scope.
@@ -131,6 +137,10 @@ The LLM must therefore output:
 - argument bindings
 - ambiguity flags
 - completeness signals
+
+In the happy path, one LLM call should perform the full normalization and planning pass.
+
+That means prompt composition matters: the LLM should receive precise instructions and canonical examples of valid JSON outputs, not only abstract prose rules.
 
 ## 3. End-To-End Pipeline
 
