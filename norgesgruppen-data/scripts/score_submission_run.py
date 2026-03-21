@@ -62,6 +62,18 @@ def parse_args() -> argparse.Namespace:
         help="Fail if submission/run.py writes zero predictions.",
     )
     parser.add_argument("--iou-threshold", type=float, default=0.5, help="IoU threshold for local scoring.")
+    parser.add_argument(
+        "--python-executable",
+        type=Path,
+        help="Optional Python interpreter to use for submission/run.py instead of the current one.",
+    )
+    parser.add_argument(
+        "--pythonpath",
+        action="append",
+        type=Path,
+        default=[],
+        help="Optional extra PYTHONPATH entry for local scoring. Repeatable.",
+    )
     return parser.parse_args()
 
 
@@ -88,7 +100,13 @@ def main() -> None:
     if image_count <= 0:
         raise SystemExit(f"No supported images found under {image_dir}")
 
-    inference_seconds = run_submission(submission_dir, image_dir, predictions_output)
+    inference_seconds = run_submission(
+        submission_dir=submission_dir,
+        image_dir=image_dir,
+        predictions_output=predictions_output,
+        python_executable=args.python_executable.resolve() if args.python_executable else None,
+        pythonpath_entries=[path.resolve() for path in args.pythonpath],
+    )
     predictions = load_json(predictions_output)
     if not isinstance(predictions, list):
         raise SystemExit(f"Predictions output must be a JSON array: {predictions_output}")
@@ -121,6 +139,8 @@ def main() -> None:
             image_dir=image_dir,
             output_zip=output_zip,
             fail_on_empty=args.fail_on_empty,
+            python_executable=args.python_executable.resolve() if args.python_executable else None,
+            pythonpath_entries=[path.resolve() for path in args.pythonpath],
         )
         summary["output_zip"] = str(output_zip)
         summary["output_zip_size_bytes"] = output_zip.stat().st_size
@@ -176,19 +196,52 @@ def count_input_images(image_dir: Path) -> int:
     return sum(1 for path in image_dir.iterdir() if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES)
 
 
-def run_submission(submission_dir: Path, image_dir: Path, predictions_output: Path) -> float:
-    command = [
-        sys.executable,
-        str(submission_dir / "run.py"),
-        "--input",
-        str(image_dir),
-        "--output",
-        str(predictions_output),
-    ]
+def run_submission(
+    submission_dir: Path,
+    image_dir: Path,
+    predictions_output: Path,
+    python_executable: Path | None = None,
+    pythonpath_entries: list[Path] | None = None,
+) -> float:
+    executable = str(python_executable) if python_executable else sys.executable
+    if pythonpath_entries:
+        command = build_wrapped_python_command(
+            executable=executable,
+            run_path=submission_dir / "run.py",
+            image_dir=image_dir,
+            predictions_output=predictions_output,
+            pythonpath_entries=pythonpath_entries,
+        )
+    else:
+        command = [
+            executable,
+            str(submission_dir / "run.py"),
+            "--input",
+            str(image_dir),
+            "--output",
+            str(predictions_output),
+        ]
     print(f"$ {' '.join(command)}")
     started_at = time.perf_counter()
     subprocess.run(command, check=True, cwd=submission_dir)
     return time.perf_counter() - started_at
+
+
+def build_wrapped_python_command(
+    executable: str,
+    run_path: Path,
+    image_dir: Path,
+    predictions_output: Path,
+    pythonpath_entries: list[Path],
+) -> list[str]:
+    path_literals = ", ".join(repr(str(path)) for path in pythonpath_entries)
+    code = (
+        "import runpy, sys; "
+        f"sys.path[:0] = [{path_literals}]; "
+        f"sys.argv = [{repr(str(run_path))}, '--input', {repr(str(image_dir))}, '--output', {repr(str(predictions_output))}]; "
+        f"runpy.run_path({repr(str(run_path))}, run_name='__main__')"
+    )
+    return [executable, "-c", code]
 
 
 def evaluate_predictions(
@@ -222,7 +275,14 @@ def evaluate_predictions(
     }
 
 
-def preflight_submission(submission_dir: Path, image_dir: Path, output_zip: Path, fail_on_empty: bool) -> None:
+def preflight_submission(
+    submission_dir: Path,
+    image_dir: Path,
+    output_zip: Path,
+    fail_on_empty: bool,
+    python_executable: Path | None = None,
+    pythonpath_entries: list[Path] | None = None,
+) -> None:
     scripts_dir = Path(__file__).resolve().parent
     command = [
         sys.executable,
@@ -235,6 +295,11 @@ def preflight_submission(submission_dir: Path, image_dir: Path, output_zip: Path
     ]
     if fail_on_empty:
         command.append("--fail-on-empty")
+    if python_executable:
+        command.extend(["--python-executable", str(python_executable)])
+    if pythonpath_entries:
+        for path in pythonpath_entries:
+            command.extend(["--pythonpath", str(path)])
     print(f"$ {' '.join(command)}")
     subprocess.run(command, check=True)
 

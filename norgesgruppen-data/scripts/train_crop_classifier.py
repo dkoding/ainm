@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -31,6 +32,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--arch", choices=("resnet18", "resnet50", "convnext_tiny", "convnext_small"), default="resnet50")
     parser.add_argument("--epochs", type=int, default=30, help="Maximum epoch count before early stopping.")
     parser.add_argument("--batch-size", type=int, default=128)
+    parser.add_argument(
+        "--val-batch-size",
+        type=int,
+        help="Optional validation batch size. Defaults to --batch-size when omitted.",
+    )
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument(
         "--val-workers",
@@ -125,7 +131,7 @@ def main() -> None:
     )
     val_loader = DataLoader(
         val_dataset,
-        batch_size=args.batch_size,
+        batch_size=args.val_batch_size or args.batch_size,
         shuffle=False,
         num_workers=args.val_workers,
         pin_memory=device.type == "cuda",
@@ -176,6 +182,8 @@ def main() -> None:
             device=device,
             training=True,
         )
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
         val_loss, val_top1 = run_epoch(
             model=model,
             loader=val_loader,
@@ -291,8 +299,31 @@ def serialize_json(value):
 
 def write_json(path: Path, payload) -> None:
     temp_path = path.with_name(f"{path.name}.tmp")
-    temp_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    temp_path.replace(path)
+    serialized = json.dumps(payload, indent=2)
+    last_error: PermissionError | None = None
+    for attempt in range(8):
+        try:
+            temp_path.write_text(serialized, encoding="utf-8")
+            temp_path.replace(path)
+            return
+        except PermissionError as exc:
+            last_error = exc
+            time.sleep(0.1 * (attempt + 1))
+
+    try:
+        path.write_text(serialized, encoding="utf-8")
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except OSError:
+                pass
+        return
+    except PermissionError:
+        pass
+
+    if last_error is not None:
+        raise last_error
+    raise PermissionError(f"Could not write JSON file: {path}")
 
 
 def build_status_payload(

@@ -49,6 +49,18 @@ def parse_args() -> argparse.Namespace:
         default=Path("data/reports/train_crop_outliers.json"),
         help="Where to write the outlier report JSON.",
     )
+    parser.add_argument(
+        "--suspect-manifest",
+        type=Path,
+        default=Path("data/crops/train_crop_manifest_suspect.json"),
+        help="Where to write the manifest JSON for flagged crops that should be reviewed or down-weighted.",
+    )
+    parser.add_argument(
+        "--hard-delete-manifest",
+        type=Path,
+        default=Path("data/crops/train_crop_manifest_hard_delete.json"),
+        help="Where to write the manifest JSON for flagged crops that should be removed outright.",
+    )
     parser.add_argument("--input-size", type=int, default=224, help="Validation crop size for embedding extraction.")
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--workers", type=int, default=0)
@@ -86,6 +98,17 @@ def parse_args() -> argparse.Namespace:
         help="Maximum fraction of crops removed per category.",
     )
     parser.add_argument(
+        "--hard-delete-z-threshold",
+        type=float,
+        default=5.0,
+        help="Escalate flagged crops to hard-delete when anomaly_score exceeds this threshold and multiple reasons agree.",
+    )
+    parser.add_argument(
+        "--keep-suspect",
+        action="store_true",
+        help="Keep suspect crops in the filtered dataset and only remove hard-delete entries.",
+    )
+    parser.add_argument(
         "--copy-files",
         action="store_true",
         help="Copy files into the filtered root instead of hardlinking when possible.",
@@ -100,6 +123,8 @@ def main() -> None:
     filtered_root = args.filtered_root.resolve()
     filtered_manifest_path = args.filtered_manifest.resolve()
     report_path = args.report.resolve()
+    suspect_manifest_path = args.suspect_manifest.resolve()
+    hard_delete_manifest_path = args.hard_delete_manifest.resolve()
 
     manifest = load_json(manifest_path)
     if not isinstance(manifest, list):
@@ -147,8 +172,19 @@ def main() -> None:
         reference_prototypes=reference_prototypes,
     )
 
-    kept_entries = [entry for entry in entries if entry["annotation_id"] not in flagged_annotation_ids]
     flagged_entries = [entry for entry in entries if entry["annotation_id"] in flagged_annotation_ids]
+    for entry in flagged_entries:
+        entry["quality_decision"] = classify_quality_decision(
+            entry=entry,
+            hard_delete_z_threshold=args.hard_delete_z_threshold,
+        )
+    hard_delete_entries = [entry for entry in flagged_entries if entry["quality_decision"] == "hard_delete"]
+    suspect_entries = [entry for entry in flagged_entries if entry["quality_decision"] == "suspect"]
+    if args.keep_suspect:
+        removed_annotation_ids = {int(entry["annotation_id"]) for entry in hard_delete_entries}
+    else:
+        removed_annotation_ids = {int(entry["annotation_id"]) for entry in flagged_entries}
+    kept_entries = [entry for entry in entries if entry["annotation_id"] not in removed_annotation_ids]
     filtered_root = materialize_filtered_root(
         kept_entries=kept_entries,
         filtered_root=filtered_root,
@@ -156,6 +192,8 @@ def main() -> None:
     )
 
     save_json(filtered_manifest_path, [entry["manifest_entry"] for entry in kept_entries])
+    save_json(suspect_manifest_path, [entry["manifest_entry"] for entry in suspect_entries])
+    save_json(hard_delete_manifest_path, [entry["manifest_entry"] for entry in hard_delete_entries])
     report = {
         "manifest": str(manifest_path),
         "checkpoint": str(checkpoint_path),
@@ -170,6 +208,8 @@ def main() -> None:
             "cross_category_margin": args.cross_category_margin,
             "cross_category_min_similarity": args.cross_category_min_similarity,
             "max_remove_fraction": args.max_remove_fraction,
+            "hard_delete_z_threshold": args.hard_delete_z_threshold,
+            "keep_suspect": bool(args.keep_suspect),
             "reference_root": str(args.reference_root.resolve()) if args.reference_root else None,
         },
         "summary": {
@@ -177,11 +217,17 @@ def main() -> None:
             "kept_crop_count": len(kept_entries),
             "flagged_crop_count": len(flagged_entries),
             "flagged_fraction": round(len(flagged_entries) / max(1, len(entries)), 6),
+            "removed_crop_count": len(removed_annotation_ids),
+            "removed_fraction": round(len(removed_annotation_ids) / max(1, len(entries)), 6),
+            "hard_delete_count": len(hard_delete_entries),
+            "suspect_count": len(suspect_entries),
             "category_count": len(category_summaries),
             "reference_category_count": len(reference_prototypes["category_ids"]) if reference_prototypes else 0,
             "reference_image_count": len(reference_entries),
             "filtered_root": str(filtered_root),
             "filtered_manifest": str(filtered_manifest_path),
+            "suspect_manifest": str(suspect_manifest_path),
+            "hard_delete_manifest": str(hard_delete_manifest_path),
         },
         "categories": category_summaries,
         "flagged": [
@@ -204,6 +250,7 @@ def main() -> None:
                 "reference_margin_robust_z": round_optional(entry.get("reference_margin_robust_z")),
                 "anomaly_score": round_optional(entry.get("anomaly_score")),
                 "hard_reference_mismatch": bool(entry.get("hard_reference_mismatch")),
+                "quality_decision": str(entry.get("quality_decision", "suspect")),
                 "flag_reasons": list(entry.get("flag_reasons", [])),
             }
             for entry in sorted(flagged_entries, key=lambda item: float(item["robust_z"]), reverse=True)
@@ -216,6 +263,8 @@ def main() -> None:
     print(f"filtered_manifest={filtered_manifest_path}")
     print(f"input_crops={len(entries)}")
     print(f"flagged_crops={len(flagged_entries)}")
+    print(f"hard_delete_crops={len(hard_delete_entries)}")
+    print(f"suspect_crops={len(suspect_entries)}")
     print(f"kept_crops={len(kept_entries)}")
 
 
@@ -639,6 +688,19 @@ def round_optional(value: float | None) -> float | None:
     if value is None:
         return None
     return round(float(value), 6)
+
+
+def classify_quality_decision(entry: dict, hard_delete_z_threshold: float) -> str:
+    reasons = set(entry.get("flag_reasons", []))
+    anomaly_score = float(entry.get("anomaly_score", 0.0) or 0.0)
+    if bool(entry.get("hard_reference_mismatch")):
+        return "hard_delete"
+    if "cross_category_reference_mismatch" in reasons:
+        return "hard_delete"
+    if "within_category_outlier" in reasons and anomaly_score >= hard_delete_z_threshold:
+        if "low_reference_similarity" in reasons or "weak_reference_margin" in reasons:
+            return "hard_delete"
+    return "suspect"
 
 
 def materialize_filtered_root(

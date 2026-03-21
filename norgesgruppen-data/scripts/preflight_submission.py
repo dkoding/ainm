@@ -22,6 +22,14 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Fail the smoke test if the submission writes zero predictions.",
     )
+    parser.add_argument("--python-executable", type=Path, help="Optional Python interpreter for submission/run.py.")
+    parser.add_argument(
+        "--pythonpath",
+        action="append",
+        type=Path,
+        default=[],
+        help="Optional extra PYTHONPATH entry for smoke testing. Repeatable.",
+    )
     return parser.parse_args()
 
 
@@ -39,6 +47,10 @@ def main() -> None:
             smoke_command.extend(["--image-dir", str(args.image_dir.resolve())])
         if args.fail_on_empty:
             smoke_command.append("--fail-on-empty")
+        if args.python_executable:
+            smoke_command.extend(["--python-executable", str(args.python_executable.resolve())])
+        for path in args.pythonpath:
+            smoke_command.extend(["--pythonpath", str(path.resolve())])
         run_step(smoke_command)
 
     run_step([sys.executable, str(scripts_dir / "build_submission.py"), str(submission_dir), "--output", str(output_zip)])

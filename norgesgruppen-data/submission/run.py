@@ -24,6 +24,12 @@ DEFAULT_CONFIG = {
         "min_crop_size": 8,
         "score_mode": "blend_mul",
         "score_alpha": 0.5,
+        "prototype_candidates": ["class_prototypes.npy", "prototypes.npy", "weights/class_prototypes.npy"],
+        "prototype_alpha": 0.0,
+        "prototype_temperature": 0.1,
+        "rejector_enabled": False,
+        "rejector_margin": 0.02,
+        "rejector_min_product_similarity": None,
     },
     "onnx": {
         "weight_candidates": ["model.onnx", "weights/model.onnx"],
@@ -229,7 +235,7 @@ def load_crop_classifier(root: Path, config: dict):
     weights_path = first_existing_path(root, classifier_config.get("weight_candidates", []))
     if weights_path is None:
         raise RuntimeError("classifier is enabled but no matching checkpoint was found")
-    return CropClassifier(weights_path, classifier_config)
+    return CropClassifier(root, weights_path, classifier_config)
 
 
 class CropClassifierRefiner:
@@ -248,7 +254,7 @@ class CropClassifierRefiner:
 
 
 class CropClassifier:
-    def __init__(self, weights_path: Path, config: dict):
+    def __init__(self, root: Path, weights_path: Path, config: dict):
         import torch
         from torchvision import transforms
 
@@ -264,6 +270,31 @@ class CropClassifier:
         self.model.load_state_dict(payload["model_state_dict"])
         self.model.to(self.device)
         self.model.eval()
+        self.feature_extractor, self.classifier_head = build_crop_classifier_inference_modules(self.model, self.arch)
+        self.prototype_alpha = max(0.0, min(1.0, float(config.get("prototype_alpha", 0.0))))
+        self.prototype_temperature = max(1e-4, float(config.get("prototype_temperature", 0.1)))
+        self.prototype_matrix = None
+        self.prototype_available = None
+        self.product_prototype = None
+        self.junk_prototype = None
+        self.rejector_enabled = bool(config.get("rejector_enabled", False))
+        self.rejector_margin = float(config.get("rejector_margin", 0.02))
+        rejector_min_product_similarity = config.get("rejector_min_product_similarity")
+        self.rejector_min_product_similarity = (
+            None if rejector_min_product_similarity is None else float(rejector_min_product_similarity)
+        )
+        prototype_path = first_existing_path(root, config.get("prototype_candidates", []))
+        if prototype_path is not None:
+            prototype_matrix, prototype_available, auxiliary_prototypes = load_classifier_prototypes(
+                prototype_path=prototype_path,
+                category_ids=self.category_ids,
+                device=self.device,
+            )
+            if prototype_matrix is not None and prototype_available is not None:
+                self.prototype_matrix = prototype_matrix
+                self.prototype_available = prototype_available
+            self.product_prototype = auxiliary_prototypes.get("product")
+            self.junk_prototype = auxiliary_prototypes.get("junk")
 
         input_size = int(config.get("input_size", 224))
         normalize = transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
@@ -305,10 +336,35 @@ class CropClassifier:
                 batch_indices = valid_indices[offset : offset + self.batch_size]
                 batch_tensors = torch.stack(crop_tensors[offset : offset + self.batch_size]).to(self.device)
                 with torch.amp.autocast(device_type=self.device, enabled=self.device == "cuda"):
-                    logits = self.model(batch_tensors)
+                    features = self.feature_extractor(batch_tensors)
+                    logits = self.classifier_head(features)
                 probabilities = torch.softmax(logits, dim=1)
+                normalized_features = normalize_feature_batch(features)
+                if self.prototype_matrix is not None and self.prototype_available is not None and self.prototype_alpha > 0.0:
+                    prototype_probabilities = prototype_probabilities_from_normalized_features(
+                        normalized_features=normalized_features,
+                        prototype_matrix=self.prototype_matrix,
+                        prototype_available=self.prototype_available,
+                        temperature=self.prototype_temperature,
+                    )
+                    probabilities = (
+                        ((1.0 - self.prototype_alpha) * probabilities)
+                        + (self.prototype_alpha * prototype_probabilities)
+                    )
+                reject_mask = None
+                if self.rejector_enabled and self.product_prototype is not None and self.junk_prototype is not None:
+                    reject_mask = reject_predictions_from_features(
+                        normalized_features=normalized_features,
+                        product_prototype=self.product_prototype,
+                        junk_prototype=self.junk_prototype,
+                        rejector_margin=self.rejector_margin,
+                        rejector_min_product_similarity=self.rejector_min_product_similarity,
+                    )
                 top_scores, top_indices = probabilities.max(dim=1)
                 for row, prediction_index in enumerate(batch_indices):
+                    if reject_mask is not None and bool(reject_mask[row].item()):
+                        refined_predictions[prediction_index]["drop_prediction"] = True
+                        continue
                     category_id = self.category_ids[int(top_indices[row].item())]
                     classifier_score = float(top_scores[row].item())
                     detection_score = float(refined_predictions[prediction_index]["score"])
@@ -322,7 +378,7 @@ class CropClassifier:
                         ),
                         3,
                     )
-        return refined_predictions
+        return [prediction for prediction in refined_predictions if not prediction.get("drop_prediction")]
 
 
 def build_crop_classifier_model(arch: str, num_classes: int):
@@ -346,6 +402,99 @@ def build_crop_classifier_model(arch: str, num_classes: int):
         model.classifier[2] = torch.nn.Linear(model.classifier[2].in_features, num_classes)
         return model
     raise ValueError(f"Unsupported crop-classifier architecture: {arch}")
+
+
+def build_crop_classifier_inference_modules(model, arch: str):
+    import torch
+
+    if arch == "resnet18" or arch == "resnet50":
+        feature_extractor = torch.nn.Sequential(
+            model.conv1,
+            model.bn1,
+            model.relu,
+            model.maxpool,
+            model.layer1,
+            model.layer2,
+            model.layer3,
+            model.layer4,
+            model.avgpool,
+            torch.nn.Flatten(1),
+        )
+        return feature_extractor, model.fc
+    if arch == "convnext_tiny" or arch == "convnext_small":
+        feature_extractor = torch.nn.Sequential(
+            model.features,
+            model.avgpool,
+            model.classifier[0],
+            model.classifier[1],
+        )
+        return feature_extractor, model.classifier[2]
+    raise ValueError(f"Unsupported crop-classifier architecture: {arch}")
+
+
+def load_classifier_prototypes(prototype_path: Path, category_ids: list[int], device: str):
+    import numpy as np
+    import torch
+
+    loaded = np.load(prototype_path, allow_pickle=False)
+    if loaded.ndim != 2 or loaded.shape[1] < 2:
+        raise ValueError(f"Unsupported prototype matrix shape in {prototype_path}: {loaded.shape}")
+
+    embedding_dim = int(loaded.shape[1] - 1)
+    matrix = torch.zeros((len(category_ids), embedding_dim), dtype=torch.float32, device=device)
+    available = torch.zeros(len(category_ids), dtype=torch.bool, device=device)
+    auxiliary_prototypes = {"product": None, "junk": None}
+    category_index = {int(category_id): index for index, category_id in enumerate(category_ids)}
+
+    for row in loaded:
+        category_id = int(round(float(row[0])))
+        vector = torch.tensor(row[1:], dtype=torch.float32, device=device)
+        vector = torch.nn.functional.normalize(vector.unsqueeze(0), dim=1).squeeze(0)
+        if category_id == -1:
+            auxiliary_prototypes["product"] = vector
+            continue
+        if category_id == -2:
+            auxiliary_prototypes["junk"] = vector
+            continue
+        if category_id not in category_index:
+            continue
+        class_index = category_index[category_id]
+        matrix[class_index] = vector
+        available[class_index] = True
+
+    if not bool(available.any().item()):
+        return None, None, auxiliary_prototypes
+    matrix[available] = torch.nn.functional.normalize(matrix[available], dim=1)
+    return matrix, available, auxiliary_prototypes
+
+
+def normalize_feature_batch(features):
+    import torch
+
+    return torch.nn.functional.normalize(features, dim=1)
+
+
+def prototype_probabilities_from_normalized_features(normalized_features, prototype_matrix, prototype_available, temperature: float):
+    import torch
+
+    logits = normalized_features @ prototype_matrix.T
+    logits = logits.masked_fill(~prototype_available.unsqueeze(0), -1e4)
+    return torch.softmax(logits / temperature, dim=1)
+
+
+def reject_predictions_from_features(
+    normalized_features,
+    product_prototype,
+    junk_prototype,
+    rejector_margin: float,
+    rejector_min_product_similarity,
+):
+    product_similarity = normalized_features @ product_prototype.unsqueeze(1)
+    junk_similarity = normalized_features @ junk_prototype.unsqueeze(1)
+    reject_mask = junk_similarity.squeeze(1) >= (product_similarity.squeeze(1) + float(rejector_margin))
+    if rejector_min_product_similarity is not None:
+        reject_mask = reject_mask | (product_similarity.squeeze(1) < float(rejector_min_product_similarity))
+    return reject_mask
 
 
 def prediction_xywh_to_xyxy(bbox: list[float]) -> list[float]:

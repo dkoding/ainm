@@ -28,6 +28,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--padding", type=float, default=0.0, help="Extra padding ratio around each bbox.")
     parser.add_argument("--min-size", type=int, default=8, help="Skip crops smaller than this many pixels.")
     parser.add_argument(
+        "--pad-to-square",
+        action="store_true",
+        help="Pad extracted crops onto a square canvas so aspect ratio is preserved for classifier training.",
+    )
+    parser.add_argument(
+        "--square-fill",
+        type=int,
+        default=114,
+        help="RGB fill value used for square padding. Must be in [0, 255].",
+    )
+    parser.add_argument(
         "--manifest",
         type=Path,
         default=Path("data/crops/crop_manifest.json"),
@@ -39,6 +50,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     ensure_pillow()
+    if args.square_fill < 0 or args.square_fill > 255:
+        raise SystemExit("--square-fill must be in [0, 255]")
     coco = load_json(args.annotations.resolve())
     split = load_json(args.split.resolve()) if args.split else None
     selected_image_ids = select_image_ids(coco, split, args.split_name)
@@ -63,6 +76,8 @@ def main() -> None:
                 corrected_only=args.corrected_only,
                 padding=args.padding,
                 min_size=args.min_size,
+                pad_to_square=bool(args.pad_to_square),
+                square_fill=max(0, min(255, int(args.square_fill))),
             )
         )
 
@@ -88,6 +103,8 @@ def extract_from_image(
     corrected_only: bool,
     padding: float,
     min_size: int,
+    pad_to_square: bool,
+    square_fill: int,
 ) -> list[dict]:
     from PIL import Image
 
@@ -115,7 +132,12 @@ def extract_from_image(
         destination_dir.mkdir(parents=True, exist_ok=True)
         file_name = f"img_{image_id:05d}_ann_{int(annotation['id']):06d}.jpg"
         destination_path = destination_dir / file_name
-        image.crop(crop_box).save(destination_path, format="JPEG")
+        crop_image = image.crop(crop_box)
+        square_side = None
+        if pad_to_square:
+            crop_image = pad_image_to_square(crop_image, square_fill=square_fill)
+            square_side = int(crop_image.size[0])
+        crop_image.save(destination_path, format="JPEG")
         crops.append(
             {
                 "image_id": image_id,
@@ -127,6 +149,9 @@ def extract_from_image(
                 "crop_file": destination_path.as_posix(),
                 "bbox": bbox,
                 "crop_box": crop_box,
+                "pad_to_square": bool(pad_to_square),
+                "square_fill": int(square_fill) if pad_to_square else None,
+                "square_side": square_side,
             }
         )
 
@@ -149,6 +174,18 @@ def padded_box(bbox, image_width: int, image_height: int, padding: float) -> tup
     x2 = min(image_width, int(round(x + width + pad_w)))
     y2 = min(image_height, int(round(y + height + pad_h)))
     return (x1, y1, x2, y2)
+
+
+def pad_image_to_square(image, square_fill: int):
+    from PIL import Image
+
+    width, height = image.size
+    side = max(width, height)
+    canvas = Image.new("RGB", (side, side), (square_fill, square_fill, square_fill))
+    offset_x = (side - width) // 2
+    offset_y = (side - height) // 2
+    canvas.paste(image, (offset_x, offset_y))
+    return canvas
 
 
 if __name__ == "__main__":

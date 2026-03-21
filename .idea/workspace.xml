@@ -4,17 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ac6b219e-15c9-495c-bd28-adaae518ad0e" name="Changes" comment="NG Data GPU training WIP">
-      <change afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/flag_crop_outliers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+    <list default="true" id="ac6b219e-15c9-495c-bd28-adaae518ad0e" name="Changes" comment="NG Data WIP">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/build_submission.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/build_submission.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/check_submission.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/check_submission.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/extract_product_crops.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/extract_product_crops.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/make_splits.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/make_splits.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/flag_crop_outliers.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/flag_crop_outliers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/preflight_submission.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/preflight_submission.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/score_submission_run.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/score_submission_run.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/smoke_submission.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/smoke_submission.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/train_crop_classifier.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/train_crop_classifier.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/train_yolov8.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/train_yolov8.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/submission/best.pt" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/submission/best.pt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/submission/best.pt" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/norgesgruppen-data/submission/run.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/submission/run.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/norgesgruppen-data/submission/submission_config.json" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/submission/submission_config.json" afterDir="false" />
     </list>
@@ -25,6 +24,7 @@
   </component>
   <component name="CopilotPersistence">
     <persistenceIdMap>
+      <entry key="_C:/work/ainm" value="3BG3gsYJAu5qP2HJ5s8FZi3hgV6" />
       <entry key="_D:/work/ainm" value="3BCkXh5BxZFumnKSOVllJK7ATcO" />
     </persistenceIdMap>
   </component>
@@ -39,22 +39,24 @@
   <component name="ProjectViewState">
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;SHELLCHECK.PATH&quot;: &quot;C:\\Users\\dagko\\AppData\\Roaming\\JetBrains\\IntelliJIdea2025.2\\plugins\\Shell Script\\shellcheck.exe&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/work/ainm/norgesgruppen-data&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "SHELLCHECK.PATH": "C:\\Users\\dagko\\AppData\\Roaming\\JetBrains\\IntelliJIdea2025.2\\plugins\\Shell Script\\shellcheck.exe",
+    "git-widget-placeholder": "master",
+    "ignore.virus.scanning.warn.message": "true",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "D:/work/ainm/norgesgruppen-data",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="D:\work\ainm\norgesgruppen-data" />
@@ -68,8 +70,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.28238.7" />
-        <option value="bundled-js-predefined-d6986cc7102b-a71380e98a7c-JavaScript-IU-252.28238.7" />
+        <option value="bundled-jdk-9823dce3aa75-fbdcb00ec9e3-intellij.indexing.shared.core-IU-251.28774.11" />
+        <option value="bundled-js-predefined-d6986cc7102b-09060db00ec0-JavaScript-IU-251.28774.11" />
       </set>
     </attachedChunks>
   </component>
@@ -81,6 +83,7 @@
       <option name="presentableId" value="Default" />
       <updated>1774000490808</updated>
       <workItem from="1774000491924" duration="23263000" />
+      <workItem from="1774101691772" duration="6470000" />
     </task>
     <task id="LOCAL−00001" summary="Initial scaffolding">
       <option name="closed" value="true" />
@@ -194,7 +197,28 @@
       <option name="presentableId" value="LOCAL−00016" />
       <updated>1774078704588</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL−00017" summary="NG Data GPU training WIP">
+      <option name="closed" value="true" />
+      <created>1774101719925</created>
+      <option name="number" value="LOCAL−00017" />
+      <option name="presentableId" value="LOCAL−00017" />
+      <updated>1774101719925</updated>
+    </task>
+    <task id="LOCAL−00018" summary="NG Data GPU training WIP">
+      <option name="closed" value="true" />
+      <created>1774101761781</created>
+      <option name="number" value="LOCAL−00018" />
+      <option name="presentableId" value="LOCAL−00018" />
+      <updated>1774101761781</updated>
+    </task>
+    <task id="LOCAL−00019" summary="NG Data WIP">
+      <option name="closed" value="true" />
+      <created>1774103737456</created>
+      <option name="number" value="LOCAL−00019" />
+      <option name="presentableId" value="LOCAL−00019" />
+      <updated>1774103737456</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -208,9 +232,9 @@
     <MESSAGE value="Running astar traning and evaluation model in a loop. Changing tripletex LLM usage so it delegates more to code. Storing models and artifacts." />
     <MESSAGE value="Starting on NG data, moving some stuff around, fixing tripletext deltas" />
     <MESSAGE value="WIP" />
-    <MESSAGE value="NG Data WIP" />
     <MESSAGE value="NG Data GPU training WIP" />
-    <option name="LAST_COMMIT_MESSAGE" value="NG Data GPU training WIP" />
+    <MESSAGE value="NG Data WIP" />
+    <option name="LAST_COMMIT_MESSAGE" value="NG Data WIP" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

@@ -25,7 +25,11 @@
     "batch_size": 64,
     "min_crop_size": 8,
     "score_mode": "blend_mul",
-    "score_alpha": 0.5
+    "score_alpha": 0.5,
+    "prototype_alpha": 0.15,
+    "prototype_temperature": 0.1,
+    "rejector_enabled": false,
+    "rejector_margin": 0.02
   },
   "onnx": {
     "weight_candidates": [

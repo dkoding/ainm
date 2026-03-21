@@ -25,12 +25,20 @@ What is included here:
 - `scripts/build_submission.py`: zip builder that keeps `run.py` at the archive root.
 - `scripts/preflight_submission.py`: one-command local preflight for validate → smoke → build → validate.
 - `scripts/score_submission_run.py`: stage a trained checkpoint into `submission/`, run the real submission path, score it locally, and record runtime/package metrics.
+- `scripts/make_cv_splits.py`: generate repeated image-level or group-level cross-validation folds.
+- `scripts/sweep_submission_cv.py`: score the real packaged submission path over CV folds while sweeping thresholds and classifier fusion settings.
 - `scripts/summarize_dataset.py`: COCO dataset summary script.
 - `scripts/make_splits.py`: reproducible train/validation split generator.
 - `scripts/evaluate_local.py`: local hybrid-score approximation.
 - `scripts/train_yolov8.py`: YOLOv8 data prep and training launcher.
+- `scripts/sweep_yolov8_experiments.py`: reproducible detector sweep helper built on top of `train_yolov8.py` and `score_submission_run.py`.
 - `scripts/prepare_reference_index.py`: product reference image indexer.
-- `scripts/extract_product_crops.py`: crop extractor for second-stage classification experiments.
+- `scripts/extract_product_crops.py`: crop extractor for second-stage classification experiments, including square-padding support.
+- `scripts/audit_crop_duplicates.py`: perceptual near-duplicate audit for extracted crops.
+- `scripts/flag_crop_outliers.py`: embedding-based crop-quality filter with separate hard-delete and suspect manifests.
+- `scripts/build_classifier_prototypes.py`: build class prototypes for submission-time classifier/prototype fusion, with optional product/junk auxiliary prototypes.
+- `scripts/mine_detector_hard_negatives.py`: mine detector false positives as junk negatives for rejector experiments.
+- `scripts/finalize_submission.py`: final local verify -> score -> package wrapper.
 
 Manual blockers:
 
@@ -72,6 +80,79 @@ python3 scripts/score_submission_run.py \
   --fail-on-empty
 ```
 
+Cross-validation and improvement workflow:
+
+```bash
+python3 scripts/make_cv_splits.py \
+  /path/to/annotations.json \
+  --output-dir data/splits/cv/default \
+  --fold-count 3 \
+  --repeats 2
+
+python3 scripts/sweep_submission_cv.py \
+  /path/to/annotations.json \
+  /path/to/images \
+  submission \
+  --cv-manifest data/splits/cv/default/manifest.json \
+  --confidence-thresholds 0.03 0.05 0.07 \
+  --nms-iou-thresholds 0.45 0.50 0.55 \
+  --classifier-score-alphas 0.4 0.5 0.6
+```
+
+Crop-quality workflow:
+
+```bash
+python3 scripts/extract_product_crops.py \
+  /path/to/annotations.json \
+  /path/to/images \
+  data/crops/train_by_category \
+  --split data/splits/default_split.json \
+  --split-name train \
+  --padding 0.05 \
+  --pad-to-square \
+  --manifest data/crops/train_crop_manifest.json
+
+python3 scripts/audit_crop_duplicates.py \
+  data/crops/train_crop_manifest.json
+
+python3 scripts/flag_crop_outliers.py \
+  data/crops/train_crop_manifest.json \
+  runs/crop_classifier/best_crop_classifier.pt \
+  --reference-root data/crops/reference_by_category \
+  --keep-suspect
+```
+
+Prototype and rejector workflow:
+
+```bash
+python3 scripts/mine_detector_hard_negatives.py \
+  /path/to/annotations.json \
+  /path/to/images \
+  submission \
+  --split data/splits/default_split.json \
+  --split-name train
+
+python3 scripts/build_classifier_prototypes.py \
+  runs/crop_classifier/best_crop_classifier.pt \
+  --train-manifest data/crops/train_crop_manifest_filtered.json \
+  --reference-root data/crops/reference_by_category \
+  --junk-manifest data/crops/junk_negatives_manifest.json \
+  --output submission/class_prototypes.npy
+```
+
+Final packaging workflow:
+
+```bash
+python3 scripts/finalize_submission.py \
+  --submission-dir submission \
+  --output-zip dist/submission_final.zip \
+  --annotations /path/to/annotations.json \
+  --image-dir /path/to/val/images \
+  --split data/splits/default_split.json \
+  --split-name val \
+  --fail-on-empty
+```
+
 Example real-data outputs generated in this repository:
 
 - `data/reports/dataset_summary.json`
@@ -83,6 +164,7 @@ Example real-data outputs generated in this repository:
 - `dist/submission_trained.zip`
 
 When you have weights ready, place them inside `submission/` and update `submission/submission_config.json`.
+The current submission path supports an ONNX detector, a crop-classifier checkpoint, and a single `.npy` prototype matrix within the competition's 3-weight-file limit.
 
 Supported default weight locations:
 

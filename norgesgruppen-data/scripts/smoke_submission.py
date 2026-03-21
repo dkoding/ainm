@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from score_submission_run import build_wrapped_python_command
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the submission scaffold locally and validate its output.")
@@ -13,6 +15,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--image-dir", type=Path, help="Optional directory of real test images.")
     parser.add_argument("--output-json", type=Path, help="Optional path for the generated predictions.json.")
     parser.add_argument("--fail-on-empty", action="store_true", help="Fail if the submission writes zero predictions.")
+    parser.add_argument("--python-executable", type=Path, help="Optional Python interpreter for submission/run.py.")
+    parser.add_argument(
+        "--pythonpath",
+        action="append",
+        type=Path,
+        default=[],
+        help="Optional extra PYTHONPATH entry for local smoke testing. Repeatable.",
+    )
     return parser.parse_args()
 
 
@@ -30,14 +40,24 @@ def main() -> None:
     if args.image_dir is None:
         create_placeholder_image(input_dir / "img_00001.jpg")
 
-    command = [
-        sys.executable,
-        str(run_path),
-        "--input",
-        str(input_dir),
-        "--output",
-        str(output_json),
-    ]
+    executable = str(args.python_executable.resolve()) if args.python_executable else sys.executable
+    if args.pythonpath:
+        command = build_wrapped_python_command(
+            executable=executable,
+            run_path=run_path,
+            image_dir=input_dir,
+            predictions_output=output_json,
+            pythonpath_entries=[path.resolve() for path in args.pythonpath],
+        )
+    else:
+        command = [
+            executable,
+            str(run_path),
+            "--input",
+            str(input_dir),
+            "--output",
+            str(output_json),
+        ]
     subprocess.run(command, check=True, cwd=submission_dir)
     predictions = json.loads(output_json.read_text(encoding="utf-8"))
     validate_predictions(predictions)
