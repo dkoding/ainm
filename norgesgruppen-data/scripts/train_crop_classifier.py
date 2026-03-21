@@ -29,6 +29,11 @@ def parse_args() -> argparse.Namespace:
         default=Path("runs/crop_classifier"),
         help="Directory for checkpoints and history.",
     )
+    parser.add_argument(
+        "--init-checkpoint",
+        type=Path,
+        help="Optional checkpoint to warm-start from. Matching backbone weights are restored, and matching classifier rows are copied by class name.",
+    )
     parser.add_argument("--arch", choices=("resnet18", "resnet50", "convnext_tiny", "convnext_small"), default="resnet50")
     parser.add_argument("--epochs", type=int, default=30, help="Maximum epoch count before early stopping.")
     parser.add_argument("--batch-size", type=int, default=128)
@@ -100,7 +105,7 @@ def main() -> None:
         ]
     )
 
-    class_names = sorted(path.name for path in train_dir.iterdir() if path.is_dir())
+    class_names = collect_class_names([train_dir, *extra_train_dirs])
     train_dataset = CropFolderDataset(
         [train_dir, *extra_train_dirs],
         class_names,
@@ -114,6 +119,13 @@ def main() -> None:
         raise SystemExit("No classes found in crop dataset.")
 
     replace_classifier(model, args.arch, num_classes)
+    if args.init_checkpoint:
+        load_initial_checkpoint(
+            model=model,
+            arch=args.arch,
+            class_names=train_dataset.class_names,
+            checkpoint_path=args.init_checkpoint.resolve(),
+        )
 
     device = torch.device(args.device if args.device else ("cuda" if torch.cuda.is_available() else "cpu"))
     if device.type == "cuda" and not torch.cuda.is_available():
@@ -352,6 +364,17 @@ def count_classes(targets: list[int], num_classes: int) -> torch.Tensor:
     return counts
 
 
+def collect_class_names(roots: list[Path]) -> list[str]:
+    class_names: set[str] = set()
+    for root in roots:
+        if not root.exists():
+            continue
+        for path in root.iterdir():
+            if path.is_dir():
+                class_names.add(path.name)
+    return sorted(class_names)
+
+
 def build_class_weights(class_counts: torch.Tensor) -> torch.Tensor:
     weights = torch.zeros_like(class_counts)
     positive = class_counts > 0
@@ -462,6 +485,74 @@ def save_checkpoint(
     torch.save(payload, path)
 
 
+def load_initial_checkpoint(model: nn.Module, arch: str, class_names: list[str], checkpoint_path: Path) -> None:
+    payload = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    checkpoint_arch = str(payload.get("arch", ""))
+    if checkpoint_arch != arch:
+        raise SystemExit(
+            f"Initial checkpoint architecture mismatch: expected {arch}, found {checkpoint_arch} in {checkpoint_path}"
+        )
+
+    checkpoint_state = payload.get("model_state_dict")
+    if not isinstance(checkpoint_state, dict):
+        raise SystemExit(f"Initial checkpoint is missing model_state_dict: {checkpoint_path}")
+
+    model_state = model.state_dict()
+    classifier_weight_key, classifier_bias_key = classifier_parameter_names(arch)
+    filtered_state = {
+        key: value
+        for key, value in checkpoint_state.items()
+        if key in model_state
+        and model_state[key].shape == value.shape
+        and key not in {classifier_weight_key, classifier_bias_key}
+    }
+    load_result = model.load_state_dict(filtered_state, strict=False)
+    if load_result.unexpected_keys:
+        raise SystemExit(f"Unexpected keys in initial checkpoint load: {load_result.unexpected_keys}")
+
+    checkpoint_class_names = [str(name) for name in payload.get("class_names", [])]
+    if not checkpoint_class_names:
+        return
+
+    current_weight = model_state[classifier_weight_key]
+    current_bias = model_state[classifier_bias_key]
+    restored_weight = current_weight.clone()
+    restored_bias = current_bias.clone()
+    checkpoint_weight = checkpoint_state.get(classifier_weight_key)
+    checkpoint_bias = checkpoint_state.get(classifier_bias_key)
+    if checkpoint_weight is None or checkpoint_bias is None:
+        return
+
+    old_index_by_name = {str(name): index for index, name in enumerate(checkpoint_class_names)}
+    copied_rows = 0
+    for new_index, class_name in enumerate(class_names):
+        old_index = old_index_by_name.get(str(class_name))
+        if old_index is None:
+            continue
+        restored_weight[new_index] = checkpoint_weight[old_index]
+        restored_bias[new_index] = checkpoint_bias[old_index]
+        copied_rows += 1
+
+    with torch.no_grad():
+        parameter_dict = dict(model.named_parameters())
+        buffer_dict = dict(model.named_buffers())
+        target_weight = parameter_dict.get(classifier_weight_key)
+        target_bias = parameter_dict.get(classifier_bias_key)
+        if target_weight is None:
+            target_weight = buffer_dict.get(classifier_weight_key)
+        if target_bias is None:
+            target_bias = buffer_dict.get(classifier_bias_key)
+        if target_weight is None or target_bias is None:
+            raise SystemExit(f"Could not locate classifier parameters for {arch}")
+        target_weight.copy_(restored_weight)
+        target_bias.copy_(restored_bias)
+
+    print(
+        f"init_checkpoint={checkpoint_path} restored_backbone_keys={len(filtered_state)} copied_classifier_rows={copied_rows}",
+        flush=True,
+    )
+
+
 def build_model(arch: str) -> nn.Module:
     from torchvision.models import (
         ConvNeXt_Small_Weights,
@@ -494,6 +585,14 @@ def replace_classifier(model: nn.Module, arch: str, num_classes: int) -> None:
         in_features = model.classifier[2].in_features
         model.classifier[2] = nn.Linear(in_features, num_classes)
         return
+    raise ValueError(f"Unsupported architecture: {arch}")
+
+
+def classifier_parameter_names(arch: str) -> tuple[str, str]:
+    if arch.startswith("resnet"):
+        return "fc.weight", "fc.bias"
+    if arch in {"convnext_tiny", "convnext_small"}:
+        return "classifier.2.weight", "classifier.2.bias"
     raise ValueError(f"Unsupported architecture: {arch}")
 
 

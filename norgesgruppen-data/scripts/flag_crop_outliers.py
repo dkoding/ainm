@@ -98,6 +98,12 @@ def parse_args() -> argparse.Namespace:
         help="Maximum fraction of crops removed per category.",
     )
     parser.add_argument(
+        "--min-keep-per-class",
+        type=int,
+        default=1,
+        help="Minimum number of crops to retain per category after filtering.",
+    )
+    parser.add_argument(
         "--hard-delete-z-threshold",
         type=float,
         default=5.0,
@@ -169,6 +175,7 @@ def main() -> None:
         cross_category_margin=args.cross_category_margin,
         cross_category_min_similarity=args.cross_category_min_similarity,
         max_remove_fraction=args.max_remove_fraction,
+        min_keep_per_class=args.min_keep_per_class,
         reference_prototypes=reference_prototypes,
     )
 
@@ -208,6 +215,7 @@ def main() -> None:
             "cross_category_margin": args.cross_category_margin,
             "cross_category_min_similarity": args.cross_category_min_similarity,
             "max_remove_fraction": args.max_remove_fraction,
+            "min_keep_per_class": args.min_keep_per_class,
             "hard_delete_z_threshold": args.hard_delete_z_threshold,
             "keep_suspect": bool(args.keep_suspect),
             "reference_root": str(args.reference_root.resolve()) if args.reference_root else None,
@@ -466,6 +474,7 @@ def flag_outliers(
     cross_category_margin: float,
     cross_category_min_similarity: float,
     max_remove_fraction: float,
+    min_keep_per_class: int,
     reference_prototypes: dict | None,
 ) -> tuple[set[int], list[dict]]:
     by_category: dict[int, list[int]] = defaultdict(list)
@@ -617,11 +626,15 @@ def flag_outliers(
         removal_cap = int(class_size * max_remove_fraction)
         if max_remove_fraction > 0 and removal_cap <= 0 and (hard_candidate_indices or soft_candidate_indices):
             removal_cap = 1
+        max_allowed_removals = max(0, class_size - max(0, int(min_keep_per_class)))
+        if removal_cap > max_allowed_removals:
+            removal_cap = max_allowed_removals
         if removal_cap > 0:
-            removal_cap = max(removal_cap, len(hard_candidate_indices))
-            candidate_indices = hard_candidate_indices + soft_candidate_indices[: max(0, removal_cap - len(hard_candidate_indices))]
+            hard_keep = hard_candidate_indices[:removal_cap]
+            remaining_budget = max(0, removal_cap - len(hard_keep))
+            candidate_indices = hard_keep + soft_candidate_indices[:remaining_budget]
         else:
-            candidate_indices = list(hard_candidate_indices)
+            candidate_indices = []
 
         for entry_index in candidate_indices:
             flagged_annotation_ids.add(int(entries[entry_index]["annotation_id"]))
