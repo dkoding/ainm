@@ -51,8 +51,13 @@ class LLMPlanner:
         try:
             return self.validator.validate(raw_response)
         except RawExecutionError as exc:
-            if "valid JSON" in exc.message or "bridge schema" in exc.message:
-                return self.repair_engine.repair(raw_response, [exc.message])
+            repair_errors = [exc.message]
+            detailed_errors = exc.details.get("errors")
+            if isinstance(detailed_errors, list):
+                for item in detailed_errors[:8]:
+                    repair_errors.append(json.dumps(item, ensure_ascii=False))
+            if isinstance(raw_response, str):
+                return self.repair_engine.repair(raw_response, repair_errors)
             raise
 
     def _maybe_validate_direct_json(self, prompt: str) -> LLMBridgeDocument | None:

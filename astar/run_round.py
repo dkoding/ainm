@@ -213,8 +213,6 @@ def main() -> None:
                 f"from {history_summary['cache_path']}"
             )
 
-    tuning_summary = maybe_resolve_tuned_baseline_settings(args=args, history_summary=history_summary)
-
     rounds = client.get_rounds()
     round_id = args.round_id or find_active_round_id(rounds)
     round_detail = client.get_round_detail(round_id)
@@ -226,6 +224,11 @@ def main() -> None:
         raise SystemExit(
             f"Simulation plan would spend {total_queries} queries; the documented limit is 50 for the whole round."
         )
+    tuning_summary = maybe_resolve_tuned_baseline_settings(
+        args=args,
+        history_summary=history_summary,
+        is_active_round=is_active_round,
+    )
 
     sklearn_artifact = None
     sklearn_training_summary = None
@@ -915,6 +918,7 @@ def maybe_resolve_tuned_baseline_settings(
     *,
     args: argparse.Namespace,
     history_summary: dict[str, Any] | None,
+    is_active_round: bool,
 ) -> dict[str, Any] | None:
     if history_summary is None or int(history_summary.get("analysis_cached_seeds", 0) or 0) <= 0:
         return None
@@ -927,10 +931,24 @@ def maybe_resolve_tuned_baseline_settings(
         }
     tuning_output = Path(args.out_dir) / args.history_cache_prefix / "tuning.json"
     cached = load_cached_tuning_report(tuning_output=tuning_output, history_summary=history_summary)
+    cache_status = "current_cache"
     if cached is None:
-        cached = tune_baseline_from_history(root=args.out_dir, cache_prefix=args.history_cache_prefix)
-        tuning_output.parent.mkdir(parents=True, exist_ok=True)
-        tuning_output.write_text(json.dumps(cached, indent=2, sort_keys=True))
+        if is_active_round:
+            cached = load_any_cached_tuning_report(tuning_output=tuning_output)
+            if cached is not None:
+                cache_status = "stale_cache_active_round"
+            else:
+                return {
+                    "applied": False,
+                    "reason": "skipped_for_active_round",
+                    "floor": float(args.floor),
+                    "history_prior_strength": float(args.history_prior_strength),
+                }
+        else:
+            cached = tune_baseline_from_history(root=args.out_dir, cache_prefix=args.history_cache_prefix)
+            tuning_output.parent.mkdir(parents=True, exist_ok=True)
+            tuning_output.write_text(json.dumps(cached, indent=2, sort_keys=True))
+            cache_status = "recomputed"
     best = cached.get("best") or {}
     if "floor" in best:
         args.floor = float(best["floor"])
@@ -941,6 +959,7 @@ def maybe_resolve_tuned_baseline_settings(
         "floor": float(args.floor),
         "history_prior_strength": float(args.history_prior_strength),
         "tuning_report": str(tuning_output),
+        "cache_status": cache_status,
         "best": best,
     }
 
@@ -1059,6 +1078,15 @@ def load_cached_tuning_report(
     if cached_round_ids != current_round_ids:
         return None
     return cached
+
+
+def load_any_cached_tuning_report(*, tuning_output: Path) -> dict[str, Any] | None:
+    if not tuning_output.exists():
+        return None
+    try:
+        return json.loads(tuning_output.read_text())
+    except json.JSONDecodeError:
+        return None
 
 
 def load_strategy_feedback_summary(*, root: Path, max_rounds: int = 5) -> dict[str, Any]:

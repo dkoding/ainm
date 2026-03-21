@@ -14,11 +14,11 @@ from app.raw.errors import RawExecutionError
 
 class GeminiClient:
     def __init__(self, timeout: float = 60.0) -> None:
-        self.timeout = timeout
+        self.timeout = float(os.getenv("GEMINI_TIMEOUT_SECONDS", str(timeout)).strip() or timeout)
         self.endpoint = os.getenv("GEMINI_ENDPOINT", "").strip()
         self.auth_token = os.getenv("GEMINI_AUTH_TOKEN", "").strip()
         self.project = os.getenv("GOOGLE_CLOUD_PROJECT", "").strip()
-        self.location = os.getenv("GOOGLE_CLOUD_LOCATION", os.getenv("CLOUD_RUN_REGION", "europe-north1")).strip()
+        self.location = os.getenv("GOOGLE_CLOUD_LOCATION", "global").strip() or "global"
         self.model = os.getenv("GEMINI_MODEL", "gemini-2.5-pro").strip()
         self._vertex_session: AuthorizedSession | None = None
 
@@ -27,12 +27,18 @@ class GeminiClient:
             headers = {"Content-Type": "application/json"}
             if self.auth_token:
                 headers["Authorization"] = f"Bearer {self.auth_token}"
-            response = requests.post(
-                self.endpoint,
-                headers=headers,
-                json=prompt_package,
-                timeout=self.timeout,
-            )
+            try:
+                response = requests.post(
+                    self.endpoint,
+                    headers=headers,
+                    json=prompt_package,
+                    timeout=self.timeout,
+                )
+            except requests.RequestException as exc:
+                raise RawExecutionError(
+                    message="Gemini endpoint request failed.",
+                    details={"errorType": exc.__class__.__name__, "message": str(exc)[:2000]},
+                ) from exc
             if response.status_code >= 400:
                 raise RawExecutionError(message=f"Gemini endpoint returned HTTP {response.status_code}.")
             return response.text
@@ -41,7 +47,12 @@ class GeminiClient:
     def repair(self, broken_payload: str, errors: list[str]) -> str:
         return self.generate(
             {
-                "systemInstruction": "Fix the provided JSON only. Return one valid JSON object with no prose.",
+                "systemInstruction": (
+                    "Fix the provided Tripletex bridge JSON only. "
+                    "Return exactly one valid JSON object with no prose. "
+                    "The top-level sections requestContext, language, understanding, sources, richData, flatBridge, "
+                    "executionPlan, validation, and completion must all be JSON objects, never arrays."
+                ),
                 "request": {"invalidJson": broken_payload, "errors": errors},
                 "context": {},
             }
@@ -72,11 +83,23 @@ class GeminiClient:
                 "responseMimeType": "application/json",
             },
         }
+        endpoint_host = "aiplatform.googleapis.com" if self.location == "global" else f"{self.location}-aiplatform.googleapis.com"
         url = (
-            f"https://{self.location}-aiplatform.googleapis.com/v1/projects/"
-            f"{self.project}/locations/{self.location}/publishers/google/models/{self.model}:generateContent"
+            f"https://{endpoint_host}/v1/projects/{self.project}/locations/"
+            f"{self.location}/publishers/google/models/{self.model}:generateContent"
         )
-        response = session.post(url, json=payload, timeout=self.timeout)
+        try:
+            response = session.post(url, json=payload, timeout=self.timeout)
+        except requests.RequestException as exc:
+            raise RawExecutionError(
+                message="Vertex AI request failed.",
+                details={
+                    "errorType": exc.__class__.__name__,
+                    "message": str(exc)[:2000],
+                    "location": self.location,
+                    "model": self.model,
+                },
+            ) from exc
         if response.status_code >= 400:
             raise RawExecutionError(
                 message=f"Vertex AI returned HTTP {response.status_code}.",
