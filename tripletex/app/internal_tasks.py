@@ -19,6 +19,8 @@ from .tasking import TaskAnalysis
 class FlowKind(str, Enum):
     SALES_WORKFLOW = "sales.workflow"
     PROJECT_TIME_INVOICE_WORKFLOW = "project.time_invoice.workflow"
+    SUPPLIER_INVOICE_WORKFLOW = "supplier.invoice.workflow"
+    INVOICE_CREDIT_NOTE = "invoice.credit_note"
     INVOICE_REGISTER_PAYMENT = "invoice.register_payment"
     EMPLOYEE_ADMIN = "employee.admin"
     EMPLOYEE_UPSERT = "employee.upsert"
@@ -254,6 +256,42 @@ METHOD_SPECS: dict[str, MethodSpec] = {
             "deliveryDate",
         ),
     ),
+    "RegisterSupplierInvoice": MethodSpec(
+        name="RegisterSupplierInvoice",
+        flow_kind=FlowKind.SUPPLIER_INVOICE_WORKFLOW,
+        operation="create",
+        target_resource="supplierinvoice",
+        description="Register a supplier invoice using the incoming-invoice API with resolved supplier, account, and VAT.",
+        optional_arguments=(
+            "supplierName",
+            "supplierOrganizationNumber",
+            "supplierEmail",
+            "invoiceNumber",
+            "description",
+            "accountNumber",
+            "amountIncludingVat",
+            "vatRate",
+            "invoiceDate",
+            "dueDate",
+            "voucherTypeName",
+        ),
+    ),
+    "CreateInvoiceCreditNote": MethodSpec(
+        name="CreateInvoiceCreditNote",
+        flow_kind=FlowKind.INVOICE_CREDIT_NOTE,
+        operation="reverse",
+        target_resource="invoice",
+        description="Find an outgoing invoice and create a full credit note from it.",
+        optional_arguments=(
+            "customerName",
+            "customerOrganizationNumber",
+            "invoiceNumber",
+            "description",
+            "amountExcludingVat",
+            "creditNoteDate",
+            "comment",
+        ),
+    ),
     "RegisterInvoicePayment": MethodSpec(
         name="RegisterInvoicePayment",
         flow_kind=FlowKind.INVOICE_REGISTER_PAYMENT,
@@ -326,6 +364,38 @@ def normalize_task_analysis_method_selection(*, task_prompt: str, task_analysis:
         normalized_analysis = normalized_analysis.model_copy(update={"method_name": normalized_method_name})
 
     combined_text = combine_analysis_text(normalized_analysis)
+    if _looks_like_invoice_credit_note_request(
+        task_prompt=task_prompt,
+        task_analysis=normalized_analysis,
+        combined_text=combined_text,
+    ) and normalized_method_name in {"UnknownMethod", "RunSalesWorkflow"}:
+        synthesized_arguments = dict(normalized_analysis.method_arguments or {})
+        synthesized_arguments.update(_invoice_credit_note_method_arguments(normalized_analysis))
+        normalized_analysis = normalized_analysis.model_copy(
+            update={
+                "method_name": "CreateInvoiceCreditNote",
+                "method_arguments": _drop_empty(synthesized_arguments),
+                "missing_required_arguments": [],
+            }
+        )
+        normalized_method_name = "CreateInvoiceCreditNote"
+
+    if _looks_like_supplier_invoice_registration_request(
+        task_prompt=task_prompt,
+        task_analysis=normalized_analysis,
+        combined_text=combined_text,
+    ) and normalized_method_name in {"UnknownMethod", "RunSalesWorkflow"}:
+        synthesized_arguments = dict(normalized_analysis.method_arguments or {})
+        synthesized_arguments.update(_supplier_invoice_method_arguments(normalized_analysis))
+        normalized_analysis = normalized_analysis.model_copy(
+            update={
+                "method_name": "RegisterSupplierInvoice",
+                "method_arguments": _drop_empty(synthesized_arguments),
+                "missing_required_arguments": [],
+            }
+        )
+        normalized_method_name = "RegisterSupplierInvoice"
+
     if _looks_like_time_tracking_invoice_request(
         task_prompt=task_prompt,
         task_analysis=normalized_analysis,
@@ -487,6 +557,12 @@ def derive_internal_task(*, task_prompt: str, task_analysis: TaskAnalysis) -> In
     elif flow_kind is FlowKind.SALES_WORKFLOW:
         search = _sales_search(task_analysis)
         payload = _sales_payload(task_analysis, combined_text=combined_text)
+    elif flow_kind is FlowKind.SUPPLIER_INVOICE_WORKFLOW:
+        search = _supplier_search(task_analysis)
+        payload = _supplier_invoice_payload(task_analysis)
+    elif flow_kind is FlowKind.INVOICE_CREDIT_NOTE:
+        search = _customer_search(task_analysis)
+        payload = _invoice_credit_note_payload(task_analysis)
     elif flow_kind is FlowKind.PROJECT_TIME_INVOICE_WORKFLOW:
         payload = _project_time_invoice_payload(task_analysis)
     elif flow_kind is FlowKind.INVOICE_REGISTER_PAYMENT:
@@ -529,6 +605,20 @@ def _infer_flow_kind(*, task_prompt: str, task_analysis: TaskAnalysis, combined_
         combined_text=combined_text,
     ):
         return FlowKind.PROJECT_TIME_INVOICE_WORKFLOW
+
+    if _looks_like_supplier_invoice_registration_request(
+        task_prompt=task_prompt,
+        task_analysis=task_analysis,
+        combined_text=combined_text,
+    ):
+        return FlowKind.SUPPLIER_INVOICE_WORKFLOW
+
+    if _looks_like_invoice_credit_note_request(
+        task_prompt=task_prompt,
+        task_analysis=task_analysis,
+        combined_text=combined_text,
+    ):
+        return FlowKind.INVOICE_CREDIT_NOTE
 
     if (
         resource in {"order", "invoice"}
@@ -703,6 +793,85 @@ def _looks_like_time_tracking_invoice_request(
     return has_time_tracking_markers and has_invoice_markers and has_project_billing_context
 
 
+def _looks_like_supplier_invoice_registration_request(
+    *,
+    task_prompt: str,
+    task_analysis: TaskAnalysis,
+    combined_text: str,
+) -> bool:
+    text = " ".join(
+        (
+            task_prompt,
+            combined_text,
+            " ".join(task_analysis.ambiguity_notes),
+        )
+    ).lower()
+    family = task_analysis.task_family.lower()
+    resource = (task_analysis.target_resource or "").lower()
+    return (
+        resource in {"supplierinvoice", "incominginvoice"}
+        or "supplierinvoice" in family
+        or "incominginvoice" in family
+        or any(
+            token in text
+            for token in (
+                "supplier invoice",
+                "incoming invoice",
+                "vendor invoice",
+                "leverandørfaktura",
+                "leverandorfaktura",
+                "register the supplier invoice",
+            )
+        )
+    )
+
+
+def _looks_like_invoice_credit_note_request(
+    *,
+    task_prompt: str,
+    task_analysis: TaskAnalysis,
+    combined_text: str,
+) -> bool:
+    text = " ".join(
+        (
+            task_prompt,
+            combined_text,
+            " ".join(task_analysis.ambiguity_notes),
+        )
+    ).lower()
+    family = task_analysis.task_family.lower()
+    resource = (task_analysis.target_resource or "").lower()
+    operation = (task_analysis.operation or "").lower()
+    has_credit_note_markers = any(
+        token in text
+        for token in (
+            "credit note",
+            "creditnote",
+            "credit memo",
+            "creditmemo",
+            "kreditnota",
+            "nota de crédito",
+            "nota de credito",
+        )
+    )
+    if has_credit_note_markers:
+        return True
+    if resource != "invoice" or operation not in {"reverse", "correct", "cancel"}:
+        return False
+    if any(
+        token in text
+        for token in (
+            "payment reversal",
+            "reverse the payment",
+            "payment was returned",
+            "returned by the bank",
+            "outstanding balance again",
+        )
+    ):
+        return False
+    return any(token in text for token in ("invoice", "faktura", "factura", "fatura"))
+
+
 def _project_time_invoice_method_arguments(task_analysis: TaskAnalysis) -> dict[str, Any]:
     employee_email = lookup_analysis_value(task_analysis, "employeeEmail", "employee_email", "email")
     first_name = lookup_analysis_value(task_analysis, "employeeFirstName", "firstName", "first_name")
@@ -737,6 +906,88 @@ def _project_time_invoice_method_arguments(task_analysis: TaskAnalysis) -> dict[
             "comment": lookup_analysis_value(task_analysis, "comment"),
             "invoiceDate": default_action_date(task_analysis, "invoiceDate", "date"),
             "orderDate": default_action_date(task_analysis, "orderDate", "date"),
+        }
+    )
+
+
+def _supplier_invoice_method_arguments(task_analysis: TaskAnalysis) -> dict[str, Any]:
+    return _drop_empty(
+        {
+            "supplierName": lookup_analysis_value(task_analysis, "supplierName", "name"),
+            "supplierOrganizationNumber": lookup_analysis_value(
+                task_analysis,
+                "supplierOrganizationNumber",
+                "organizationNumber",
+            ),
+            "supplierEmail": lookup_analysis_value(task_analysis, "supplierEmail", "email"),
+            "invoiceNumber": lookup_analysis_value(task_analysis, "invoiceNumber", "invoice_number", "externalId"),
+            "description": lookup_analysis_value(
+                task_analysis,
+                "description",
+                "invoiceDescription",
+                "lineDescription",
+            ),
+            "accountNumber": lookup_analysis_value(
+                task_analysis,
+                "accountNumber",
+                "ledgerAccountNumber",
+                "postingAccount",
+                "account",
+            ),
+            "amountIncludingVat": _coerce_number(
+                lookup_analysis_value(
+                    task_analysis,
+                    "amountIncludingVat",
+                    "amountInclVat",
+                    "invoiceAmount",
+                    "amountCurrency",
+                    "amount",
+                )
+            ),
+            "vatRate": _coerce_number(
+                lookup_analysis_value(
+                    task_analysis,
+                    "vatRate",
+                    "vatPercentage",
+                    "percentage",
+                    "rate",
+                )
+            ),
+            "invoiceDate": default_action_date(task_analysis, "invoiceDate", "date"),
+            "dueDate": default_action_date(task_analysis, "dueDate", "paymentDate", "invoiceDate", "date"),
+            "voucherTypeName": lookup_analysis_value(task_analysis, "voucherTypeName", "voucherType"),
+        }
+    )
+
+
+def _invoice_credit_note_method_arguments(task_analysis: TaskAnalysis) -> dict[str, Any]:
+    return _drop_empty(
+        {
+            "customerName": lookup_analysis_value(task_analysis, "customerName", "customer_name", "name"),
+            "customerOrganizationNumber": lookup_analysis_value(
+                task_analysis,
+                "customerOrganizationNumber",
+                "customer_organizationNumber",
+                "organizationNumber",
+            ),
+            "invoiceNumber": lookup_analysis_value(task_analysis, "invoiceNumber", "invoice_number"),
+            "description": lookup_analysis_value(
+                task_analysis,
+                "description",
+                "invoiceDescription",
+                "lineDescription",
+                "orderLineDescription",
+            ),
+            "amountExcludingVat": _coerce_number(
+                lookup_analysis_value(
+                    task_analysis,
+                    "amountExcludingVat",
+                    "amountExcludingVatCurrency",
+                    "amount",
+                )
+            ),
+            "creditNoteDate": default_action_date(task_analysis, "creditNoteDate", "date"),
+            "comment": lookup_analysis_value(task_analysis, "comment", "creditNoteComment"),
         }
     )
 
@@ -936,6 +1187,22 @@ def _sales_search(task_analysis: TaskAnalysis) -> dict[str, Any]:
     return _customer_search(task_analysis)
 
 
+def _supplier_search(task_analysis: TaskAnalysis) -> dict[str, Any]:
+    return _drop_empty(
+        {
+            "organizationNumber": lookup_analysis_value(
+                task_analysis,
+                "supplierOrganizationNumber",
+                "organizationNumber",
+            ),
+            "email": lookup_analysis_value(task_analysis, "supplierEmail", "email"),
+            "invoiceEmail": lookup_analysis_value(task_analysis, "invoiceEmail"),
+            "count": 10,
+            "fields": "id,name,organizationNumber,email,invoiceEmail",
+        }
+    )
+
+
 def _sales_payload(task_analysis: TaskAnalysis, *, combined_text: str) -> dict[str, Any]:
     order_lines = _extract_order_lines(task_analysis)
     payment_tokens = ("payment", "paid", "full payment", "register payment", "betal", "betalt")
@@ -960,6 +1227,88 @@ def _sales_payload(task_analysis: TaskAnalysis, *, combined_text: str) -> dict[s
             or (task_analysis.target_resource or "").lower() == "invoice",
             "registerPayment": any(token in combined_text for token in payment_tokens)
             or task_analysis.operation == "register_payment",
+        }
+    )
+
+
+def _supplier_invoice_payload(task_analysis: TaskAnalysis) -> dict[str, Any]:
+    return _drop_empty(
+        {
+            "supplier": {
+                "name": lookup_analysis_value(task_analysis, "supplierName", "name"),
+                "organizationNumber": lookup_analysis_value(
+                    task_analysis,
+                    "supplierOrganizationNumber",
+                    "organizationNumber",
+                ),
+                "email": lookup_analysis_value(task_analysis, "supplierEmail", "email"),
+                "invoiceEmail": lookup_analysis_value(task_analysis, "invoiceEmail"),
+            },
+            "invoiceNumber": lookup_analysis_value(task_analysis, "invoiceNumber", "invoice_number", "externalId"),
+            "description": lookup_analysis_value(
+                task_analysis,
+                "description",
+                "invoiceDescription",
+                "lineDescription",
+            ),
+            "accountNumber": lookup_analysis_value(
+                task_analysis,
+                "accountNumber",
+                "ledgerAccountNumber",
+                "postingAccount",
+                "account",
+            ),
+            "amountIncludingVat": _coerce_number(
+                lookup_analysis_value(
+                    task_analysis,
+                    "amountIncludingVat",
+                    "amountInclVat",
+                    "invoiceAmount",
+                    "amountCurrency",
+                    "amount",
+                )
+            ),
+            "vatType": {
+                "direction": "INCOMING",
+                "percentage": _coerce_number(
+                    lookup_analysis_value(
+                        task_analysis,
+                        "vatRate",
+                        "vatPercentage",
+                        "percentage",
+                        "rate",
+                    )
+                ),
+            },
+            "invoiceDate": default_action_date(task_analysis, "invoiceDate", "date"),
+            "dueDate": default_action_date(task_analysis, "dueDate", "paymentDate", "invoiceDate", "date"),
+            "voucherTypeName": lookup_analysis_value(task_analysis, "voucherTypeName", "voucherType"),
+        }
+    )
+
+
+def _invoice_credit_note_payload(task_analysis: TaskAnalysis) -> dict[str, Any]:
+    return _drop_empty(
+        {
+            "customer": _customer_payload(task_analysis),
+            "invoiceNumber": lookup_analysis_value(task_analysis, "invoiceNumber", "invoice_number"),
+            "description": lookup_analysis_value(
+                task_analysis,
+                "description",
+                "invoiceDescription",
+                "lineDescription",
+                "orderLineDescription",
+            ),
+            "amountExcludingVat": _coerce_number(
+                lookup_analysis_value(
+                    task_analysis,
+                    "amountExcludingVat",
+                    "amountExcludingVatCurrency",
+                    "amount",
+                )
+            ),
+            "creditNoteDate": default_action_date(task_analysis, "creditNoteDate", "date"),
+            "comment": lookup_analysis_value(task_analysis, "comment", "creditNoteComment"),
         }
     )
 

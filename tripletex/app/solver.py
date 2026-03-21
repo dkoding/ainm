@@ -193,6 +193,20 @@ class TripletexSolver:
                     decision.reason[:240],
                 )
                 if decision.kind == "finish":
+                    if _finish_reason_indicates_failure(decision.reason):
+                        logger.error(
+                            "solve.finish.unsuccessful step=%s total_elapsed_ms=%s reason=%r history=%s",
+                            attempt_index + 1,
+                            round((time.monotonic() - started_at) * 1000, 1),
+                            decision.reason[:240],
+                            _summarize_history(history),
+                        )
+                        raise SolveError(
+                            "Planner reported an unsuccessful finish before completing the task. "
+                            f"reason={decision.reason!r} "
+                            f"task_analysis={_compact_task_analysis(task_analysis)} "
+                            f"history={_summarize_history(history)}"
+                        )
                     logger.info(
                         "solve.finish step=%s total_elapsed_ms=%s",
                         attempt_index + 1,
@@ -553,6 +567,26 @@ def _prior_repeatable_tripletex_error(history: list[dict[str, Any]], command: An
             continue
         return error
     return None
+
+
+def _finish_reason_indicates_failure(reason: str) -> bool:
+    normalized = " ".join(str(reason).strip().lower().split())
+    return any(
+        token in normalized
+        for token in (
+            "unable to",
+            "cannot ",
+            "can't ",
+            "could not",
+            "did not",
+            "not found",
+            "no results",
+            "no matching",
+            "failed to",
+            "cannot proceed",
+            "couldn't",
+        )
+    )
 
 
 __all__ = [

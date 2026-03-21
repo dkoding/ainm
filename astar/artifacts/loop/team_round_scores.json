@@ -1,20 +1,83 @@
 {
-  "generated_at": "2026-03-20T23:08:10.707837+00:00",
+  "generated_at": "2026-03-21T07:41:27.967359+00:00",
   "rounds": [
+    {
+      "closes_at": "2026-03-21T09:02:42.348839+00:00",
+      "prediction_window_minutes": 165,
+      "queries_max": 50,
+      "queries_used": 45,
+      "rank": null,
+      "round_id": "7b4bda99-6165-4221-97cc-27880f5e6d95",
+      "round_number": 13,
+      "round_score": null,
+      "seed_scores": null,
+      "seeds_submitted": 5,
+      "started_at": "2026-03-21T06:17:42.348839+00:00",
+      "status": "active",
+      "total_teams": null
+    },
+    {
+      "closes_at": "2026-03-21T06:06:46.272337+00:00",
+      "prediction_window_minutes": 165,
+      "queries_max": 50,
+      "queries_used": 45,
+      "rank": 76,
+      "round_id": "795bfb1f-54bd-4f39-a526-9868b36f7ebd",
+      "round_number": 12,
+      "round_score": 48.3709,
+      "seed_scores": [
+        51.7972,
+        46.7127,
+        47.8011,
+        48.2945,
+        47.2491
+      ],
+      "seeds_submitted": 5,
+      "started_at": "2026-03-21T03:21:46.272337+00:00",
+      "status": "completed",
+      "total_teams": 146
+    },
+    {
+      "closes_at": "2026-03-21T03:11:30.495136+00:00",
+      "prediction_window_minutes": 165,
+      "queries_max": 50,
+      "queries_used": 45,
+      "rank": 136,
+      "round_id": "324fde07-1670-4202-b199-7aa92ecb40ee",
+      "round_number": 11,
+      "round_score": 50.5976,
+      "seed_scores": [
+        53.2593,
+        53.3112,
+        43.8252,
+        50.7415,
+        51.8509
+      ],
+      "seeds_submitted": 5,
+      "started_at": "2026-03-21T00:26:30.495136+00:00",
+      "status": "completed",
+      "total_teams": 171
+    },
     {
       "closes_at": "2026-03-20T23:45:58.134788+00:00",
       "prediction_window_minutes": 165,
       "queries_max": 50,
       "queries_used": 45,
-      "rank": null,
+      "rank": 108,
       "round_id": "75e625c3-60cb-4392-af3e-c86a98bde8c2",
       "round_number": 10,
-      "round_score": null,
-      "seed_scores": null,
+      "round_score": 67.3492,
+      "seed_scores": [
+        68.9128,
+        66.9473,
+        67.2804,
+        68.1157,
+        65.49
+      ],
       "seeds_submitted": 5,
       "started_at": "2026-03-20T21:00:58.134788+00:00",
-      "status": "active",
-      "total_teams": null
+      "status": "completed",
+      "total_teams": 238
     },
     {
       "closes_at": "2026-03-20T20:47:44.869339+00:00",

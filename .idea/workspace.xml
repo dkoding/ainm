@@ -4,11 +4,31 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ac6b219e-15c9-495c-bd28-adaae518ad0e" name="Changes" comment="NG Data WIP">
+    <list default="true" id="ac6b219e-15c9-495c-bd28-adaae518ad0e" name="Changes" comment="TRIPLETEX WIP">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/astar/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/RUNBOOK.md" beforeDir="false" afterPath="$PROJECT_DIR$/astar/RUNBOOK.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/artifacts/history/index.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/history/index.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/artifacts/history/public/rounds.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/history/public/rounds.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/artifacts/history/sklearn_evaluation.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/history/sklearn_evaluation.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/artifacts/history/team/my_rounds.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/history/team/my_rounds.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/leaderboard_latest.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/leaderboard_latest.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/loop_state.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/loop_state.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/missed_rounds.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/missed_rounds.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/my_rounds_latest.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/my_rounds_latest.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/rounds_latest.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/rounds_latest.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/team_round_scores.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/team_round_scores.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/artifacts/models/astar_random_forest.metadata.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/models/astar_random_forest.metadata.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/artifacts/models/astar_random_forest.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/models/astar_random_forest.pkl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/history_priors.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/history_priors.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/reporting.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/reporting.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/round_loop.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/round_loop.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/run_round.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/run_round.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/internal_tasks.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/internal_tasks.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/solver.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/solver.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/workflow_router.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/workflow_router.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -23,29 +43,29 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 8
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 8
+}</component>
   <component name="ProjectId" id="3BCkXh5BxZFumnKSOVllJK7ATcO" />
   <component name="ProjectViewState">
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "SHELLCHECK.PATH": "C:\\Users\\dagko\\AppData\\Roaming\\JetBrains\\IntelliJIdea2025.2\\plugins\\Shell Script\\shellcheck.exe",
-    "git-widget-placeholder": "master",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "D:/work/ainm/norgesgruppen-data",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;SHELLCHECK.PATH&quot;: &quot;C:\\Users\\dagko\\AppData\\Roaming\\JetBrains\\IntelliJIdea2025.2\\plugins\\Shell Script\\shellcheck.exe&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/work/ainm/norgesgruppen-data&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="D:\work\ainm\norgesgruppen-data" />
@@ -171,7 +191,14 @@
       <option name="presentableId" value="LOCAL−00014" />
       <updated>1774045763393</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL−00015" summary="TRIPLETEX WIP">
+      <option name="closed" value="true" />
+      <created>1774048210823</created>
+      <option name="number" value="LOCAL−00015" />
+      <option name="presentableId" value="LOCAL−00015" />
+      <updated>1774048210823</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -186,7 +213,8 @@
     <MESSAGE value="Starting on NG data, moving some stuff around, fixing tripletext deltas" />
     <MESSAGE value="WIP" />
     <MESSAGE value="NG Data WIP" />
-    <option name="LAST_COMMIT_MESSAGE" value="NG Data WIP" />
+    <MESSAGE value="TRIPLETEX WIP" />
+    <option name="LAST_COMMIT_MESSAGE" value="TRIPLETEX WIP" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

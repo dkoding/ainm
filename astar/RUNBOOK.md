@@ -17,8 +17,9 @@ The default runner now follows this order:
 
 1. sync completed rounds
 2. retrain and re-evaluate on completed rounds only
-3. predict the active round
-4. submit only after predictions are written and validated
+3. compare prediction variants on completed rounds and keep the best historical variant
+4. predict the active round
+5. submit only after predictions are written and validated
 
 The loop runner uses the API timestamps and statuses to decide when to wake up. Do not hard-code a round schedule in external cron unless you have to. The docs and live API expose `prediction_window_minutes`, `started_at`, and `closes_at`, and current rounds have used `165` minute windows.
 
@@ -57,7 +58,7 @@ python3 run_round.py --no-simulate --no-submit
 2. History-aware observation run without submission:
 
 ```bash
-python3 run_round.py --token "$AINM_ACCESS_TOKEN" --sync-history --simulate --total-queries 45 --no-submit
+python3 run_round.py --token "$AINM_ACCESS_TOKEN" --sync-history --simulate --total-queries 50 --no-submit
 ```
 
 3. Validate the prediction payloads before final submit:
@@ -69,7 +70,7 @@ python3 validate_predictions.py --round-id "<round-id>"
 4. Final submit:
 
 ```bash
-python3 run_round.py --token "$AINM_ACCESS_TOKEN" --sync-history --simulate --total-queries 45 --submit
+python3 run_round.py --token "$AINM_ACCESS_TOKEN" --sync-history --simulate --total-queries 50 --submit
 ```
 
 If the server has moved from round 7 to round 8, the runner should first ingest round 7 `/analysis`, retrain, re-evaluate, and only then produce round 8 predictions.
@@ -79,7 +80,7 @@ If the server has moved from round 7 to round 8, the runner should first ingest 
 Use the long-running watcher when you want the process to keep handling rounds automatically:
 
 ```bash
-python3 round_loop.py --total-queries 45 --submit
+python3 round_loop.py --total-queries 50 --submit
 ```
 
 Loop behavior:
@@ -97,9 +98,9 @@ The Astar budget is `50` simulation queries for the whole round, not per seed.
 Current default policy:
 
 - use `--total-queries`, not `--queries-per-seed`
-- default target for a full first-pass sweep is `45`, which tiles all 5 maps once using `15/15/10` by `15/15/10`
+- default target is `50`: `45` tiled sweep queries plus `5` targeted repeat queries
 - if you use a smaller budget such as `20`, let the planner spread tiled windows across seeds before repeating any area
-- use leftover budget after a full sweep for repeat samples on the highest-value windows
+- in `auto` mode, let the runner compare completed-round variant scores and keep the best historical variant
 
 Do not use `10 queries per seed` unless you explicitly intend to spend the entire round budget.
 

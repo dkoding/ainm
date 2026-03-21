@@ -7,7 +7,6 @@ from typing import Any
 
 from artifacts import ArtifactStore
 from astar_client import AstarAPIError, AstarClient
-from baseline import apply_probability_floor, blend_observations, build_round_predictions
 from config import (
     DEFAULT_AINM_BASE_URL,
     DEFAULT_GCS_ARTIFACTS_PREFIX,
@@ -29,11 +28,11 @@ from config import (
 )
 from evaluate_sklearn_model import evaluate_sklearn_history
 from history_cache import summarize_history_cache, sync_history_cache
-from history_priors import load_history_prior_model
+from history_priors import infer_regime_history_prior_model, load_history_prior_model
 from observation_strategy import build_round_viewport_plan
+from prediction_variants import build_prediction_variants, evaluate_prediction_variants
 from reporting import build_run_report
 from sklearn_model import (
-    build_round_predictions_from_model,
     load_model_artifact,
     save_model_artifact,
     train_random_forest_from_history,
@@ -177,6 +176,7 @@ def main() -> None:
     artifact_store = ArtifactStore(root=args.out_dir, gcs_bucket=args.gcs_bucket, gcs_prefix=args.gcs_prefix)
     sklearn_model_path = resolve_sklearn_model_path(args)
     sklearn_evaluation_output = resolve_sklearn_evaluation_output(args)
+    strategy_evaluation_output = Path(args.out_dir) / args.history_cache_prefix / "variant_selection.json"
 
     if args.sync_history:
         history_summary = sync_history_cache(
@@ -227,7 +227,7 @@ def main() -> None:
             raise SystemExit("Unable to prepare the sklearn prediction model.")
 
     history_prior_model = None
-    if prediction_model_used == "baseline" and args.use_history_priors:
+    if args.use_history_priors:
         history_prior_model = load_history_prior_model(
             root=args.out_dir,
             cache_prefix=args.history_cache_prefix,
@@ -242,6 +242,36 @@ def main() -> None:
             )
         elif history_summary:
             print("history priors: cache present but no usable analysis records were found")
+
+    strategy_evaluation_summary = None
+    if args.prediction_model == "auto" and sklearn_artifact is not None:
+        strategy_evaluation_summary = load_cached_strategy_evaluation(
+            strategy_evaluation_output=strategy_evaluation_output,
+            history_summary=history_summary,
+        )
+        if strategy_evaluation_summary is None:
+            strategy_evaluation_summary = evaluate_prediction_variants(
+                root=args.out_dir,
+                cache_prefix=args.history_cache_prefix,
+                floor=args.floor,
+                prior_strength=args.prior_strength,
+                history_prior_strength=args.history_prior_strength,
+                neighborhood_radius=args.neighborhood_radius,
+                n_estimators=args.sklearn_n_estimators,
+                min_samples_leaf=args.sklearn_min_samples_leaf,
+                random_state=args.sklearn_random_state,
+            )
+            strategy_evaluation_output.parent.mkdir(parents=True, exist_ok=True)
+            strategy_evaluation_output.write_text(json.dumps(strategy_evaluation_summary, indent=2, sort_keys=True))
+        else:
+            print(f"variant selection: loaded cached results from {strategy_evaluation_output}")
+        best_variant = strategy_evaluation_summary["summary"].get("best_variant")
+        if best_variant:
+            print(
+                "variant selection: chose "
+                f"{best_variant} with mean round score "
+                f"{strategy_evaluation_summary['summary']['best_variant_mean_round_score']:.3f}"
+            )
 
     seeds_count = int(round_detail["seeds_count"])
     total_queries = resolve_total_queries(args, seeds_count)
@@ -307,32 +337,38 @@ def main() -> None:
         except AstarAPIError:
             budget_after = None
 
-    if prediction_model_used == "sklearn" and sklearn_artifact is not None:
-        predictions = build_round_predictions_from_model(
-            artifact=sklearn_artifact,
-            round_detail=round_detail,
-            floor=args.floor,
-        )
-        if observations_by_seed:
-            predictions = blend_predictions_with_observations(
-                predictions=predictions,
-                observations_by_seed=observations_by_seed,
-                prior_strength=args.prior_strength,
-                floor=args.floor,
-                floor_distribution=sklearn_artifact.floor_distribution,
-            )
-    else:
-        predictions = build_round_predictions(
-            round_detail=round_detail,
-            floor=args.floor,
-            observations_by_seed=observations_by_seed,
-            prior_strength=args.prior_strength,
+    regime_history_prior_model = history_prior_model
+    regime_summary = None
+    if history_prior_model is not None:
+        regime_history_prior_model, regime_summary = infer_regime_history_prior_model(
             history_prior_model=history_prior_model,
-            history_prior_strength=args.history_prior_strength,
+            round_detail=round_detail,
+            observations_by_seed=observations_by_seed,
         )
 
-    if history_prior_model is not None:
-        artifact_store.write_json(round_root / "history" / "prior_summary.json", history_prior_model.to_summary())
+    prediction_variants = build_prediction_variants(
+        round_detail=round_detail,
+        floor=args.floor,
+        observations_by_seed=observations_by_seed,
+        prior_strength=args.prior_strength,
+        history_prior_model=regime_history_prior_model if args.use_history_priors else None,
+        history_prior_strength=args.history_prior_strength,
+        sklearn_artifact=sklearn_artifact,
+    )
+    selected_variant = select_prediction_variant(
+        requested_model=args.prediction_model,
+        strategy_evaluation_summary=strategy_evaluation_summary,
+        prediction_variants=prediction_variants,
+    )
+    predictions = prediction_variants[selected_variant]
+    prediction_model_used = selected_variant
+
+    if regime_history_prior_model is not None:
+        artifact_store.write_json(round_root / "history" / "prior_summary.json", regime_history_prior_model.to_summary())
+    if regime_summary is not None:
+        artifact_store.write_json(round_root / "history" / "regime_summary.json", regime_summary)
+    if strategy_evaluation_summary is not None:
+        artifact_store.write_json(round_root / "history" / "variant_selection.json", strategy_evaluation_summary)
 
     report = build_run_report(
         round_id=round_id,
@@ -347,10 +383,12 @@ def main() -> None:
         prior_strength=args.prior_strength,
         query_plan_summary=query_plan_summary,
         history_summary=history_summary,
-        history_prior_summary=history_prior_model.to_summary() if history_prior_model is not None else None,
+        history_prior_summary=regime_history_prior_model.to_summary() if regime_history_prior_model is not None else None,
         prediction_model=prediction_model_used,
         sklearn_training_summary=sklearn_training_summary,
         sklearn_evaluation_summary=sklearn_evaluation_summary,
+        strategy_evaluation_summary=strategy_evaluation_summary,
+        regime_summary=regime_summary,
         observation_plan=observation_plan_payload,
         observations_by_seed=observations_by_seed,
         budget_before=budget_before,
@@ -517,22 +555,47 @@ def maybe_prepare_sklearn_model(
         return None, None, None
 
 
-def blend_predictions_with_observations(
+def select_prediction_variant(
     *,
-    predictions: list[Any],
-    observations_by_seed: dict[int, list[dict[str, Any]]],
-    prior_strength: float,
-    floor: float,
-    floor_distribution: Any,
-) -> list[Any]:
-    blended_predictions = []
-    for seed_index, prediction in enumerate(predictions):
-        observation_samples = observations_by_seed.get(seed_index, [])
-        if observation_samples:
-            prediction = blend_observations(prediction, observation_samples, prior_strength=prior_strength)
-            prediction = apply_probability_floor(prediction, floor=floor, floor_distribution=floor_distribution)
-        blended_predictions.append(prediction)
-    return blended_predictions
+    requested_model: str,
+    strategy_evaluation_summary: dict[str, Any] | None,
+    prediction_variants: dict[str, list[Any]],
+) -> str:
+    if requested_model == "sklearn" and "sklearn" in prediction_variants:
+        return "sklearn"
+    if requested_model == "baseline":
+        for variant_name in ("baseline_history", "baseline_static"):
+            if variant_name in prediction_variants:
+                return variant_name
+        raise SystemExit("Baseline prediction variant was requested but is unavailable.")
+
+    if strategy_evaluation_summary is not None:
+        best_variant = strategy_evaluation_summary.get("summary", {}).get("best_variant")
+        if best_variant in prediction_variants:
+            return str(best_variant)
+
+    for fallback in ("ensemble_sklearn_50", "sklearn", "baseline_history", "baseline_static"):
+        if fallback in prediction_variants:
+            return fallback
+    raise SystemExit("No prediction variants were built.")
+
+
+def load_cached_strategy_evaluation(
+    *,
+    strategy_evaluation_output: Path,
+    history_summary: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    if history_summary is None or not strategy_evaluation_output.exists():
+        return None
+    try:
+        cached = json.loads(strategy_evaluation_output.read_text())
+    except json.JSONDecodeError:
+        return None
+    cached_round_ids = list(cached.get("summary", {}).get("history_round_ids", []))
+    current_round_ids = [str(item["round_id"]) for item in history_summary.get("rounds", [])]
+    if cached_round_ids != current_round_ids:
+        return None
+    return cached
 
 
 if __name__ == "__main__":

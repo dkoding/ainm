@@ -58,7 +58,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--base-url", default=DEFAULT_AINM_BASE_URL, help="API base URL.")
     parser.add_argument("--out-dir", default=str(DEFAULT_OUTPUT_DIR), help="Artifact root for loop outputs.")
     parser.add_argument("--poll-seconds", type=int, default=60, help="Default polling interval in seconds.")
-    parser.add_argument("--total-queries", type=int, default=45, help="Simulation queries to spend for each new active round.")
+    parser.add_argument("--total-queries", type=int, default=50, help="Simulation queries to spend for each new active round.")
     parser.add_argument(
         "--submit",
         action=argparse.BooleanOptionalAction,

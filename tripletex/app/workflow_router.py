@@ -39,6 +39,18 @@ class DeterministicWorkflowRouter:
                 task_analysis=task_analysis,
                 history=history,
             )
+        if internal_task.flow_kind is FlowKind.SUPPLIER_INVOICE_WORKFLOW:
+            return self._next_supplier_invoice_workflow(
+                internal_task=internal_task,
+                task_analysis=task_analysis,
+                history=history,
+            )
+        if internal_task.flow_kind is FlowKind.INVOICE_CREDIT_NOTE:
+            return self._next_invoice_credit_note_workflow(
+                internal_task=internal_task,
+                task_analysis=task_analysis,
+                history=history,
+            )
         if internal_task.flow_kind is FlowKind.PROJECT_TIME_INVOICE_WORKFLOW:
             return self._next_project_time_invoice_workflow(
                 internal_task=internal_task,
@@ -522,6 +534,267 @@ class DeterministicWorkflowRouter:
             method="PUT",
             path=invoice_action_path,
             params=invoice_action_params,
+        )
+
+    def _next_supplier_invoice_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        task_analysis: TaskAnalysis,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        if _has_success_exact(history, method="POST", path="/incomingInvoice"):
+            return PlannerDecision(kind="finish", reason="The supplier invoice workflow is complete.")
+
+        supplier_ref = internal_task.search or internal_task.payload.get("supplier")
+        supplier_payload = dict(internal_task.payload.get("supplier") or {})
+        supplier = _resolved_supplier_by_ref(history, supplier_ref)
+        if supplier is None:
+            search_params = _drop_empty(dict(internal_task.search))
+            if search_params and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/supplier",
+                predicate=lambda request: _request_contains_params(request, search_params),
+            ):
+                return _action(
+                    reason="Resolve the supplier before registering the supplier invoice.",
+                    method="GET",
+                    path="/supplier",
+                    params=search_params,
+                )
+            if supplier_payload and not _has_attempt_exact_where(
+                history,
+                method="POST",
+                path="/supplier",
+                predicate=lambda request: _request_json_contains(request, supplier_payload),
+            ):
+                return _action(
+                    reason="Create the supplier because the invoice refers to a vendor that does not exist in the fresh account.",
+                    method="POST",
+                    path="/supplier",
+                    json=supplier_payload,
+                )
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve or create the supplier needed for the supplier invoice workflow.",
+            )
+
+        account_number = internal_task.payload.get("accountNumber")
+        if account_number in {None, ""}:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to determine the ledger account needed for the supplier invoice workflow.",
+            )
+
+        account = _resolved_ledger_account_from_history(history, account_number=account_number)
+        if account is None:
+            account_search = {
+                "number": account_number,
+                "isApplicableForSupplierInvoice": True,
+                "count": 10,
+                "fields": "id,number,name,isApplicableForSupplierInvoice",
+            }
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/ledger/account",
+                predicate=lambda request: _request_contains_params(request, account_search),
+            ):
+                return _action(
+                    reason="Resolve the supplier-invoice ledger account before posting the incoming invoice.",
+                    method="GET",
+                    path="/ledger/account",
+                    params=account_search,
+                )
+
+            fallback_account_search = {
+                "number": account_number,
+                "count": 10,
+                "fields": "id,number,name,isApplicableForSupplierInvoice",
+            }
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/ledger/account",
+                predicate=lambda request: _request_contains_params(request, fallback_account_search),
+            ):
+                return _action(
+                    reason="Retry ledger-account resolution without the supplier-invoice applicability filter to handle account-specific sandbox variance.",
+                    method="GET",
+                    path="/ledger/account",
+                    params=fallback_account_search,
+                )
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve the ledger account needed for the supplier invoice workflow.",
+            )
+
+        vat_type_ref = internal_task.payload.get("vatType")
+        vat_type = None
+        if isinstance(vat_type_ref, dict):
+            vat_type = _resolved_vat_type_by_ref(history, vat_type_ref)
+            if vat_type is None:
+                vat_type_search = {
+                    "typeOfVat": "IN",
+                    "count": 100,
+                    "fields": "id,name,displayName,number,percentage",
+                }
+                if not _has_attempt_exact_where(
+                    history,
+                    method="GET",
+                    path="/ledger/vatType",
+                    predicate=lambda request: _request_contains_params(request, vat_type_search),
+                ):
+                    return _action(
+                        reason="Resolve incoming VAT types before registering the supplier invoice line with explicit VAT.",
+                        method="GET",
+                        path="/ledger/vatType",
+                        params=vat_type_search,
+                    )
+                return PlannerDecision(
+                    kind="finish",
+                    reason="Unable to resolve the incoming VAT type needed for the supplier invoice workflow.",
+                )
+
+        invoice_payload = _build_incoming_invoice_payload_from_internal(
+            internal_task,
+            supplier=supplier,
+            account=account,
+            vat_type=vat_type,
+            voucher_type_id=_resolved_supplier_invoice_voucher_type_id(
+                history,
+                voucher_type_name=internal_task.payload.get("voucherTypeName"),
+            ),
+        )
+        if invoice_payload is None:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to assemble a valid incoming-invoice payload from the resolved supplier, account, and VAT data.",
+            )
+
+        if _has_api_error_exact_where(
+            history,
+            method="POST",
+            path="/incomingInvoice",
+            predicate=lambda request: _request_json_contains(request, invoice_payload),
+        ):
+            voucher_type_search = {"count": 50, "fields": "id,name"}
+            voucher_type_name = internal_task.payload.get("voucherTypeName")
+            if voucher_type_name not in {None, ""}:
+                voucher_type_search["name"] = voucher_type_name
+            if invoice_payload.get("invoiceHeader", {}).get("voucherTypeId") in {None, ""} and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/ledger/voucherType",
+                predicate=lambda request: _request_contains_params(request, voucher_type_search),
+            ):
+                return _action(
+                    reason="Resolve the voucher type before retrying supplier invoice registration after a validation error.",
+                    method="GET",
+                    path="/ledger/voucherType",
+                    params=voucher_type_search,
+                )
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to register the supplier invoice after resolving supplier, account, VAT, and voucher-type prerequisites.",
+            )
+
+        if _has_attempt_exact_where(
+            history,
+            method="POST",
+            path="/incomingInvoice",
+            predicate=lambda request: _request_json_contains(request, invoice_payload),
+        ):
+            return None
+
+        return _action(
+            reason="Register the supplier invoice through the canonical incoming-invoice endpoint.",
+            method="POST",
+            path="/incomingInvoice",
+            json=invoice_payload,
+        )
+
+    def _next_invoice_credit_note_workflow(
+        self,
+        *,
+        internal_task: InternalTask,
+        task_analysis: TaskAnalysis,
+        history: list[dict[str, Any]],
+    ) -> PlannerDecision | None:
+        if _has_success(history, method="PUT", path_suffix="/:createCreditNote"):
+            return PlannerDecision(kind="finish", reason="The credit note workflow is complete.")
+
+        customer = _resolved_customer_by_ref(history, internal_task.search or internal_task.payload.get("customer"))
+        if customer is None:
+            search_params = _drop_empty(dict(internal_task.search))
+            if search_params and not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/customer",
+                predicate=lambda request: _request_contains_params(request, search_params),
+            ):
+                return _action(
+                    reason="Resolve the customer before locating the invoice that must be credited.",
+                    method="GET",
+                    path="/customer",
+                    params=search_params,
+                )
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to resolve the customer needed to locate the invoice for the requested credit note workflow.",
+            )
+
+        invoice = _resolved_credit_note_target_invoice(history, internal_task=internal_task)
+        if invoice is None:
+            search_params = _credit_note_invoice_search_params(
+                task_analysis,
+                customer_id=customer.get("id"),
+                invoice_number=internal_task.payload.get("invoiceNumber"),
+            )
+            if not _has_attempt_exact_where(
+                history,
+                method="GET",
+                path="/invoice",
+                predicate=lambda request: _request_contains_params(request, search_params),
+            ):
+                return _action(
+                    reason="Locate the outgoing invoice before creating the requested credit note.",
+                    method="GET",
+                    path="/invoice",
+                    params=search_params,
+                )
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to locate the target invoice for the requested credit note workflow.",
+            )
+
+        invoice_id = invoice.get("id")
+        if invoice_id in {None, ""}:
+            return PlannerDecision(
+                kind="finish",
+                reason="Unable to determine the invoice id needed to create the requested credit note.",
+            )
+
+        credit_note_params = _drop_empty(
+            {
+                "date": internal_task.payload.get("creditNoteDate") or default_action_date(task_analysis, "date"),
+                "comment": internal_task.payload.get("comment"),
+            }
+        )
+        if _has_attempt_exact_where(
+            history,
+            method="PUT",
+            path=f"/invoice/{invoice_id}/:createCreditNote",
+            predicate=lambda request: _request_contains_params(request, credit_note_params),
+        ):
+            return None
+
+        return _action(
+            reason="Create a full credit note from the resolved invoice using the canonical invoice action endpoint.",
+            method="PUT",
+            path=f"/invoice/{invoice_id}/:createCreditNote",
+            params=credit_note_params,
         )
 
     def _next_project_time_invoice_workflow(
@@ -1489,6 +1762,44 @@ def _resolved_customer_by_ref(history: list[dict[str, Any]], ref: dict[str, Any]
     return None
 
 
+def _resolved_supplier_by_ref(history: list[dict[str, Any]], ref: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not ref:
+        return None
+    target_org = ref.get("organizationNumber")
+    target_name = ref.get("supplierName") or ref.get("name")
+    target_email = ref.get("email") or ref.get("invoiceEmail")
+
+    target_org = str(target_org) if not _is_blank(target_org) else None
+    target_name = str(target_name).lower() if not _is_blank(target_name) else None
+    target_email = str(target_email).lower() if not _is_blank(target_email) else None
+
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        method = str(request.get("method") or "").upper()
+        path = str(request.get("path") or "")
+        candidates: list[dict[str, Any]] = []
+        if path == "/supplier" and method == "POST" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+        elif path == "/supplier" and method == "GET" and isinstance(response.get("values"), list):
+            candidates = [candidate for candidate in response["values"] if isinstance(candidate, dict)]
+        elif path.startswith("/supplier/") and method == "GET" and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+
+        for candidate in candidates:
+            if target_org and str(candidate.get("organizationNumber")) == target_org:
+                return candidate
+            if target_email and str(candidate.get("email") or candidate.get("invoiceEmail") or "").lower() == target_email:
+                return candidate
+            if target_name and str(candidate.get("name") or candidate.get("displayName") or "").lower() == target_name:
+                return candidate
+        if len(candidates) == 1 and not any((target_org, target_name, target_email)):
+            return candidates[0]
+    return None
+
+
 def _resolved_product_by_ref(history: list[dict[str, Any]], ref: dict[str, Any] | None) -> dict[str, Any] | None:
     if not ref:
         return None
@@ -1871,6 +2182,61 @@ def _build_invoice_payload_from_order(
     )
 
 
+def _build_incoming_invoice_payload_from_internal(
+    internal_task: InternalTask,
+    *,
+    supplier: dict[str, Any],
+    account: dict[str, Any],
+    vat_type: dict[str, Any] | None,
+    voucher_type_id: Any | None,
+) -> dict[str, Any] | None:
+    supplier_id = supplier.get("id")
+    account_id = account.get("id")
+    amount_including_vat = internal_task.payload.get("amountIncludingVat")
+    if supplier_id in {None, ""} or account_id in {None, ""} or amount_including_vat in {None, ""}:
+        return None
+
+    normalized_amount = round(abs(float(amount_including_vat)), 2)
+    invoice_number = internal_task.payload.get("invoiceNumber")
+    description = str(
+        internal_task.payload.get("description")
+        or invoice_number
+        or "Supplier invoice"
+    ).strip()
+    if not description:
+        description = "Supplier invoice"
+
+    invoice_date = str(internal_task.payload.get("invoiceDate") or date.today().isoformat())
+    due_date = str(internal_task.payload.get("dueDate") or invoice_date)
+
+    invoice_header = {
+        "vendorId": supplier_id,
+        "invoiceDate": invoice_date,
+        "dueDate": due_date,
+        "invoiceAmount": normalized_amount,
+        "description": description,
+    }
+    if invoice_number not in {None, ""}:
+        invoice_header["invoiceNumber"] = invoice_number
+    if voucher_type_id not in {None, ""}:
+        invoice_header["voucherTypeId"] = voucher_type_id
+
+    order_line = {
+        "row": 1,
+        "description": description,
+        "accountId": account_id,
+        "count": 1,
+        "amountInclVat": normalized_amount,
+    }
+    if isinstance(vat_type, dict) and vat_type.get("id") not in {None, ""}:
+        order_line["vatTypeId"] = vat_type["id"]
+
+    return {
+        "invoiceHeader": invoice_header,
+        "orderLines": [order_line],
+    }
+
+
 def _vat_type_lookup_params(
     order_lines: list[dict[str, Any]],
     *,
@@ -2162,6 +2528,29 @@ def _entity_id(value: Any) -> Any | None:
     return value
 
 
+def _credit_note_invoice_search_params(
+    task_analysis: TaskAnalysis,
+    *,
+    customer_id: Any,
+    invoice_number: Any | None,
+) -> dict[str, Any]:
+    date_from, date_to = best_effort_date_window(
+        task_analysis,
+        start_key="invoiceDateFrom",
+        end_key="invoiceDateTo",
+    )
+    params: dict[str, Any] = {
+        "invoiceDateFrom": date_from,
+        "invoiceDateTo": date_to,
+        "customerId": customer_id,
+        "count": 50,
+        "fields": "id,invoiceNumber,amount,amountCurrency,amountExcludingVat,amountExcludingVatCurrency,invoiceDate,invoiceComment,invoiceRemarks,orderLines(description)",
+    }
+    if invoice_number not in {None, ""}:
+        params["invoiceNumber"] = invoice_number
+    return params
+
+
 def _invoice_search_params(task_analysis: TaskAnalysis) -> dict[str, Any] | None:
     invoice_number = lookup_analysis_value(task_analysis, "invoiceNumber", "invoice_number")
     customer_id = lookup_analysis_value(task_analysis, "customerId", "customer_id")
@@ -2183,6 +2572,52 @@ def _invoice_search_params(task_analysis: TaskAnalysis) -> dict[str, Any] | None
     if customer_id not in {None, ""}:
         params["customerId"] = customer_id
     return params
+
+
+def _resolved_credit_note_target_invoice(
+    history: list[dict[str, Any]],
+    *,
+    internal_task: InternalTask,
+) -> dict[str, Any] | None:
+    target_invoice_number = internal_task.payload.get("invoiceNumber")
+    target_invoice_number = str(target_invoice_number) if target_invoice_number not in {None, ""} else None
+    target_description = _normalized_text_match(internal_task.payload.get("description"))
+    target_amount = _safe_float(internal_task.payload.get("amountExcludingVat"))
+
+    matches: list[dict[str, Any]] = []
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        path = str(request.get("path") or "")
+        method = str(request.get("method") or "").upper()
+        candidates: list[dict[str, Any]] = []
+        if method == "GET" and path == "/invoice" and isinstance(response.get("values"), list):
+            candidates = [candidate for candidate in response["values"] if isinstance(candidate, dict)]
+        elif method == "GET" and path.startswith("/invoice/") and isinstance(response.get("value"), dict):
+            candidates = [response["value"]]
+        if not candidates:
+            continue
+
+        if target_invoice_number:
+            for candidate in candidates:
+                if str(candidate.get("invoiceNumber") or "") == target_invoice_number:
+                    return candidate
+
+        if target_description is None and target_amount is None and len(candidates) == 1:
+            return candidates[0]
+
+        for candidate in candidates:
+            if target_description is not None and not _invoice_candidate_matches_description(candidate, target_description):
+                continue
+            if target_amount is not None and not _invoice_candidate_matches_amount(candidate, target_amount):
+                continue
+            matches.append(candidate)
+
+    if len(matches) == 1:
+        return matches[0]
+    return None
 
 
 def _customer_search_params(task_analysis: TaskAnalysis) -> dict[str, Any] | None:
@@ -2416,6 +2851,76 @@ def _fallback_first_payment_type_id(history: list[dict[str, Any]]) -> Any | None
             if isinstance(candidate, dict) and candidate.get("id") not in {None, ""}:
                 return candidate["id"]
     return None
+
+
+def _resolved_supplier_invoice_voucher_type_id(
+    history: list[dict[str, Any]],
+    *,
+    voucher_type_name: Any | None,
+) -> Any | None:
+    target_name = _normalized_text_match(voucher_type_name)
+    fallback_id = None
+    for entry in reversed(history):
+        response = entry.get("response")
+        if not isinstance(response, dict):
+            continue
+        request = entry.get("request") or {}
+        if str(request.get("method") or "").upper() != "GET" or str(request.get("path") or "") != "/ledger/voucherType":
+            continue
+        values = [candidate for candidate in (response.get("values") or []) if isinstance(candidate, dict)]
+        for candidate in values:
+            candidate_id = candidate.get("id")
+            if candidate_id in {None, ""}:
+                continue
+            candidate_name = _normalized_text_match(candidate.get("name") or candidate.get("displayName"))
+            if target_name and candidate_name and target_name in candidate_name:
+                return candidate_id
+            if candidate_name and any(token in candidate_name for token in ("supplier", "leverand")):
+                fallback_id = candidate_id
+        if fallback_id is None and len(values) == 1 and values[0].get("id") not in {None, ""}:
+            fallback_id = values[0]["id"]
+    return fallback_id
+
+
+def _normalized_text_match(value: Any) -> str | None:
+    if value in {None, ""}:
+        return None
+    normalized = " ".join(str(value).strip().casefold().split())
+    return normalized or None
+
+
+def _invoice_candidate_matches_description(candidate: dict[str, Any], target_description: str) -> bool:
+    haystacks: list[str] = []
+    for key in ("invoiceComment", "invoiceRemarks", "description"):
+        normalized = _normalized_text_match(candidate.get(key))
+        if normalized:
+            haystacks.append(normalized)
+    for line in candidate.get("orderLines") or []:
+        if not isinstance(line, dict):
+            continue
+        normalized = _normalized_text_match(line.get("description"))
+        if normalized:
+            haystacks.append(normalized)
+    return any(target_description in haystack or haystack in target_description for haystack in haystacks)
+
+
+def _invoice_candidate_matches_amount(candidate: dict[str, Any], target_amount: float) -> bool:
+    for key in ("amountExcludingVat", "amountExcludingVatCurrency", "amount", "amountCurrency"):
+        candidate_amount = _safe_float(candidate.get(key))
+        if candidate_amount is None:
+            continue
+        if round(candidate_amount, 2) == round(target_amount, 2):
+            return True
+    return False
+
+
+def _safe_float(value: Any) -> float | None:
+    if value in {None, ""}:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _is_order_invoice_workflow(task_analysis: TaskAnalysis, *, combined_text: str) -> bool:
