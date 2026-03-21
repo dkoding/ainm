@@ -38,6 +38,7 @@ class ResponseValidator:
         if not isinstance(payload, dict):
             raise RawExecutionError(message="Planner output root must be a JSON object.")
         data = dict(payload)
+        defaults = data.pop("__tripletex_defaults", {})
         for key in (
             "requestContext",
             "language",
@@ -55,6 +56,7 @@ class ResponseValidator:
 
         execution_plan = data.get("executionPlan")
         if isinstance(execution_plan, dict):
+            migrated_raw_steps: list[dict[str, Any]] = []
             for key in ("selectedFlows", "selectedCommands", "fallbackRawCommands", "stepOrder"):
                 value = execution_plan.get(key)
                 if value is None:
@@ -67,6 +69,20 @@ class ResponseValidator:
                     execution_plan[key] = []
             for key in ("selectedFlows", "selectedCommands", "fallbackRawCommands"):
                 execution_plan[key] = [self._normalize_step(step) for step in execution_plan[key] if isinstance(step, dict)]
+            selected_commands: list[dict[str, Any]] = []
+            for step in execution_plan["selectedCommands"]:
+                if self._is_raw_command_step(step):
+                    migrated_raw_steps.append(self._coerce_raw_command_step(step))
+                else:
+                    selected_commands.append(step)
+            execution_plan["selectedCommands"] = selected_commands
+            fallback_raw_commands: list[dict[str, Any]] = []
+            for step in execution_plan["fallbackRawCommands"]:
+                if self._is_raw_command_step(step):
+                    fallback_raw_commands.append(self._coerce_raw_command_step(step))
+                else:
+                    fallback_raw_commands.append(step)
+            execution_plan["fallbackRawCommands"] = [*fallback_raw_commands, *migrated_raw_steps]
 
         sources = data.get("sources")
         if isinstance(sources, dict):
@@ -75,6 +91,33 @@ class ResponseValidator:
                 sources["attachments"] = []
             elif not isinstance(attachments, list):
                 sources["attachments"] = [attachments]
+            if not sources.get("prompt") and defaults.get("prompt"):
+                sources["prompt"] = defaults["prompt"]
+
+        request_context = data.get("requestContext")
+        if isinstance(request_context, dict):
+            if not request_context.get("requestId") and defaults.get("requestId"):
+                request_context["requestId"] = defaults["requestId"]
+            if not request_context.get("currentDate") and defaults.get("currentDate"):
+                request_context["currentDate"] = defaults["currentDate"]
+            if not request_context.get("timezone") and defaults.get("timezone"):
+                request_context["timezone"] = defaults["timezone"]
+            if request_context.get("promptCharCount") is None and defaults.get("prompt"):
+                request_context["promptCharCount"] = len(defaults["prompt"])
+            if request_context.get("attachmentCount") is None and defaults.get("attachmentCount") is not None:
+                request_context["attachmentCount"] = defaults["attachmentCount"]
+
+        language = data.get("language")
+        if isinstance(language, dict):
+            if not language.get("promptOriginal") and defaults.get("prompt"):
+                language["promptOriginal"] = defaults["prompt"]
+            if not language.get("promptCanonical") and language.get("promptOriginal"):
+                language["promptCanonical"] = language["promptOriginal"]
+
+        understanding = data.get("understanding")
+        if isinstance(understanding, dict):
+            if not understanding.get("objective") and language and language.get("promptCanonical"):
+                understanding["objective"] = language["promptCanonical"]
 
         return data
 
@@ -98,6 +141,25 @@ class ResponseValidator:
         elif not isinstance(expected_outputs, list):
             step["expectedOutputs"] = []
         return step
+
+    def _is_raw_command_step(self, step: dict[str, Any]) -> bool:
+        resolved_kind = step.get("commandType") or step.get("kind") or ""
+        resolved_name = step.get("commandName") or step.get("command") or step.get("operationId") or ""
+        operation_id = step.get("operationId")
+        if resolved_kind == "raw_operation":
+            return True
+        if operation_id and self.raw_catalog.has(operation_id):
+            return True
+        return bool(resolved_name and self.raw_catalog.has(resolved_name))
+
+    def _coerce_raw_command_step(self, step: dict[str, Any]) -> dict[str, Any]:
+        normalized = dict(step)
+        resolved_name = normalized.get("commandName") or normalized.get("command") or normalized.get("operationId") or ""
+        if not normalized.get("operationId") and resolved_name and self.raw_catalog.has(resolved_name):
+            normalized["operationId"] = resolved_name
+        normalized["commandType"] = "raw_operation"
+        normalized["kind"] = "raw_operation"
+        return normalized
 
     def _validate_references(self, bridge: LLMBridgeDocument) -> None:
         for flow in bridge.executionPlan.selectedFlows:

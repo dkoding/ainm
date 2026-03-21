@@ -28,6 +28,8 @@ class PromptBuilder:
                 "If required inputs are missing, do not guess them; either choose another legal route or set validation.isExecutable=false with blocking issues. "
                 "Do not invent near-match aliases. For example, if the contract does not list timesheet.entry.sum then timesheet.entry.sum is illegal. "
                 "If you need a raw fallback, use an exact operationId from context.rawOperations and its exact raw parameter names. "
+                "Exact raw operationIds must be emitted only in executionPlan.fallbackRawCommands, never in executionPlan.selectedCommands. "
+                "executionPlan.selectedCommands is only for legal friendly command names from context.apiContract.legalCommands. "
                 "Routing priority is strict: choose a documented business flow first, then a documented friendly command, then exact raw operationId fallback. "
                 "Every selected step needs a stable stepId. "
                 "All step-specific legal inputs must appear in step.inputs or in flatBridge.flowArguments / flatBridge.commandArguments for that exact legal flow or command. "
@@ -70,6 +72,8 @@ class PromptBuilder:
                     "use apiContract.legalCommands to verify every command name and required input before emitting a selected command",
                     "use apiContract.legalFlows to verify every flow name and required input before emitting a selected flow",
                     "bind raw fallback inputs by exact raw parameter names",
+                    "place raw operationIds only in executionPlan.fallbackRawCommands with commandType raw_operation and operationId set",
+                    "never place a raw operationId in executionPlan.selectedCommands",
                     "include stepOrder whenever multiple steps exist",
                     "prefer minimal correct execution plans",
                 ],
@@ -77,6 +81,17 @@ class PromptBuilder:
                     {
                         "bad": {"commandName": "timesheet.entry.sum"},
                         "why": "Not listed in apiContract.legalCommands.",
+                    },
+                    {
+                        "bad": {
+                            "selectedCommands": [
+                                {
+                                    "commandName": "TimesheetEntryTotalHours_getTotalHours",
+                                    "commandType": "friendly_alias",
+                                }
+                            ]
+                        },
+                        "why": "Raw operationIds must go in fallbackRawCommands, not selectedCommands.",
                     },
                     {
                         "bad": {"commandName": "invoice.create", "inputs": {"customer_id": 7}},

@@ -29,7 +29,7 @@ class LLMPlanner:
         self.prompt_builder = prompt_builder or PromptBuilder()
         self.client = client or GeminiClient()
         self.validator = validator or ResponseValidator()
-        self.repair_engine = repair_engine or RepairEngine(client=self.client, validator=self.validator)
+        self.repair_engine = repair_engine or RepairEngine(client=self.client)
 
     def plan(self, request: SolveRequest, *, current_date: str, timezone: str, request_id: str) -> LLMBridgeDocument:
         direct = self._maybe_validate_direct_json(request.prompt)
@@ -49,7 +49,14 @@ class LLMPlanner:
         except RawExecutionError:
             raise
         try:
-            return self.validator.validate(raw_response)
+            return self._validate_with_request_defaults(
+                raw_response,
+                prompt=request.prompt,
+                current_date=current_date,
+                timezone=timezone,
+                request_id=request_id,
+                attachment_count=len(request.files),
+            )
         except RawExecutionError as exc:
             repair_errors = [exc.message]
             detailed_errors = exc.details.get("errors")
@@ -57,7 +64,15 @@ class LLMPlanner:
                 for item in detailed_errors[:8]:
                     repair_errors.append(json.dumps(item, ensure_ascii=False))
             if isinstance(raw_response, str):
-                return self.repair_engine.repair(raw_response, repair_errors)
+                repaired = self.repair_engine.repair(raw_response, repair_errors)
+                return self._validate_with_request_defaults(
+                    repaired,
+                    prompt=request.prompt,
+                    current_date=current_date,
+                    timezone=timezone,
+                    request_id=request_id,
+                    attachment_count=len(request.files),
+                )
             raise
 
     def _maybe_validate_direct_json(self, prompt: str) -> LLMBridgeDocument | None:
@@ -70,4 +85,59 @@ class LLMPlanner:
             return None
         if parsed.get("contractVersion") != "tripletex.llm_bridge.v1":
             return None
-        return self.validator.validate(parsed)
+        return self._validate_with_request_defaults(
+            parsed,
+            prompt=prompt,
+            current_date="",
+            timezone="",
+            request_id="",
+            attachment_count=0,
+        )
+
+    def _validate_with_request_defaults(
+        self,
+        payload: str | dict[str, Any],
+        *,
+        prompt: str,
+        current_date: str,
+        timezone: str,
+        request_id: str,
+        attachment_count: int,
+    ) -> LLMBridgeDocument:
+        candidate = self._prepare_candidate(
+            payload,
+            prompt=prompt,
+            current_date=current_date,
+            timezone=timezone,
+            request_id=request_id,
+            attachment_count=attachment_count,
+        )
+        return self.validator.validate(candidate)
+
+    def _prepare_candidate(
+        self,
+        payload: str | dict[str, Any],
+        *,
+        prompt: str,
+        current_date: str,
+        timezone: str,
+        request_id: str,
+        attachment_count: int,
+    ) -> str | dict[str, Any]:
+        if isinstance(payload, str):
+            try:
+                data = json.loads(payload)
+            except json.JSONDecodeError:
+                return payload
+        else:
+            data = dict(payload)
+        if not isinstance(data, dict):
+            return payload
+        data["__tripletex_defaults"] = {
+            "prompt": prompt,
+            "currentDate": current_date,
+            "timezone": timezone,
+            "requestId": request_id,
+            "attachmentCount": attachment_count,
+        }
+        return data
