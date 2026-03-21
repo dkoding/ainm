@@ -17,4 +17,5 @@ __pycache__/
 /norgesgruppen-data/wheels
 /norgesgruppen-data/runs
 /norgesgruppen-data/.tmp*
+/norgesgruppen-data/.torch_home
 /astar/artifacts

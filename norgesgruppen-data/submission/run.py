@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
+TORCH_LOAD_PATCHED = False
 DEFAULT_CONFIG = {
     "backend": "auto",
     "allow_empty_predictions": False,
@@ -14,6 +15,15 @@ DEFAULT_CONFIG = {
     "ultralytics": {
         "weight_candidates": ["best.pt", "model.pt", "weights/best.pt"],
         "half": False,
+    },
+    "classifier": {
+        "enabled": False,
+        "weight_candidates": ["best_crop_classifier.pt", "crop_classifier.pt", "weights/best_crop_classifier.pt"],
+        "input_size": 224,
+        "batch_size": 64,
+        "min_crop_size": 8,
+        "score_mode": "blend_mul",
+        "score_alpha": 0.5,
     },
     "onnx": {
         "weight_candidates": ["model.onnx", "weights/model.onnx"],
@@ -72,30 +82,55 @@ def deep_merge(base: dict, override: dict) -> dict:
 
 
 def build_predictor(root: Path, config: dict):
-    class_mapper = load_class_mapper(root, config)
+    classifier_enabled = bool(config.get("classifier", {}).get("enabled", False))
+    classifier = None
+    classifier_failure = None
+    if classifier_enabled:
+        try:
+            classifier = load_crop_classifier(root, config)
+        except Exception as exc:
+            classifier_failure = f"classifier failed: {exc}"
+
+    detector_config = clone_config(config)
+    if classifier_enabled:
+        detector_config["detection_only"] = True
+
+    class_mapper = load_class_mapper(root, detector_config)
     backend = str(config.get("backend", "auto")).lower()
     allow_empty = bool(config.get("allow_empty_predictions", False))
     failures = []
-
-    if backend in {"auto", "ultralytics"}:
-        weights_path = first_existing_path(root, config.get("ultralytics", {}).get("weight_candidates", []))
-        if weights_path is not None:
-            try:
-                return UltralyticsPredictor(weights_path, config, class_mapper)
-            except Exception as exc:
-                failures.append(f"ultralytics backend failed for {weights_path.name}: {exc}")
-        elif backend == "ultralytics":
-            failures.append("ultralytics backend selected but no matching weight file was found")
+    if classifier_failure:
+        failures.append(classifier_failure)
 
     if backend in {"auto", "onnx"}:
-        weights_path = first_existing_path(root, config.get("onnx", {}).get("weight_candidates", []))
+        weights_path = first_existing_path(root, detector_config.get("onnx", {}).get("weight_candidates", []))
         if weights_path is not None:
             try:
-                return OnnxPredictor(weights_path, config, class_mapper)
+                predictor = OnnxPredictor(weights_path, detector_config, class_mapper)
+                if classifier_enabled:
+                    if classifier is None:
+                        raise RuntimeError(classifier_failure or "classifier enabled but unavailable")
+                    return CropClassifierRefiner(predictor, classifier)
+                return predictor
             except Exception as exc:
                 failures.append(f"onnx backend failed for {weights_path.name}: {exc}")
         elif backend == "onnx":
             failures.append("onnx backend selected but no matching weight file was found")
+
+    if backend in {"auto", "ultralytics"}:
+        weights_path = first_existing_path(root, detector_config.get("ultralytics", {}).get("weight_candidates", []))
+        if weights_path is not None:
+            try:
+                predictor = UltralyticsPredictor(weights_path, detector_config, class_mapper)
+                if classifier_enabled:
+                    if classifier is None:
+                        raise RuntimeError(classifier_failure or "classifier enabled but unavailable")
+                    return CropClassifierRefiner(predictor, classifier)
+                return predictor
+            except Exception as exc:
+                failures.append(f"ultralytics backend failed for {weights_path.name}: {exc}")
+        elif backend == "ultralytics":
+            failures.append("ultralytics backend selected but no matching weight file was found")
 
     if allow_empty:
         if failures:
@@ -187,6 +222,160 @@ class EmptyPredictor:
         return []
 
 
+def load_crop_classifier(root: Path, config: dict):
+    classifier_config = config.get("classifier", {})
+    if not bool(classifier_config.get("enabled", False)):
+        return None
+    weights_path = first_existing_path(root, classifier_config.get("weight_candidates", []))
+    if weights_path is None:
+        raise RuntimeError("classifier is enabled but no matching checkpoint was found")
+    return CropClassifier(weights_path, classifier_config)
+
+
+class CropClassifierRefiner:
+    def __init__(self, detector, classifier):
+        self.detector = detector
+        self.classifier = classifier
+
+    def predict(self, image_path: Path) -> list[dict]:
+        from PIL import Image
+
+        predictions = self.detector.predict(image_path)
+        if not predictions:
+            return predictions
+        image = Image.open(image_path).convert("RGB")
+        return self.classifier.refine_predictions(image, predictions)
+
+
+class CropClassifier:
+    def __init__(self, weights_path: Path, config: dict):
+        import torch
+        from torchvision import transforms
+
+        payload = torch.load(weights_path, map_location="cpu")
+        self.arch = str(payload["arch"])
+        self.category_ids = [int(class_name) for class_name in payload["class_names"]]
+        self.batch_size = max(1, int(config.get("batch_size", 64)))
+        self.min_crop_size = max(1, int(config.get("min_crop_size", 8)))
+        self.score_mode = str(config.get("score_mode", "blend_mul")).lower()
+        self.score_alpha = float(config.get("score_alpha", 0.5))
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model = build_crop_classifier_model(self.arch, len(self.category_ids))
+        self.model.load_state_dict(payload["model_state_dict"])
+        self.model.to(self.device)
+        self.model.eval()
+
+        input_size = int(config.get("input_size", 224))
+        normalize = transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+        self.transform = transforms.Compose(
+            [
+                transforms.Resize(int(round(input_size * 1.15))),
+                transforms.CenterCrop(input_size),
+                transforms.ToTensor(),
+                normalize,
+            ]
+        )
+
+    def refine_predictions(self, image, predictions: list[dict]) -> list[dict]:
+        import torch
+
+        image_width, image_height = image.size
+        valid_indices = []
+        crop_tensors = []
+        refined_predictions = [dict(prediction) for prediction in predictions]
+
+        for index, prediction in enumerate(predictions):
+            box_xyxy = clamp_box(prediction_xywh_to_xyxy(prediction["bbox"]), image_width, image_height)
+            crop_box = normalize_crop_box(box_xyxy)
+            if crop_box is None:
+                continue
+            crop_width = crop_box[2] - crop_box[0]
+            crop_height = crop_box[3] - crop_box[1]
+            if crop_width < self.min_crop_size or crop_height < self.min_crop_size:
+                continue
+            crop_image = image.crop(crop_box)
+            crop_tensors.append(self.transform(crop_image))
+            valid_indices.append(index)
+
+        if not crop_tensors:
+            return refined_predictions
+
+        with torch.no_grad():
+            for offset in range(0, len(crop_tensors), self.batch_size):
+                batch_indices = valid_indices[offset : offset + self.batch_size]
+                batch_tensors = torch.stack(crop_tensors[offset : offset + self.batch_size]).to(self.device)
+                with torch.amp.autocast(device_type=self.device, enabled=self.device == "cuda"):
+                    logits = self.model(batch_tensors)
+                probabilities = torch.softmax(logits, dim=1)
+                top_scores, top_indices = probabilities.max(dim=1)
+                for row, prediction_index in enumerate(batch_indices):
+                    category_id = self.category_ids[int(top_indices[row].item())]
+                    classifier_score = float(top_scores[row].item())
+                    detection_score = float(refined_predictions[prediction_index]["score"])
+                    refined_predictions[prediction_index]["category_id"] = category_id
+                    refined_predictions[prediction_index]["score"] = round(
+                        combine_scores(
+                            detection_score=detection_score,
+                            classifier_score=classifier_score,
+                            score_mode=self.score_mode,
+                            score_alpha=self.score_alpha,
+                        ),
+                        3,
+                    )
+        return refined_predictions
+
+
+def build_crop_classifier_model(arch: str, num_classes: int):
+    import torch
+    from torchvision.models import convnext_small, convnext_tiny, resnet18, resnet50
+
+    if arch == "resnet18":
+        model = resnet18(weights=None)
+        model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
+        return model
+    if arch == "resnet50":
+        model = resnet50(weights=None)
+        model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
+        return model
+    if arch == "convnext_tiny":
+        model = convnext_tiny(weights=None)
+        model.classifier[2] = torch.nn.Linear(model.classifier[2].in_features, num_classes)
+        return model
+    if arch == "convnext_small":
+        model = convnext_small(weights=None)
+        model.classifier[2] = torch.nn.Linear(model.classifier[2].in_features, num_classes)
+        return model
+    raise ValueError(f"Unsupported crop-classifier architecture: {arch}")
+
+
+def prediction_xywh_to_xyxy(bbox: list[float]) -> list[float]:
+    x, y, width, height = bbox
+    return [float(x), float(y), float(x + width), float(y + height)]
+
+
+def normalize_crop_box(box_xyxy: list[float]) -> tuple[int, int, int, int] | None:
+    x1, y1, x2, y2 = [int(round(value)) for value in box_xyxy]
+    if x2 <= x1 or y2 <= y1:
+        return None
+    return (x1, y1, x2, y2)
+
+
+def combine_scores(detection_score: float, classifier_score: float, score_mode: str, score_alpha: float) -> float:
+    if score_mode == "detector":
+        score = detection_score
+    elif score_mode == "classifier":
+        score = classifier_score
+    elif score_mode == "geometric_mean":
+        score = max(0.0, detection_score * classifier_score) ** 0.5
+    elif score_mode == "blend":
+        score = (score_alpha * detection_score) + ((1.0 - score_alpha) * classifier_score)
+    elif score_mode == "blend_mul":
+        score = detection_score * (score_alpha + ((1.0 - score_alpha) * classifier_score))
+    else:
+        score = detection_score * classifier_score
+    return min(1.0, max(0.0, float(score)))
+
+
 class UltralyticsPredictor:
     def __init__(self, weights_path: Path, config: dict, class_mapper):
         import torch
@@ -235,27 +424,31 @@ class UltralyticsPredictor:
 
 
 def patch_torch_load_for_ultralytics(torch_module) -> None:
-    original_load = torch_module.load
-    if getattr(original_load, "_ngd_force_weights_only_false", False):
+    global TORCH_LOAD_PATCHED
+    if TORCH_LOAD_PATCHED:
         return
+    original_load = torch_module.load
 
     def patched_load(*args, **kwargs):
         # ultralytics 8.1.0 checkpoints expect the pre-2.6 torch.load behavior.
         kwargs.setdefault("weights_only", False)
         return original_load(*args, **kwargs)
 
-    patched_load._ngd_force_weights_only_false = True
     torch_module.load = patched_load
+    TORCH_LOAD_PATCHED = True
 
 
 class OnnxPredictor:
     def __init__(self, weights_path: Path, config: dict, class_mapper):
+        import numpy as np
         import onnxruntime as ort
 
         backend_config = config.get("onnx", {})
         providers = list(backend_config.get("providers", ["CUDAExecutionProvider", "CPUExecutionProvider"]))
         self.session = ort.InferenceSession(str(weights_path), providers=providers)
-        self.input_name = backend_config.get("input_name") or self.session.get_inputs()[0].name
+        input_meta = self.session.get_inputs()[0]
+        self.input_name = backend_config.get("input_name") or input_meta.name
+        self.input_dtype = np.float16 if input_meta.type == "tensor(float16)" else np.float32
         self.output_index = int(backend_config.get("output_index", 0))
         self.box_format = str(backend_config.get("box_format", "cxcywh")).lower()
         self.score_mode = str(backend_config.get("score_mode", "class")).lower()
@@ -275,7 +468,12 @@ class OnnxPredictor:
         image_id = extract_image_id(image_path)
         image = Image.open(image_path).convert("RGB")
         image_width, image_height = image.size
-        tensor, scale, pad_left, pad_top = preprocess_image(image, self.input_width, self.input_height)
+        tensor, scale, pad_left, pad_top = preprocess_image(
+            image,
+            self.input_width,
+            self.input_height,
+            dtype=self.input_dtype,
+        )
         outputs = self.session.run(None, {self.input_name: tensor})
         raw_output = outputs[self.output_index]
         decoded = decode_onnx_rows(raw_output)
@@ -343,7 +541,7 @@ def normalize_input_size(value) -> tuple[int, int]:
     raise ValueError(f"Unsupported input_size value: {value}")
 
 
-def preprocess_image(image, input_width: int, input_height: int):
+def preprocess_image(image, input_width: int, input_height: int, dtype):
     import numpy as np
     from PIL import Image
 
@@ -360,7 +558,7 @@ def preprocess_image(image, input_width: int, input_height: int):
 
     array = np.asarray(canvas, dtype=np.float32) / 255.0
     array = array.transpose(2, 0, 1)[None, ...]
-    return array, scale, pad_left, pad_top
+    return array.astype(dtype, copy=False), scale, pad_left, pad_top
 
 
 def decode_onnx_rows(raw_output):
@@ -382,8 +580,13 @@ def decode_prediction_row(row, box_format: str, score_mode: str):
     import numpy as np
 
     values = np.asarray(row).astype(float).tolist()
-    if len(values) < 6:
+    if len(values) < 5:
         return None
+
+    if len(values) == 5:
+        box_xyxy = normalize_box(values[:4], box_format)
+        score = float(values[4])
+        return {"box_xyxy": box_xyxy, "score": score, "class_index": 0}
 
     if len(values) == 6:
         box_xyxy = normalize_box(values[:4], box_format)

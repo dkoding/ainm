@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
+
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
 
 from ngd_utils import load_json, make_train_val_split, save_json
 

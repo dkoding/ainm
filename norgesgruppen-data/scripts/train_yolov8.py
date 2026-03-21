@@ -38,6 +38,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--name", default="yolov8-baseline")
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--close-mosaic", type=int, default=10, help="Disable mosaic this many epochs before the end.")
+    parser.add_argument("--patience", type=int, default=20, help="Stop after this many epochs without validation improvement.")
     parser.add_argument("--single-cls", action="store_true", help="Train as a single-class detector for localization-first experiments.")
     parser.add_argument("--cache", action="store_true", help="Enable Ultralytics dataset caching.")
     parser.add_argument("--exist-ok", action="store_true", help="Allow reusing an existing Ultralytics run directory.")
@@ -95,6 +96,7 @@ def main() -> None:
         name=args.name,
         workers=args.workers,
         close_mosaic=args.close_mosaic,
+        patience=args.patience,
         single_cls=args.single_cls,
         cache=args.cache,
         exist_ok=args.exist_ok,

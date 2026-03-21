@@ -55,6 +55,8 @@ def should_skip(parts: tuple[str, ...]) -> bool:
             return True
         if part == "__pycache__":
             return True
+        if ".__backup__." in part:
+            return True
         if part.startswith("."):
             return True
     return False

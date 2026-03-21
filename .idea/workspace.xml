@@ -4,31 +4,19 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ac6b219e-15c9-495c-bd28-adaae518ad0e" name="Changes" comment="TRIPLETEX WIP">
+    <list default="true" id="ac6b219e-15c9-495c-bd28-adaae518ad0e" name="Changes" comment="NG Data GPU training WIP">
+      <change afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/flag_crop_outliers.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/astar/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/RUNBOOK.md" beforeDir="false" afterPath="$PROJECT_DIR$/astar/RUNBOOK.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/history/index.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/history/index.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/history/public/rounds.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/history/public/rounds.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/history/sklearn_evaluation.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/history/sklearn_evaluation.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/history/team/my_rounds.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/history/team/my_rounds.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/leaderboard_latest.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/leaderboard_latest.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/loop_state.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/loop_state.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/missed_rounds.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/missed_rounds.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/my_rounds_latest.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/my_rounds_latest.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/rounds_latest.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/rounds_latest.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/loop/team_round_scores.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/loop/team_round_scores.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/models/astar_random_forest.metadata.json" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/models/astar_random_forest.metadata.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/artifacts/models/astar_random_forest.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/astar/artifacts/models/astar_random_forest.pkl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/history_priors.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/history_priors.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/reporting.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/reporting.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/round_loop.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/round_loop.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/run_round.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/run_round.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/internal_tasks.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/internal_tasks.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/solver.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/solver.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/workflow_router.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/workflow_router.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/build_submission.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/build_submission.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/check_submission.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/check_submission.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/extract_product_crops.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/extract_product_crops.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/make_splits.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/make_splits.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/train_crop_classifier.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/train_crop_classifier.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/scripts/train_yolov8.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/scripts/train_yolov8.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/submission/best.pt" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/submission/best.pt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/submission/run.py" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/submission/run.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/norgesgruppen-data/submission/submission_config.json" beforeDir="false" afterPath="$PROJECT_DIR$/norgesgruppen-data/submission/submission_config.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -42,6 +30,7 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="UPDATE_TYPE" value="REBASE" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 8
@@ -191,14 +180,21 @@
       <option name="presentableId" value="LOCAL−00014" />
       <updated>1774045763393</updated>
     </task>
-    <task id="LOCAL−00015" summary="TRIPLETEX WIP">
+    <task id="LOCAL−00015" summary="NG Data GPU training WIP">
       <option name="closed" value="true" />
-      <created>1774048210823</created>
+      <created>1774048661682</created>
       <option name="number" value="LOCAL−00015" />
       <option name="presentableId" value="LOCAL−00015" />
-      <updated>1774048210823</updated>
+      <updated>1774048661682</updated>
     </task>
-    <option name="localTasksCounter" value="16" />
+    <task id="LOCAL−00016" summary="NG Data GPU training WIP">
+      <option name="closed" value="true" />
+      <created>1774078704588</created>
+      <option name="number" value="LOCAL−00016" />
+      <option name="presentableId" value="LOCAL−00016" />
+      <updated>1774078704588</updated>
+    </task>
+    <option name="localTasksCounter" value="17" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -213,8 +209,8 @@
     <MESSAGE value="Starting on NG data, moving some stuff around, fixing tripletext deltas" />
     <MESSAGE value="WIP" />
     <MESSAGE value="NG Data WIP" />
-    <MESSAGE value="TRIPLETEX WIP" />
-    <option name="LAST_COMMIT_MESSAGE" value="TRIPLETEX WIP" />
+    <MESSAGE value="NG Data GPU training WIP" />
+    <option name="LAST_COMMIT_MESSAGE" value="NG Data GPU training WIP" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

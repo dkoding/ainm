@@ -1,8 +1,8 @@
 {
-  "backend": "auto",
+  "backend": "onnx",
   "allow_empty_predictions": false,
   "detection_only": false,
-  "confidence_threshold": 0.2,
+  "confidence_threshold": 0.05,
   "image_size": 1280,
   "max_detections": 300,
   "class_map_path": "class_map.json",
@@ -13,6 +13,19 @@
       "weights/best.pt"
     ],
     "half": false
+  },
+  "classifier": {
+    "enabled": true,
+    "weight_candidates": [
+      "best_crop_classifier.pt",
+      "crop_classifier.pt",
+      "weights/best_crop_classifier.pt"
+    ],
+    "input_size": 224,
+    "batch_size": 64,
+    "min_crop_size": 8,
+    "score_mode": "blend_mul",
+    "score_alpha": 0.5
   },
   "onnx": {
     "weight_candidates": [

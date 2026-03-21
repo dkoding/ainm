@@ -33,8 +33,9 @@ BANNED_IMPORTS = {
     "codeop",
     "pty",
 }
-BANNED_CALLS = {"eval", "exec", "compile", "__import__"}
+BANNED_CALLS = {"eval", "exec", "compile", "__import__", "setattr", "delattr"}
 DANGEROUS_GETATTR_NAMES = {"system", "popen", "remove", "unlink", "rmtree"}
+DANGEROUS_ATTRIBUTE_NAMES = {"__class__", "__bases__", "__mro__", "__subclasses__", "__globals__", "__code__"}
 EXECUTABLE_SIGNATURES = {
     b"\x7fELF": "ELF binary",
     b"MZ": "PE binary",
@@ -130,7 +131,7 @@ def load_entries_from_directory(root: Path) -> list[SubmissionEntry]:
 
 def should_ignore_local_artifact(relative_name: str) -> bool:
     parts = PurePosixPath(relative_name).parts
-    return "__pycache__" in parts or any(part.startswith(".") for part in parts)
+    return "__pycache__" in parts or any(part.startswith(".") or ".__backup__." in part for part in parts)
 
 
 def load_entries_from_zip(zip_path: Path) -> list[SubmissionEntry]:
@@ -245,15 +246,23 @@ def validate_python_source(entry: SubmissionEntry) -> list[str]:
                 if root_name in BANNED_IMPORTS:
                     errors.append(f"Banned import '{root_name}' in {entry.name}:{node.lineno}")
         elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name) and node.func.id in BANNED_CALLS:
+                errors.append(f"Banned call '{node.func.id}' in {entry.name}:{node.lineno}")
             call_name = get_call_name(node.func)
-            if call_name in BANNED_CALLS:
-                errors.append(f"Banned call '{call_name}' in {entry.name}:{node.lineno}")
-            if call_name == "getattr" and len(node.args) >= 2:
-                second_arg = node.args[1]
-                if isinstance(second_arg, ast.Constant) and second_arg.value in DANGEROUS_GETATTR_NAMES:
-                    errors.append(
-                        f"Dangerous getattr target '{second_arg.value}' in {entry.name}:{node.lineno}"
-                    )
+            if call_name == "getattr":
+                if len(node.args) >= 2:
+                    second_arg = node.args[1]
+                    if isinstance(second_arg, ast.Constant) and second_arg.value in DANGEROUS_GETATTR_NAMES:
+                        errors.append(
+                            f"Dangerous getattr target '{second_arg.value}' in {entry.name}:{node.lineno}"
+                        )
+                    else:
+                        errors.append(f"Dynamic getattr usage in {entry.name}:{node.lineno}")
+                else:
+                    errors.append(f"Dynamic getattr usage in {entry.name}:{node.lineno}")
+        elif isinstance(node, ast.Attribute):
+            if node.attr in DANGEROUS_ATTRIBUTE_NAMES:
+                errors.append(f"Dangerous attribute '{node.attr}' in {entry.name}:{node.lineno}")
     return errors
 
 
