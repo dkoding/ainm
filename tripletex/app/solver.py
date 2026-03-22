@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 
 from app.contracts import ExecutionContext, ExecutionResult, SolveRequest
 from app.llm import LLMPlanner
+from app.raw.errors import RawExecutionError
 from app.router import BridgeRouter
 
 
@@ -54,7 +55,46 @@ class SolveService:
             request_id=request_id,
             current_date=current_date,
             timezone=self.timezone_name,
+            attachments_by_id={
+                f"attachment_{index}": {
+                    "filename": file.filename,
+                    "content_base64": file.content_base64,
+                    "mime_type": file.mime_type,
+                }
+                for index, file in enumerate(request.files, start=1)
+            },
         )
-        result = self.router.execute(bridge, execution_context)
+        logger.info(
+            "solve.bridge request_id=%s executable=%s flows=%s commands=%s raw_ops=%s policy_keys=%s",
+            request_id,
+            bridge.validation.isExecutable,
+            [step.resolved_name for step in bridge.executionPlan.selectedFlows],
+            [step.resolved_name for step in bridge.executionPlan.selectedCommands],
+            [step.operationId or step.resolved_name for step in bridge.executionPlan.fallbackRawCommands],
+            self.router._selected_policy_keys(bridge),
+        )
+        try:
+            result = self.router.execute(bridge, execution_context)
+        except RawExecutionError as exc:
+            if exc.status_code in {400, 409, 422}:
+                repaired_bridge = self.planner.repair_after_execution_error(
+                    request=request,
+                    bridge=bridge,
+                    error=exc,
+                    current_date=current_date,
+                    timezone=self.timezone_name,
+                    request_id=request_id,
+                )
+                logger.info(
+                    "solve.bridge_retry request_id=%s flows=%s commands=%s raw_ops=%s policy_keys=%s",
+                    request_id,
+                    [step.resolved_name for step in repaired_bridge.executionPlan.selectedFlows],
+                    [step.resolved_name for step in repaired_bridge.executionPlan.selectedCommands],
+                    [step.operationId or step.resolved_name for step in repaired_bridge.executionPlan.fallbackRawCommands],
+                    self.router._selected_policy_keys(repaired_bridge),
+                )
+                result = self.router.execute(repaired_bridge, execution_context)
+            else:
+                raise
         logger.info("solve.executed request_id=%s steps=%s", request_id, len(result.traces))
         return result

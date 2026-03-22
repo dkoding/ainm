@@ -11,6 +11,7 @@ class ExecutionContext:
     request_id: str
     current_date: str
     timezone: str
+    attachments_by_id: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 @dataclass(slots=True)

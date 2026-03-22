@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from datetime import date, timedelta
+import re
 from typing import Any
 
 from app.raw.errors import RawExecutionError
 from app.utils import camel_case, normalize_key
 
 
-CONTROL_FIELDS = {"fields", "from", "count", "sorting", "date_window"}
+CONTROL_FIELDS = {"date_window"}
 DEFAULT_SELECTOR_STRING_FIELDS = {
     "customer": "name",
     "department": "name",
@@ -16,6 +18,7 @@ DEFAULT_SELECTOR_STRING_FIELDS = {
     "product": "name",
     "product_unit": "name",
     "project": "name",
+    "supplier": "name",
     "supplier_invoice": "invoice_number",
     "travel_cost_category": "description",
     "travel_payment_type": "description",
@@ -96,9 +99,47 @@ def to_selector_dict(family: str, value: Any) -> dict[str, Any]:
 def id_ref(value: Any) -> dict[str, Any]:
     if isinstance(value, dict):
         if "id" in value:
-            return {"id": value["id"]}
+            return {"id": coerce_int_like(value["id"], field_name="id")}
         return value
-    return {"id": value}
+    return {"id": coerce_int_like(value, field_name="id")}
+
+
+def is_int_like(value: Any) -> bool:
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return True
+    return isinstance(value, str) and value.strip().isdigit()
+
+
+def coerce_int_like(value: Any, *, field_name: str) -> int:
+    if isinstance(value, bool):
+        raise RawExecutionError(message=f"{field_name} must be an integer id, not a boolean.")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    raise RawExecutionError(message=f"{field_name} must be an integer id or numeric string.")
+
+
+def is_iso_date_string(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value.strip()):
+        return False
+    try:
+        date.fromisoformat(value.strip())
+    except ValueError:
+        return False
+    return True
+
+
+def default_date_window(current_date: str, *, days_back: int = 370, days_forward: int = 1) -> dict[str, str]:
+    anchor = date.fromisoformat(current_date)
+    return {
+        "from": (anchor - timedelta(days=days_back)).isoformat(),
+        "to": (anchor + timedelta(days=days_forward)).isoformat(),
+    }
 
 
 def merge_maps(*maps: dict[str, Any]) -> dict[str, Any]:

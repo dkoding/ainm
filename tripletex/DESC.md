@@ -679,12 +679,38 @@ The commands below are the hand-authored friendly command aliases for the wrappe
   - Inputs: `id`, `date`
   - Notes: preferred correction path for vouchers and other posted accounting mistakes.
 
-### 5.12 Supplier-invoice and pilot incoming-invoice commands
+### 5.12 Supplier commands
+
+- `supplier.search`
+  - Raw Tripletex method: `GET /supplier`
+  - Purpose: resolve suppliers before supplier-invoice and bookkeeping flows.
+  - Workflows: `supplier.create_or_update`, `supplier_invoice.import_from_attachment`
+  - Inputs: `id?`, `supplier_number?`, `organization_number?`, `email?`, `invoice_email?`, `is_inactive?`, `account_manager_id?`, `changed_since?`, `is_wholesaler?`, `show_products?`, `fields?`, `from?`, `count?`, `sorting?`
+
+- `supplier.get`
+  - Raw Tripletex method: `GET /supplier/{id}`
+  - Purpose: fetch one supplier by ID for confirmation or version-aware update.
+  - Workflows: `supplier.create_or_update`, `supplier_invoice.import_from_attachment`
+  - Inputs: `id`, `fields?`
+
+- `supplier.create`
+  - Raw Tripletex method: `POST /supplier`
+  - Purpose: create a supplier record.
+  - Workflows: `supplier.create_or_update`, `supplier_invoice.import_from_attachment`
+  - Inputs: `name`, `organization_number?`, `email?`, `invoice_email?`, `phone_number?`, `phone_number_mobile?`, `account_manager_ref?`, `language?`, address fields as needed.
+
+- `supplier.update`
+  - Raw Tripletex method: `PUT /supplier/{id}`
+  - Purpose: update a supplier after target resolution.
+  - Workflows: `supplier.create_or_update`
+  - Inputs: `id`, supplier payload including changed fields, `version?`
+
+### 5.13 Supplier-invoice and pilot incoming-invoice commands
 
 - `supplier_invoice.search`
   - Raw Tripletex method: `GET /supplierInvoice`
   - Purpose: resolve an existing supplier invoice.
-  - Workflows: `supplier_invoice.register_payment`
+  - Workflows: `supplier_invoice.register_payment`, `supplier_invoice.import_from_attachment`
   - Inputs: `id?`, `invoice_number?`, `kid?`, `voucher_id?`, `supplier_id?`, `invoice_date_from`, `invoice_date_to`, `fields?`, `from?`, `count?`, `sorting?`
 
 - `supplier_invoice.get`
@@ -720,6 +746,20 @@ The commands below are the hand-authored friendly command aliases for the wrappe
   - Workflows: advanced/pilot vendor-invoice flows.
   - Inputs: `voucher_id`, `payment_type_client_uuid?`, `amount_currency?`, `payment_date?`, `creditor_iban_or_bban?`, `kid_or_receiver_reference?`, `use_default_payment_type?`, `partial_payment?`
   - Notes: restricted API for pilot customers.
+
+- `ledger.voucher.import_document`
+  - Raw Tripletex method: `POST /ledger/voucher/importDocument`
+  - Purpose: import an attachment into a voucher/incoming-invoice starting point.
+  - Workflows: `supplier_invoice.import_from_attachment`
+  - Inputs: `attachment_id`, `description?`, `split?`
+  - Notes: `attachment_id` must reference one of the request attachments and is converted to the multipart `file` field.
+
+- `supplier_invoice.voucher.update_postings`
+  - Raw Tripletex method: `PUT /supplierInvoice/voucher/{id}/postings`
+  - Purpose: update the posting lines for a supplier-invoice voucher.
+  - Workflows: `supplier_invoice.import_from_attachment`
+  - Inputs: `id`, `postings[]`, `voucher_date?`, `send_to_ledger?`
+  - Notes: body is the postings array; keep it narrow and validated.
 
 ## 6. Flow Catalog
 
@@ -891,6 +931,7 @@ The flows below are the hand-authored business flows for common human tasks. The
   - prompt asks to register payment on an already existing outgoing invoice
 - Inputs:
   - `invoice_selector`
+  - `search_date_window?`
   - `payment_spec`
 - Steps:
   1. `invoice.search`
@@ -906,6 +947,7 @@ The flows below are the hand-authored business flows for common human tasks. The
   - prompt says credit, cancel, reverse, or nullify an outgoing invoice
 - Inputs:
   - `invoice_selector`
+  - `search_date_window?`
   - `credit_note_date`
   - `comment?`
   - `send_options?`
@@ -1062,8 +1104,11 @@ The flows below are the hand-authored business flows for common human tasks. The
   - prompt asks to reverse or correct an accounting entry
 - Inputs:
   - `voucher_selector`
+  - `search_date_window?`
   - `reverse_date?`
   - `correction_mode`
+  - `voucher_type?`
+  - `description?`
   - `correction_postings[]?`
 - Steps:
   1. `voucher.search`
@@ -1079,6 +1124,7 @@ The flows below are the hand-authored business flows for common human tasks. The
   - the solver has to verify accounting consequences rather than mutate more data
 - Inputs:
   - `voucher_selector?`
+  - `search_date_window?`
   - `posting_filters`
 - Steps:
   1. optional `voucher.search`
@@ -1092,6 +1138,7 @@ The flows below are the hand-authored business flows for common human tasks. The
   - prompt asks to register payment on an existing supplier invoice
 - Inputs:
   - `supplier_invoice_selector`
+  - `search_date_window?`
   - `payment_type`
   - `amount?`
   - `payment_date?`
@@ -1105,6 +1152,55 @@ The flows below are the hand-authored business flows for common human tasks. The
   3. optional `supplier_invoice.get`
 - Result:
   - supplier invoice payment registered
+
+### 6.22 `supplier.create_or_update`
+
+- Use when:
+  - prompt asks to create a supplier or make sure a supplier record exists before bookkeeping
+- Inputs:
+  - `supplier_selector?`
+  - `patch_mode?`
+  - `name?`
+  - `organization_number?`
+  - `email?`
+  - `invoice_email?`
+  - `phone_number?`
+  - `phone_number_mobile?`
+  - `account_manager?`
+  - `language?`
+- Steps:
+  1. `supplier.search`
+  2. if one exact match exists, `supplier.update`
+  3. otherwise `supplier.create`
+- Result:
+  - supplier exists with the intended master data
+
+### 6.23 `supplier_invoice.import_from_attachment`
+
+- Use when:
+  - prompt or attachment asks to import, register, or bookkeep a supplier invoice from an uploaded document
+- Inputs:
+  - `attachment_id`
+  - `supplier?`
+  - `description?`
+  - `invoice_header?`
+  - `order_lines[]?`
+  - `postings[]?`
+  - `send_to?`
+  - `send_to_ledger?`
+  - `voucher_date?`
+  - `split?`
+- Steps:
+  1. optional `supplier.search` or `supplier.create`
+  2. `ledger.voucher.import_document`
+  3. `incoming_invoice.get`
+  4. optional `incoming_invoice.update`
+  5. optional `supplier_invoice.voucher.update_postings`
+  6. optional `ledger.posting.search`
+- Result:
+  - supplier invoice attachment imported and prepared for accounting
+- Notes:
+  - this is the attachment-derived bookkeeping path and should preserve attachment provenance.
 
 ## 7. Full OpenAPI Coverage Model
 

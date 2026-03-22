@@ -1012,6 +1012,11 @@ def select_prediction_variant(
     )
 
     if live_variant_summary is not None:
+        low_activity_variant = select_low_activity_live_variant(
+            live_variant_summary=live_variant_summary,
+            prediction_variants=prediction_variants,
+            blocked_variants=blocked_variants,
+        )
         live_ranked_variants = [
             item
             for item in live_variant_summary.get("variants", [])
@@ -1019,6 +1024,16 @@ def select_prediction_variant(
         ]
         if live_ranked_variants:
             top_variant = str(live_ranked_variants[0].get("variant"))
+            if low_activity_variant is not None and low_activity_variant in prediction_variants:
+                low_activity_report = next(
+                    (item for item in live_ranked_variants if str(item.get("variant")) == low_activity_variant),
+                    None,
+                )
+                if low_activity_report is not None:
+                    top_score = float(live_ranked_variants[0].get("live_score", 0.0))
+                    low_activity_score = float(low_activity_report.get("live_score", 0.0))
+                    if (top_score - low_activity_score) <= 0.02:
+                        return low_activity_variant
             if ambiguous_fallback is None or top_variant == ambiguous_fallback:
                 return top_variant
             fallback_report = next(
@@ -1110,6 +1125,55 @@ def select_ambiguous_live_fallback(
         if preferred in prediction_variants and preferred not in blocked_variants:
             return preferred
     return offline_ranked_variants[0] if offline_ranked_variants else None
+
+
+def select_low_activity_live_variant(
+    *,
+    live_variant_summary: dict[str, Any],
+    prediction_variants: dict[str, list[Any]],
+    blocked_variants: set[str],
+) -> str | None:
+    observed_summary = live_variant_summary.get("observed_summary", {}) or {}
+    class_probs = observed_summary.get("class_probs", []) or []
+    if len(class_probs) < 4:
+        return None
+    observed_dynamic_mass = float(class_probs[1] + class_probs[2] + class_probs[3])
+    if observed_dynamic_mass > 0.04:
+        return None
+
+    preferred_candidates = (
+        "baseline_history_observation_context",
+        "baseline_history_global_post_observation",
+        "ensemble_observation_context_50",
+        "sklearn_observation_context",
+    )
+    live_reports = {
+        str(item.get("variant")): item
+        for item in live_variant_summary.get("variants", [])
+        if str(item.get("variant")) in prediction_variants and str(item.get("variant")) not in blocked_variants
+    }
+    ranked_candidates: list[tuple[float, float, float, str]] = []
+    for variant_name in preferred_candidates:
+        if variant_name not in live_reports:
+            continue
+        report = live_reports[variant_name]
+        class_mass = aggregate_prediction_class_mass(prediction_variants[variant_name])
+        dynamic_mass = float(class_mass[1] + class_mass[2] + class_mass[3])
+        ranked_candidates.append(
+            (
+                float(report.get("live_score", 0.0)),
+                -dynamic_mass,
+                float(report.get("offline_mean_round_score", 0.0)),
+                variant_name,
+            )
+        )
+    if not ranked_candidates:
+        return None
+    ranked_candidates.sort(reverse=True)
+    best_live = ranked_candidates[0][0]
+    eligible = [item for item in ranked_candidates if (best_live - item[0]) <= 0.015]
+    eligible.sort(key=lambda item: (-item[1], -item[2], -item[0]))
+    return eligible[0][3]
 
 
 def select_guardrail_anchor_variant(

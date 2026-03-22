@@ -15,7 +15,7 @@ DESC_PATH = ROOT / "DESC.md"
 GENERATED_DIR = ROOT / "app" / "generated"
 
 HTTP_METHODS = {"get", "post", "put", "delete", "patch", "head", "options"}
-CONTROL_FIELDS = {"fields", "from", "count", "sorting", "date_window"}
+CONTROL_FIELDS = {"date_window"}
 SPECIAL_INPUT_TARGETS = {
     "invoiceable_lines": "orderLines",
     "line_items": "orderLines",
@@ -58,6 +58,16 @@ MANUAL_BINDINGS = {
         "targetSection": "query",
         "targetName": "isRequiresOvernightAccommodation",
         "valueStrategy": "plain",
+    },
+    ("ledger.voucher.import_document", "attachment_id"): {
+        "targetSection": "body",
+        "targetName": "file",
+        "valueStrategy": "attachment_file",
+    },
+    ("supplier_invoice.voucher.update_postings", "postings"): {
+        "targetSection": "body",
+        "targetName": "body",
+        "valueStrategy": "body_merge",
     },
 }
 

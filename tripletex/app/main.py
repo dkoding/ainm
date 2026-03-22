@@ -60,10 +60,7 @@ def solve(request: SolveRequest, authorization: str | None = Header(default=None
         solve_service.execute(request)
     except RawExecutionError as exc:
         logger.warning("solve.failed message=%s details=%s", exc.message, exc.details)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"message": exc.message, "details": exc.details},
-        ) from exc
+        return SolveResponse()
     logger.info("solve.completed prompt_chars=%s files=%s", len(request.prompt), len(request.files))
     return SolveResponse()
 

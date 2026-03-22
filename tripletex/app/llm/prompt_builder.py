@@ -9,6 +9,7 @@ class PromptBuilder:
         *,
         prompt: str,
         evidence: list[dict[str, Any]],
+        attachment_media: list[dict[str, Any]],
         current_date: str,
         timezone: str,
         context_slice: dict[str, Any],
@@ -22,17 +23,20 @@ class PromptBuilder:
                 "Use English field names, preserve source text, and normalize dates to ISO form. "
                 "Never invent IDs, missing facts, or unsupported commands. "
                 "The API contract in context.apiContract is authoritative: only those flow names, command names, and inputs are legal. "
+                "The raw API contract in context.rawApiContract is authoritative for exact raw operationIds. "
                 "Do not emit a flowName or commandName outside that contract. "
                 "Do not emit flow inputs or command inputs outside that contract. "
                 "For payload-style commands, only wrapperInputs, bodyFields, and the pseudo-inputs body or payload from the contract are legal. "
                 "If required inputs are missing, do not guess them; either choose another legal route or set validation.isExecutable=false with blocking issues. "
                 "Do not invent near-match aliases. For example, if the contract does not list timesheet.entry.sum then timesheet.entry.sum is illegal. "
                 "If you need a raw fallback, use an exact operationId from context.rawOperations and its exact raw parameter names. "
+                "Never emit a raw operationId that is not listed in context.rawApiContract.legalOperationIds. "
                 "For raw fallbacks, only context.rawOperations[].allowedInputs are legal input names. "
                 "If a raw fallback has requestBodyKind multipart or json, use only its listed bodyFields or a body object with those exact fields. "
                 "Exact raw operationIds must be emitted only in executionPlan.fallbackRawCommands, never in executionPlan.selectedCommands. "
                 "executionPlan.selectedCommands is only for legal friendly command names from context.apiContract.legalCommands. "
                 "Routing priority is strict: choose a documented business flow first, then a documented friendly command, then exact raw operationId fallback. "
+                "If a selected flow, command, or raw operation has a conformance policy key, obey the matching summary in context.policyCatalog. "
                 "Every selected step needs a stable stepId. "
                 "All step-specific legal inputs must appear in step.inputs or in flatBridge.flowArguments / flatBridge.commandArguments for that exact legal flow or command. "
                 "flatBridge.fieldBag is only for duplicated aliases and denormalized facts, not for hiding required step inputs. "
@@ -44,6 +48,7 @@ class PromptBuilder:
                 "timezone": timezone,
                 "attachments": evidence,
             },
+            "media": attachment_media,
             "context": {
                 **context_slice,
                 "contractSkeleton": {
@@ -114,6 +119,14 @@ class PromptBuilder:
                         "bad": {"flowName": "customer.create_or_update", "inputs": {"customer_id": 7}},
                         "why": "customer.create_or_update does not list customer_id as a legal flow input.",
                     },
+                    {
+                        "bad": {"commandName": "supplier.search"},
+                        "why": "Only exact legal command names from apiContract.legalCommands are allowed.",
+                    },
+                    {
+                        "bad": {"commandName": "voucher.create", "inputs": {"voucher_type_ref": "Inngående faktura"}},
+                        "why": "ref inputs must be resolved ids or id objects, not human labels.",
+                    },
                 ],
                 "examples": [
                     {
@@ -127,6 +140,28 @@ class PromptBuilder:
                         "prompt": "How many hours did I work in February?",
                         "technicalFlowFamily": "timesheet.entry.read",
                         "operationId": "TimesheetEntryTotalHours_getTotalHours",
+                    },
+                    {
+                        "kind": "business_flow",
+                        "prompt": "Create or update supplier ACME AS with organization number 123456789",
+                        "flowName": "supplier.create_or_update",
+                        "commandNames": ["supplier.search", "supplier.create", "supplier.update"],
+                    },
+                    {
+                        "kind": "attachment_accounting",
+                        "prompt": "Bookkeep the attached supplier invoice",
+                        "flowName": "supplier_invoice.import_from_attachment",
+                        "commandNames": [
+                            "ledger.voucher.import_document",
+                            "incoming_invoice.get",
+                            "incoming_invoice.update",
+                            "supplier_invoice.voucher.update_postings",
+                        ],
+                    },
+                    {
+                        "kind": "blocked_plan",
+                        "prompt": "Pay the supplier invoice from the attachment, but no supplier or payment type can be resolved",
+                        "result": "validation.isExecutable=false with blockingIssues that explain the missing supplier or payment setup",
                     },
                 ],
             },

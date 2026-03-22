@@ -1,5 +1,5 @@
 {
-  "flowCount": 21,
+  "flowCount": 23,
   "flows": {
     "bootstrap.inspect_context": {
       "commandNames": [
@@ -245,6 +245,7 @@
       "flowName": "invoice.credit_note",
       "inputSpec": [
         "`invoice_selector`",
+        "`search_date_window?`",
         "`credit_note_date`",
         "`comment?`",
         "`send_options?`"
@@ -253,6 +254,7 @@
         "comment",
         "credit_note_date",
         "invoice_selector",
+        "search_date_window",
         "send_options"
       ],
       "notes": [],
@@ -370,11 +372,13 @@
       "flowName": "invoice.register_payment",
       "inputSpec": [
         "`invoice_selector`",
+        "`search_date_window?`",
         "`payment_spec`"
       ],
       "inputs": [
         "invoice_selector",
-        "payment_spec"
+        "payment_spec",
+        "search_date_window"
       ],
       "notes": [],
       "result": [
@@ -398,10 +402,12 @@
       "flowName": "ledger.verify_effect",
       "inputSpec": [
         "`voucher_selector?`",
+        "`search_date_window?`",
         "`posting_filters`"
       ],
       "inputs": [
         "posting_filters",
+        "search_date_window",
         "voucher_selector"
       ],
       "notes": [],
@@ -502,6 +508,103 @@
         "prompt asks to create a project, especially one linked to a customer"
       ]
     },
+    "supplier.create_or_update": {
+      "commandNames": [
+        "supplier.search",
+        "supplier.update",
+        "supplier.create"
+      ],
+      "flowName": "supplier.create_or_update",
+      "inputSpec": [
+        "`supplier_selector?`",
+        "`patch_mode?`",
+        "`name?`",
+        "`organization_number?`",
+        "`email?`",
+        "`invoice_email?`",
+        "`phone_number?`",
+        "`phone_number_mobile?`",
+        "`account_manager?`",
+        "`language?`"
+      ],
+      "inputs": [
+        "account_manager",
+        "email",
+        "invoice_email",
+        "language",
+        "name",
+        "organization_number",
+        "patch_mode",
+        "phone_number",
+        "phone_number_mobile",
+        "supplier_selector"
+      ],
+      "notes": [],
+      "result": [
+        "supplier exists with the intended master data"
+      ],
+      "steps": [
+        "`supplier.search`",
+        "if one exact match exists, `supplier.update`",
+        "otherwise `supplier.create`"
+      ],
+      "useWhen": [
+        "prompt asks to create a supplier or make sure a supplier record exists before bookkeeping"
+      ]
+    },
+    "supplier_invoice.import_from_attachment": {
+      "commandNames": [
+        "supplier.search",
+        "supplier.create",
+        "ledger.voucher.import_document",
+        "incoming_invoice.get",
+        "incoming_invoice.update",
+        "supplier_invoice.voucher.update_postings",
+        "ledger.posting.search"
+      ],
+      "flowName": "supplier_invoice.import_from_attachment",
+      "inputSpec": [
+        "`attachment_id`",
+        "`supplier?`",
+        "`description?`",
+        "`invoice_header?`",
+        "`order_lines[]?`",
+        "`postings[]?`",
+        "`send_to?`",
+        "`send_to_ledger?`",
+        "`voucher_date?`",
+        "`split?`"
+      ],
+      "inputs": [
+        "attachment_id",
+        "description",
+        "invoice_header",
+        "order_lines[]",
+        "postings[]",
+        "send_to",
+        "send_to_ledger",
+        "split",
+        "supplier",
+        "voucher_date"
+      ],
+      "notes": [
+        "this is the attachment-derived bookkeeping path and should preserve attachment provenance."
+      ],
+      "result": [
+        "supplier invoice attachment imported and prepared for accounting"
+      ],
+      "steps": [
+        "optional `supplier.search` or `supplier.create`",
+        "`ledger.voucher.import_document`",
+        "`incoming_invoice.get`",
+        "optional `incoming_invoice.update`",
+        "optional `supplier_invoice.voucher.update_postings`",
+        "optional `ledger.posting.search`"
+      ],
+      "useWhen": [
+        "prompt or attachment asks to import, register, or bookkeep a supplier invoice from an uploaded document"
+      ]
+    },
     "supplier_invoice.register_payment": {
       "commandNames": [
         "supplier_invoice.search",
@@ -511,6 +614,7 @@
       "flowName": "supplier_invoice.register_payment",
       "inputSpec": [
         "`supplier_invoice_selector`",
+        "`search_date_window?`",
         "`payment_type`",
         "`amount?`",
         "`payment_date?`",
@@ -526,6 +630,7 @@
         "partial_payment",
         "payment_date",
         "payment_type",
+        "search_date_window",
         "supplier_invoice_selector",
         "use_default_payment_type"
       ],
@@ -721,15 +826,21 @@
       "flowName": "voucher.reverse_or_correct",
       "inputSpec": [
         "`voucher_selector`",
+        "`search_date_window?`",
         "`reverse_date?`",
         "`correction_mode`",
+        "`voucher_type?`",
+        "`description?`",
         "`correction_postings[]?`"
       ],
       "inputs": [
         "correction_mode",
         "correction_postings[]",
+        "description",
         "reverse_date",
-        "voucher_selector"
+        "search_date_window",
+        "voucher_selector",
+        "voucher_type"
       ],
       "notes": [],
       "result": [

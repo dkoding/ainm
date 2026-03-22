@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from app.contracts import ExecutionContext, ExecutionResult, LLMBridgeDocument, StepTrace
@@ -7,6 +8,9 @@ from app.raw import RawExecutor, load_raw_catalog
 from app.raw.errors import RawExecutionError
 from app.wrapper import CommandExecutor, FlowExecutor, load_wrapper_catalog
 from app.wrapper.helpers import merge_maps
+
+
+logger = logging.getLogger("tripletex_router")
 
 
 class BridgeRouter:
@@ -57,6 +61,9 @@ class BridgeRouter:
                     else:
                         if not operation_id or not self.raw_catalog.has(operation_id):
                             raise RawExecutionError(message=f"Unknown raw operationId: {operation_id}")
+                parent_flow_step_id = getattr(step["object"], "parentFlowStepId", None)
+                if parent_flow_step_id and parent_flow_step_id not in steps:
+                    raise RawExecutionError(message=f"Command step {step_id} referenced unknown parent flow step {parent_flow_step_id}.")
         if bridge.executionPlan.stepOrder:
             missing = [step_id for step_id in bridge.executionPlan.stepOrder if step_id not in steps]
             if missing:
@@ -67,6 +74,23 @@ class BridgeRouter:
         result = ExecutionResult()
         steps = self._step_index(bridge)
         execution_order = bridge.executionPlan.stepOrder or self._default_order(bridge, steps)
+        logger.info(
+            "bridge.execute request_id=%s flows=%s commands=%s raw_ops=%s policy_keys=%s step_order=%s",
+            context.request_id,
+            [step["name"] for step in steps.values() if step["kind"] == "flow"],
+            [
+                step["name"]
+                for step in steps.values()
+                if step["kind"] == "command" and step["object"].resolved_kind == "friendly_alias"
+            ],
+            [
+                step["operation_id"]
+                for step in steps.values()
+                if step["kind"] == "command" and step["object"].resolved_kind != "friendly_alias"
+            ],
+            self._selected_policy_keys(bridge),
+            execution_order,
+        )
         for step_id in execution_order:
             step = steps[step_id]
             if step["kind"] == "flow":
@@ -126,9 +150,17 @@ class BridgeRouter:
         return steps
 
     def _default_order(self, bridge: LLMBridgeDocument, steps: dict[str, dict[str, Any]]) -> list[str]:
-        if bridge.executionPlan.selectedCommands or bridge.executionPlan.fallbackRawCommands:
-            return [step_id for step_id, step in steps.items() if step["kind"] == "command"]
-        return list(steps)
+        ordered: list[str] = []
+        for step_id, step in steps.items():
+            if step["kind"] == "flow":
+                ordered.append(step_id)
+        for step_id, step in steps.items():
+            if step["kind"] != "command":
+                continue
+            if getattr(step["object"], "parentFlowStepId", None):
+                continue
+            ordered.append(step_id)
+        return ordered
 
     def _entity_layer(self, bridge: LLMBridgeDocument) -> dict[str, Any]:
         data: dict[str, Any] = {}
@@ -207,3 +239,26 @@ class BridgeRouter:
             for name, value in body_schema.get("properties", {}).items()
             if not value.get("readOnly")
         )
+
+    def _selected_policy_keys(self, bridge: LLMBridgeDocument) -> list[str]:
+        policy_keys: set[str] = set()
+        for flow in bridge.executionPlan.selectedFlows:
+            if flow.resolved_kind != "business_flow" or not self.wrapper_catalog.has_flow(flow.resolved_name):
+                continue
+            flow_meta = self.wrapper_catalog.get_flow(flow.resolved_name)
+            for command_name in flow_meta.get("commandNames", []):
+                if self.wrapper_catalog.has_command(command_name):
+                    policy_key = self.wrapper_catalog.get_command(command_name).get("conformancePolicyKey")
+                    if policy_key:
+                        policy_keys.add(policy_key)
+        for command in bridge.executionPlan.selectedCommands:
+            if command.resolved_kind == "friendly_alias" and self.wrapper_catalog.has_command(command.resolved_name):
+                policy_key = self.wrapper_catalog.get_command(command.resolved_name).get("conformancePolicyKey")
+                if policy_key:
+                    policy_keys.add(policy_key)
+        for command in bridge.executionPlan.fallbackRawCommands:
+            if command.operationId and self.raw_catalog.has(command.operationId):
+                policy_key = self.raw_catalog.get(command.operationId).get("conformancePolicyKey")
+                if policy_key:
+                    policy_keys.add(policy_key)
+        return sorted(policy_keys)

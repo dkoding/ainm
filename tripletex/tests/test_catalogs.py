@@ -11,8 +11,8 @@ class CatalogCoverageTests(unittest.TestCase):
         raw_catalog = load_raw_catalog()
         wrapper_catalog = load_wrapper_catalog()
         self.assertEqual(raw_catalog.count, 800)
-        self.assertEqual(wrapper_catalog.command_count, 78)
-        self.assertEqual(wrapper_catalog.flow_count, 21)
+        self.assertEqual(wrapper_catalog.command_count, 84)
+        self.assertEqual(wrapper_catalog.flow_count, 23)
 
     def test_all_raw_operations_have_technical_family(self) -> None:
         raw_catalog = load_raw_catalog()

@@ -40,6 +40,15 @@ class LLMPlanner:
         prompt_package = self.prompt_builder.build(
             prompt=request.prompt,
             evidence=evidence,
+            attachment_media=[
+                {
+                    "attachmentId": f"attachment_{index}",
+                    "filename": file.filename,
+                    "mimeType": file.mime_type,
+                    "contentBase64": file.content_base64,
+                }
+                for index, file in enumerate(request.files, start=1)
+            ],
             current_date=current_date,
             timezone=timezone,
             context_slice=context_slice,
@@ -64,7 +73,7 @@ class LLMPlanner:
                 for item in detailed_errors[:8]:
                     repair_errors.append(json.dumps(item, ensure_ascii=False))
             if isinstance(raw_response, str):
-                repaired = self.repair_engine.repair(raw_response, repair_errors)
+                repaired = self.repair_engine.repair(raw_response, repair_errors, prompt_package=prompt_package)
                 return self._validate_with_request_defaults(
                     repaired,
                     prompt=request.prompt,
@@ -74,6 +83,52 @@ class LLMPlanner:
                     attachment_count=len(request.files),
                 )
             raise
+
+    def repair_after_execution_error(
+        self,
+        *,
+        request: SolveRequest,
+        bridge: LLMBridgeDocument,
+        error: RawExecutionError,
+        current_date: str,
+        timezone: str,
+        request_id: str,
+    ) -> LLMBridgeDocument:
+        evidence = self.evidence_builder.build(request.files)
+        context_slice = self.context_catalog.build_slice(request.prompt)
+        prompt_package = self.prompt_builder.build(
+            prompt=request.prompt,
+            evidence=evidence,
+            attachment_media=[
+                {
+                    "attachmentId": f"attachment_{index}",
+                    "filename": file.filename,
+                    "mimeType": file.mime_type,
+                    "contentBase64": file.content_base64,
+                }
+                for index, file in enumerate(request.files, start=1)
+            ],
+            current_date=current_date,
+            timezone=timezone,
+            context_slice=context_slice,
+        )
+        repaired = self.repair_engine.repair_after_execution_error(
+            bridge=bridge.model_dump(mode="json"),
+            error={
+                "message": error.message,
+                "statusCode": error.status_code,
+                "details": error.details,
+            },
+            prompt_package=prompt_package,
+        )
+        return self._validate_with_request_defaults(
+            repaired,
+            prompt=request.prompt,
+            current_date=current_date,
+            timezone=timezone,
+            request_id=request_id,
+            attachment_count=len(request.files),
+        )
 
     def _maybe_validate_direct_json(self, prompt: str) -> LLMBridgeDocument | None:
         candidate = prompt.strip()

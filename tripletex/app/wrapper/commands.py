@@ -10,6 +10,7 @@ from app.wrapper.catalog import WrapperCatalog, load_wrapper_catalog
 from app.wrapper.helpers import (
     CONTROL_FIELDS,
     choose_date_window_pair,
+    coerce_int_like,
     flatten_special_inputs,
     id_ref,
 )
@@ -28,15 +29,22 @@ class CommandExecutor:
     def execute(self, command_name: str, inputs: dict[str, Any], context: ExecutionContext) -> Any:
         command_meta = self.wrapper_catalog.get_command(command_name)
         raw_meta = self.raw_catalog.get(command_meta["operationId"])
-        raw_arguments = self._prepare_arguments(command_meta, raw_meta, inputs)
+        raw_arguments = self._prepare_arguments(command_meta, raw_meta, inputs, context)
         return self.raw_executor.execute(command_meta["operationId"], raw_arguments, context)
 
-    def _prepare_arguments(self, command_meta: dict[str, Any], raw_meta: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+    def _prepare_arguments(
+        self,
+        command_meta: dict[str, Any],
+        raw_meta: dict[str, Any],
+        inputs: dict[str, Any],
+        context: ExecutionContext,
+    ) -> dict[str, Any]:
         flattened = flatten_special_inputs(inputs)
         query_names = [item["name"] for item in raw_meta["queryParams"]]
         body_meta = raw_meta["requestBody"]
         body_schema = next(iter(body_meta.get("content", {}).values()), {})
         body_properties = body_schema.get("properties", {})
+        body_type = body_schema.get("type")
         bindings = command_meta.get("inputBindings", {})
 
         date_window = flattened.pop("date_window", None)
@@ -50,12 +58,14 @@ class CommandExecutor:
                     flattened[end_key] = date_window.get("to")
 
         raw_arguments: dict[str, Any] = {}
-        body: dict[str, Any] = {}
+        body: Any = [] if body_type == "array" else {}
         explicit_body = flattened.pop("body", None)
         if explicit_body is not None:
-            if not isinstance(explicit_body, dict):
-                raise RawExecutionError(message="Explicit command body must be a dict.")
-            body.update(explicit_body)
+            if body_meta.get("kind") == "multipart" and not isinstance(explicit_body, dict):
+                raise RawExecutionError(message="Explicit multipart command body must be a dict.")
+            if body_meta.get("kind") != "multipart" and not isinstance(explicit_body, (dict, list)):
+                raise RawExecutionError(message="Explicit command body must be a dict or list.")
+            body = explicit_body
 
         for key, value in flattened.items():
             if value is None:
@@ -77,6 +87,7 @@ class CommandExecutor:
                             "body",
                             "ref_object" if key.endswith("_ref") else "plain",
                             body_properties.get(passthrough_target),
+                            context,
                         )
                         body[passthrough_target] = converted
                         continue
@@ -84,21 +95,52 @@ class CommandExecutor:
             section = binding["targetSection"]
             raw_name = binding["targetName"]
             if section == "control":
+                raw_arguments[raw_name] = value
                 continue
-            converted = self._convert_value(key, value, raw_name, section, binding.get("valueStrategy"), body_properties.get(raw_name))
+            converted = self._convert_value(
+                key,
+                value,
+                raw_name,
+                section,
+                binding.get("valueStrategy"),
+                body_properties.get(raw_name),
+                context,
+            )
             if section in {"path", "query"}:
                 raw_arguments[raw_name] = converted
             else:
-                if binding.get("valueStrategy") == "body_merge":
-                    if not isinstance(converted, dict):
-                        raise RawExecutionError(message=f"{key} must be a dict body fragment.")
-                    body.update(converted)
-                else:
-                    body[raw_name] = converted
+                body = self._merge_body_value(body, converted, binding.get("valueStrategy"), raw_name, body_type, key)
 
         if body_meta:
             raw_arguments["body"] = body
         return raw_arguments
+
+    def _merge_body_value(
+        self,
+        body: Any,
+        converted: Any,
+        value_strategy: str | None,
+        raw_name: str,
+        body_type: str | None,
+        source_key: str,
+    ) -> Any:
+        if value_strategy == "body_merge":
+            if body_type == "array":
+                if not isinstance(converted, list):
+                    raise RawExecutionError(message=f"{source_key} must be a list body payload.")
+                return converted
+            if not isinstance(converted, dict):
+                raise RawExecutionError(message=f"{source_key} must be a dict body fragment.")
+            if not isinstance(body, dict):
+                raise RawExecutionError(message=f"{source_key} cannot merge into a non-dict body.")
+            body.update(converted)
+            return body
+        if body_type == "array":
+            raise RawExecutionError(message=f"{source_key} must be supplied through body/payload for array request bodies.")
+        if not isinstance(body, dict):
+            raise RawExecutionError(message=f"{source_key} cannot write into a non-dict body.")
+        body[raw_name] = converted
+        return body
 
     def _resolve_body_passthrough_target(self, key: str, body_properties: dict[str, Any]) -> str | None:
         candidates = [key, camel_case(key)]
@@ -118,16 +160,26 @@ class CommandExecutor:
         target_section: str,
         value_strategy: str | None,
         body_property_meta: dict[str, Any] | None,
+        context: ExecutionContext,
     ) -> Any:
         if value_strategy == "body_merge":
             return value
+        if value_strategy == "attachment_file":
+            if not isinstance(value, str):
+                raise RawExecutionError(message=f"{source_key} must be an attachment id string.")
+            attachment = context.attachments_by_id.get(value)
+            if attachment is None:
+                raise RawExecutionError(message=f"Unknown attachment id {value} for {source_key}.")
+            return attachment
         if value_strategy == "ref_id":
             if isinstance(value, dict):
-                return value.get("id")
-            return value
+                if "id" not in value:
+                    raise RawExecutionError(message=f"{source_key} must contain an id field.")
+                return coerce_int_like(value["id"], field_name=source_key)
+            return coerce_int_like(value, field_name=source_key)
         if value_strategy == "ref_object":
             if isinstance(value, dict) and "id" in value:
-                return {"id": value["id"]}
+                return {"id": coerce_int_like(value["id"], field_name=source_key)}
             return id_ref(value)
         if value_strategy == "ref_list":
             if isinstance(value, list):
@@ -136,11 +188,13 @@ class CommandExecutor:
         if source_key.endswith("_ref"):
             if target_section in {"path", "query"} or target_key.endswith("Id") or target_key.endswith("Ids"):
                 if isinstance(value, dict):
-                    return value.get("id")
-                return value
+                    if "id" not in value:
+                        raise RawExecutionError(message=f"{source_key} must contain an id field.")
+                    return coerce_int_like(value["id"], field_name=source_key)
+                return coerce_int_like(value, field_name=source_key)
             if isinstance(value, dict) and "id" in value:
-                return {"id": value["id"]}
+                return {"id": coerce_int_like(value["id"], field_name=source_key)}
             return id_ref(value)
         if body_property_meta and body_property_meta.get("type") == "object" and isinstance(value, (int, str)):
-            return {"id": value}
+            return {"id": coerce_int_like(value, field_name=source_key)}
         return value

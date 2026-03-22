@@ -10,6 +10,7 @@ from app.contracts import LLMBridgeDocument
 from app.raw import load_raw_catalog
 from app.raw.errors import RawExecutionError
 from app.wrapper import load_wrapper_catalog
+from app.wrapper.helpers import is_int_like, is_iso_date_string
 
 
 class ResponseValidator:
@@ -56,7 +57,6 @@ class ResponseValidator:
 
         execution_plan = data.get("executionPlan")
         if isinstance(execution_plan, dict):
-            migrated_raw_steps: list[dict[str, Any]] = []
             for key in ("selectedFlows", "selectedCommands", "fallbackRawCommands", "stepOrder"):
                 value = execution_plan.get(key)
                 if value is None:
@@ -69,20 +69,13 @@ class ResponseValidator:
                     execution_plan[key] = []
             for key in ("selectedFlows", "selectedCommands", "fallbackRawCommands"):
                 execution_plan[key] = [self._normalize_step(step) for step in execution_plan[key] if isinstance(step, dict)]
-            selected_commands: list[dict[str, Any]] = []
-            for step in execution_plan["selectedCommands"]:
-                if self._is_raw_command_step(step):
-                    migrated_raw_steps.append(self._coerce_raw_command_step(step))
-                else:
-                    selected_commands.append(step)
-            execution_plan["selectedCommands"] = selected_commands
             fallback_raw_commands: list[dict[str, Any]] = []
             for step in execution_plan["fallbackRawCommands"]:
                 if self._is_raw_command_step(step):
                     fallback_raw_commands.append(self._coerce_raw_command_step(step))
                 else:
                     fallback_raw_commands.append(step)
-            execution_plan["fallbackRawCommands"] = [*fallback_raw_commands, *migrated_raw_steps]
+            execution_plan["fallbackRawCommands"] = fallback_raw_commands
 
         sources = data.get("sources")
         if isinstance(sources, dict):
@@ -163,24 +156,35 @@ class ResponseValidator:
 
     def _validate_references(self, bridge: LLMBridgeDocument) -> None:
         for flow in bridge.executionPlan.selectedFlows:
+            if flow.resolved_kind != "business_flow":
+                raise RawExecutionError(message=f"Planner emitted unsupported flow kind {flow.resolved_kind}.")
             if flow.resolved_kind == "business_flow" and not self.wrapper_catalog.has_flow(flow.resolved_name):
                 raise RawExecutionError(message=f"Planner referenced unknown business flow {flow.resolved_name}.")
             if not flow.stepId:
                 raise RawExecutionError(message="Planner returned a flow step without stepId.")
             if flow.resolved_kind == "business_flow":
                 self._validate_flow_inputs(bridge, flow)
-        for command in [*bridge.executionPlan.selectedCommands, *bridge.executionPlan.fallbackRawCommands]:
+        for command in bridge.executionPlan.selectedCommands:
             if not command.stepId:
                 raise RawExecutionError(message="Planner returned a command step without stepId.")
-            if command.resolved_kind == "friendly_alias":
-                if not self.wrapper_catalog.has_command(command.resolved_name):
-                    raise RawExecutionError(message=f"Planner referenced unknown command {command.resolved_name}.")
-                self._validate_command_inputs(bridge, command)
-            operation_id = command.operationId
+            if command.resolved_kind != "friendly_alias":
+                raise RawExecutionError(message="executionPlan.selectedCommands may only contain friendly command names.")
+            if self.raw_catalog.has(command.resolved_name):
+                raise RawExecutionError(message=f"Raw operationId {command.resolved_name} must go in fallbackRawCommands, not selectedCommands.")
+            if not self.wrapper_catalog.has_command(command.resolved_name):
+                raise RawExecutionError(message=f"Planner referenced unknown command {command.resolved_name}.")
+            self._validate_command_inputs(bridge, command)
+        for command in bridge.executionPlan.fallbackRawCommands:
+            if not command.stepId:
+                raise RawExecutionError(message="Planner returned a raw command step without stepId.")
+            operation_id = command.operationId or (command.resolved_name if self.raw_catalog.has(command.resolved_name) else None)
+            if not operation_id:
+                raise RawExecutionError(message="Planner emitted a raw fallback step without a valid operationId.")
+            if self.wrapper_catalog.has_command(command.resolved_name) and command.resolved_kind == "friendly_alias":
+                raise RawExecutionError(message=f"Friendly command {command.resolved_name} must go in selectedCommands, not fallbackRawCommands.")
             if operation_id and not self.raw_catalog.has(operation_id):
                 raise RawExecutionError(message=f"Planner referenced unknown raw operationId {operation_id}.")
-            if command.resolved_kind != "friendly_alias":
-                self._validate_raw_inputs(bridge, command, operation_id or command.resolved_name)
+            self._validate_raw_inputs(bridge, command, operation_id or command.resolved_name)
 
     def _validate_content(self, bridge: LLMBridgeDocument) -> None:
         if not bridge.language.promptOriginal:
@@ -195,7 +199,9 @@ class ResponseValidator:
             raise RawExecutionError(message="Planner output omitted language.promptCanonical.")
         if not bridge.understanding.objective:
             raise RawExecutionError(message="Planner output omitted understanding.objective.")
-        if not (bridge.executionPlan.selectedFlows or bridge.executionPlan.selectedCommands or bridge.executionPlan.fallbackRawCommands):
+        if bridge.validation.isExecutable and not (
+            bridge.executionPlan.selectedFlows or bridge.executionPlan.selectedCommands or bridge.executionPlan.fallbackRawCommands
+        ):
             raise RawExecutionError(message="Planner output omitted executable steps.")
         if bridge.executionPlan.stepOrder:
             known_steps = {
@@ -208,6 +214,7 @@ class ResponseValidator:
                 raise RawExecutionError(
                     message=f"Planner output referenced unknown steps in stepOrder: {', '.join(missing)}."
                 )
+        self._validate_policy_requirements(bridge)
 
     def _validate_flow_inputs(self, bridge: LLMBridgeDocument, flow: Any) -> None:
         meta = self.wrapper_catalog.get_flow(flow.resolved_name)
@@ -226,6 +233,7 @@ class ResponseValidator:
                 raise RawExecutionError(
                     message=f"Planner omitted required inputs for flow {flow.resolved_name}: {', '.join(missing)}."
                 )
+        self._validate_flow_typed_inputs(payload, flow.resolved_name, bridge)
 
     def _validate_command_inputs(self, bridge: LLMBridgeDocument, command: Any) -> None:
         meta = self.wrapper_catalog.get_command(command.resolved_name)
@@ -247,6 +255,7 @@ class ResponseValidator:
                 raise RawExecutionError(
                     message=f"Planner omitted required inputs for command {command.resolved_name}: {', '.join(missing)}."
                 )
+        self._validate_command_typed_inputs(payload, meta, bridge)
 
     def _legal_command_inputs(self, meta: dict[str, Any]) -> list[str]:
         legal_inputs = list(input_names(meta["inputs"]))
@@ -296,6 +305,7 @@ class ResponseValidator:
             raise RawExecutionError(
                 message=f"Planner omitted required inputs for raw operation {operation_id}: {', '.join(sorted(dict.fromkeys(missing_names)))}."
             )
+        self._validate_raw_typed_inputs(payload, meta, bridge)
 
     def _legal_raw_inputs(self, meta: dict[str, Any]) -> list[str]:
         legal_inputs = [item["name"] for item in meta["pathParams"]]
@@ -309,3 +319,198 @@ class ResponseValidator:
                 if not value.get("readOnly")
             )
         return sorted(dict.fromkeys(name for name in legal_inputs if name))
+
+    def _validate_flow_typed_inputs(self, payload: dict[str, Any], flow_name: str, bridge: LLMBridgeDocument) -> None:
+        attachment_ids = self._attachment_ids(bridge)
+        for key, value in payload.items():
+            if value is None:
+                continue
+            if key in {"date_window", "search_date_window"}:
+                self._validate_date_window(value, key)
+            elif key == "attachment_id":
+                self._validate_attachment_reference(value, attachment_ids)
+            elif key.endswith("_date") or key in {"date", "voucher_date", "reverse_date", "credit_note_date", "payment_date"}:
+                self._validate_date_value(value, key)
+
+    def _validate_command_typed_inputs(self, payload: dict[str, Any], meta: dict[str, Any], bridge: LLMBridgeDocument) -> None:
+        raw_meta = self.raw_catalog.get(meta["operationId"])
+        bindings = meta.get("inputBindings", {})
+        attachment_ids = self._attachment_ids(bridge)
+        for key, value in payload.items():
+            if value is None:
+                continue
+            if key == "attachment_id":
+                self._validate_attachment_reference(value, attachment_ids)
+                continue
+            if key in {"body", "payload"}:
+                self._validate_request_body_value(value, raw_meta, key)
+                continue
+            binding = bindings.get(key)
+            if binding is None:
+                continue
+            section = binding["targetSection"]
+            if section == "control":
+                self._validate_control_input(key, value)
+                continue
+            schema = self._schema_for_binding(raw_meta, section, binding["targetName"])
+            self._validate_typed_value(
+                value,
+                field_name=key,
+                schema=schema,
+                value_strategy=binding.get("valueStrategy"),
+            )
+
+    def _validate_raw_typed_inputs(self, payload: dict[str, Any], meta: dict[str, Any], bridge: LLMBridgeDocument) -> None:
+        attachment_ids = self._attachment_ids(bridge)
+        for key, value in payload.items():
+            if value is None:
+                continue
+            if key == "attachment_id":
+                self._validate_attachment_reference(value, attachment_ids)
+                continue
+            if key == "body":
+                self._validate_request_body_value(value, meta, key)
+                continue
+            schema = self._schema_for_raw_input(meta, key)
+            self._validate_typed_value(value, field_name=key, schema=schema)
+
+    def _schema_for_binding(self, raw_meta: dict[str, Any], section: str, target_name: str) -> dict[str, Any]:
+        if section == "path":
+            return next((item for item in raw_meta["pathParams"] if item["name"] == target_name), {})
+        if section == "query":
+            return next((item for item in raw_meta["queryParams"] if item["name"] == target_name), {})
+        body_schema = next(iter(raw_meta.get("requestBody", {}).get("content", {}).values()), {})
+        return body_schema.get("properties", {}).get(target_name, {})
+
+    def _schema_for_raw_input(self, raw_meta: dict[str, Any], input_name: str) -> dict[str, Any]:
+        for item in [*raw_meta["pathParams"], *raw_meta["queryParams"]]:
+            if item["name"] == input_name:
+                return item
+        body_schema = next(iter(raw_meta.get("requestBody", {}).get("content", {}).values()), {})
+        return body_schema.get("properties", {}).get(input_name, {})
+
+    def _validate_typed_value(
+        self,
+        value: Any,
+        *,
+        field_name: str,
+        schema: dict[str, Any],
+        value_strategy: str | None = None,
+    ) -> None:
+        if field_name in {"from", "count"}:
+            if not is_int_like(value):
+                raise RawExecutionError(message=f"{field_name} must be an integer.")
+            return
+        if field_name == "fields":
+            if not isinstance(value, (str, list)):
+                raise RawExecutionError(message="fields must be a string or list.")
+            return
+        if field_name == "sorting":
+            if not isinstance(value, (str, list)):
+                raise RawExecutionError(message="sorting must be a string or list.")
+            return
+        if field_name.endswith("_date") or field_name in {"date", "startDate", "endDate"} or schema.get("format") == "date":
+            self._validate_date_value(value, field_name)
+            return
+        if value_strategy in {"ref_id", "ref_object", "ref_list"} or field_name.endswith("_ref"):
+            self._validate_ref_value(value, field_name, allow_list=value_strategy == "ref_list")
+            return
+        schema_type = schema.get("type")
+        if schema_type == "integer":
+            if not is_int_like(value):
+                raise RawExecutionError(message=f"{field_name} must be an integer.")
+            return
+        if schema_type == "number":
+            if not isinstance(value, (int, float)):
+                raise RawExecutionError(message=f"{field_name} must be numeric.")
+            return
+        if schema_type == "boolean":
+            if not isinstance(value, bool):
+                raise RawExecutionError(message=f"{field_name} must be a boolean.")
+            return
+        if schema_type == "array":
+            if not isinstance(value, list):
+                raise RawExecutionError(message=f"{field_name} must be a list.")
+            return
+        if schema_type == "object":
+            if not isinstance(value, dict):
+                raise RawExecutionError(message=f"{field_name} must be an object.")
+            if "id" in value and not is_int_like(value["id"]):
+                raise RawExecutionError(message=f"{field_name}.id must be an integer id.")
+            return
+        if schema_type == "string" and not isinstance(value, str):
+            raise RawExecutionError(message=f"{field_name} must be a string.")
+
+    def _validate_ref_value(self, value: Any, field_name: str, *, allow_list: bool = False) -> None:
+        if allow_list:
+            if not isinstance(value, list):
+                raise RawExecutionError(message=f"{field_name} must be a list of id refs.")
+            for item in value:
+                self._validate_ref_value(item, field_name)
+            return
+        if isinstance(value, dict):
+            if "id" not in value or not is_int_like(value["id"]):
+                raise RawExecutionError(message=f"{field_name} must contain an integer id.")
+            return
+        if not is_int_like(value):
+            raise RawExecutionError(message=f"{field_name} must be an integer id, numeric string, or object with id.")
+
+    def _validate_request_body_value(self, value: Any, raw_meta: dict[str, Any], field_name: str) -> None:
+        body_schema = next(iter(raw_meta.get("requestBody", {}).get("content", {}).values()), {})
+        schema_type = body_schema.get("type")
+        if schema_type == "array":
+            if not isinstance(value, list):
+                raise RawExecutionError(message=f"{field_name} must be a list body for this operation.")
+            return
+        if not isinstance(value, dict):
+            raise RawExecutionError(message=f"{field_name} must be an object body for this operation.")
+
+    def _validate_control_input(self, field_name: str, value: Any) -> None:
+        self._validate_typed_value(value, field_name=field_name, schema={})
+
+    def _validate_date_window(self, value: Any, field_name: str) -> None:
+        if not isinstance(value, dict):
+            raise RawExecutionError(message=f"{field_name} must be an object with from/to.")
+        if value.get("from") is not None:
+            self._validate_date_value(value.get("from"), f"{field_name}.from")
+        if value.get("to") is not None:
+            self._validate_date_value(value.get("to"), f"{field_name}.to")
+
+    def _validate_date_value(self, value: Any, field_name: str) -> None:
+        if not is_iso_date_string(value):
+            raise RawExecutionError(message=f"{field_name} must be an ISO date string YYYY-MM-DD.")
+
+    def _attachment_ids(self, bridge: LLMBridgeDocument) -> set[str]:
+        return {
+            item.get("attachmentId")
+            for item in bridge.sources.attachments
+            if isinstance(item, dict) and item.get("attachmentId")
+        }
+
+    def _validate_attachment_reference(self, value: Any, attachment_ids: set[str]) -> None:
+        if not isinstance(value, str) or value not in attachment_ids:
+            raise RawExecutionError(message=f"attachment_id must reference one of the known attachments: {sorted(attachment_ids)}.")
+
+    def _validate_policy_requirements(self, bridge: LLMBridgeDocument) -> None:
+        policy_keys = set()
+        for flow in bridge.executionPlan.selectedFlows:
+            if self.wrapper_catalog.has_flow(flow.resolved_name):
+                flow_meta = self.wrapper_catalog.get_flow(flow.resolved_name)
+                for command_name in flow_meta.get("commandNames", []):
+                    if self.wrapper_catalog.has_command(command_name):
+                        policy_key = self.wrapper_catalog.get_command(command_name).get("conformancePolicyKey")
+                        if policy_key:
+                            policy_keys.add(policy_key)
+        for command in bridge.executionPlan.selectedCommands:
+            if self.wrapper_catalog.has_command(command.resolved_name):
+                policy_key = self.wrapper_catalog.get_command(command.resolved_name).get("conformancePolicyKey")
+                if policy_key:
+                    policy_keys.add(policy_key)
+        for command in bridge.executionPlan.fallbackRawCommands:
+            operation_id = command.operationId or command.resolved_name
+            if operation_id and self.raw_catalog.has(operation_id):
+                policy_key = self.raw_catalog.get(operation_id).get("conformancePolicyKey")
+                if policy_key:
+                    policy_keys.add(policy_key)
+        if "attachment_accounting" in policy_keys and bridge.validation.isExecutable and not self._attachment_ids(bridge):
+            raise RawExecutionError(message="Attachment-accounting routes require at least one attachment in sources.attachments.")

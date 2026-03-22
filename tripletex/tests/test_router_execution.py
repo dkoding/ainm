@@ -227,8 +227,151 @@ class RouterExecutionTests(unittest.TestCase):
             }
         )
         router.execute(bridge, self._context())
-        self.assertEqual(transport.calls[0]["params"], {})
+        self.assertEqual(transport.calls[0]["params"], {"fields": "id"})
         self.assertIsNone(transport.calls[0]["json_body"])
+
+    def test_flow_search_synthesizes_required_date_window(self) -> None:
+        transport = RecordingTransport(
+            {
+                ("GET", "/supplierInvoice"): {"values": [{"id": 99, "invoiceNumber": "SI-100"}]},
+                ("POST", "/supplierInvoice/99/:addPayment"): {"value": {"id": 99, "status": "paid"}},
+            }
+        )
+        router = BridgeRouter(raw_executor=RawExecutor(catalog=load_raw_catalog(), transport=transport))
+        bridge = LLMBridgeDocument.model_validate(
+            {
+                "contractVersion": "tripletex.llm_bridge.v1",
+                "flatBridge": {
+                    "flowArguments": {
+                        "supplier_invoice.register_payment": {
+                            "supplier_invoice_selector": {"invoice_number": "SI-100"},
+                            "payment_type": "MANUAL",
+                            "amount": 1000,
+                            "payment_date": "2026-03-21",
+                        }
+                    }
+                },
+                "executionPlan": {
+                    "selectedFlows": [
+                        {
+                            "stepId": "flow_1",
+                            "flowName": "supplier_invoice.register_payment",
+                            "flowType": "business_flow",
+                        }
+                    ]
+                },
+                "validation": {"isExecutable": True, "blockingIssues": [], "warnings": []},
+                "completion": {"completionSignals": ["Payment registered"]},
+            }
+        )
+        router.execute(bridge, self._context())
+        search_params = transport.calls[0]["params"]
+        self.assertEqual(search_params["invoiceNumber"], "SI-100")
+        self.assertIn("invoiceDateFrom", search_params)
+        self.assertIn("invoiceDateTo", search_params)
+
+    def test_attachment_import_command_resolves_attachment_id_to_multipart_file(self) -> None:
+        transport = RecordingTransport(
+            {
+                ("POST", "/ledger/voucher/importDocument"): {"value": {"id": 321}},
+            }
+        )
+        context = ExecutionContext(
+            base_url="https://example.test/v2",
+            session_token="token",
+            request_id="req-1",
+            current_date="2026-03-21",
+            timezone="Europe/Oslo",
+            attachments_by_id={
+                "attachment_1": {
+                    "filename": "invoice.pdf",
+                    "content_base64": "aGVsbG8=",
+                    "mime_type": "application/pdf",
+                }
+            },
+        )
+        router = BridgeRouter(raw_executor=RawExecutor(catalog=load_raw_catalog(), transport=transport))
+        bridge = LLMBridgeDocument.model_validate(
+            {
+                "contractVersion": "tripletex.llm_bridge.v1",
+                "sources": {
+                    "attachments": [
+                        {
+                            "attachmentId": "attachment_1",
+                            "filename": "invoice.pdf",
+                            "mimeType": "application/pdf",
+                        }
+                    ]
+                },
+                "flatBridge": {
+                    "commandArguments": {
+                        "ledger.voucher.import_document": {
+                            "attachment_id": "attachment_1",
+                            "description": "Bookkeep attachment",
+                        }
+                    }
+                },
+                "executionPlan": {
+                    "selectedCommands": [
+                        {
+                            "stepId": "step_1",
+                            "commandName": "ledger.voucher.import_document",
+                            "commandType": "friendly_alias",
+                        }
+                    ],
+                    "stepOrder": ["step_1"],
+                },
+                "validation": {"isExecutable": True, "blockingIssues": [], "warnings": []},
+                "completion": {"completionSignals": ["Voucher imported"]},
+            }
+        )
+        router.execute(bridge, context)
+        call = transport.calls[0]
+        self.assertEqual(call["multipart_data"], {"description": "Bookkeep attachment"})
+        self.assertIn("file", call["multipart_files"])
+
+    def test_default_order_runs_flow_before_child_commands(self) -> None:
+        transport = RecordingTransport(
+            {
+                ("GET", "/customer"): {"values": []},
+                ("POST", "/customer"): {"value": {"id": 7, "name": "Jason Bourne"}},
+            }
+        )
+        router = BridgeRouter(raw_executor=RawExecutor(catalog=load_raw_catalog(), transport=transport))
+        bridge = LLMBridgeDocument.model_validate(
+            {
+                "contractVersion": "tripletex.llm_bridge.v1",
+                "flatBridge": {
+                    "flowArguments": {
+                        "customer.create_or_update": {
+                            "name": "Jason Bourne",
+                            "email": "jason@example.org",
+                        }
+                    }
+                },
+                "executionPlan": {
+                    "selectedFlows": [
+                        {
+                            "stepId": "flow_1",
+                            "flowName": "customer.create_or_update",
+                            "flowType": "business_flow",
+                        }
+                    ],
+                    "selectedCommands": [
+                        {
+                            "stepId": "step_1",
+                            "commandName": "customer.create",
+                            "commandType": "friendly_alias",
+                            "parentFlowStepId": "flow_1",
+                        }
+                    ],
+                },
+                "validation": {"isExecutable": True, "blockingIssues": [], "warnings": []},
+                "completion": {"completionSignals": ["Customer exists"]},
+            }
+        )
+        router.execute(bridge, self._context())
+        self.assertEqual([call["method"] for call in transport.calls], ["GET", "POST"])
 
 
 if __name__ == "__main__":

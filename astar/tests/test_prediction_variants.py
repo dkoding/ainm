@@ -248,6 +248,49 @@ class PredictionVariantTests(unittest.TestCase):
         )
         self.assertEqual(selected, "sklearn_observation_context")
 
+    def test_low_activity_round_prefers_safer_conditioned_baseline_family(self) -> None:
+        def tensor(empty: float, settlement: float, port: float, ruin: float, forest: float, mountain: float) -> list[np.ndarray]:
+            arr = np.zeros((1, 1, 6), dtype=float)
+            arr[0, 0] = np.array([empty, settlement, port, ruin, forest, mountain], dtype=float)
+            arr /= arr.sum(axis=-1, keepdims=True)
+            return [arr]
+
+        selected = select_prediction_variant(
+            requested_model="auto",
+            strategy_evaluation_summary={
+                "summary": {
+                    "variants": [
+                        {"variant": "sklearn_observation_context", "mean_round_score": 78.0},
+                        {"variant": "ensemble_observation_context_50", "mean_round_score": 75.0},
+                        {"variant": "baseline_history_global_post_observation", "mean_round_score": 72.1},
+                        {"variant": "baseline_history_observation_context", "mean_round_score": 71.8},
+                        {"variant": "baseline_history", "mean_round_score": 59.7},
+                    ]
+                }
+            },
+            strategy_feedback_summary={"blocked_variants": []},
+            prediction_variants={
+                "baseline_history": tensor(0.68, 0.066, 0.009, 0.014, 0.204, 0.028),
+                "baseline_history_observation_context": tensor(0.713, 0.037, 0.004, 0.008, 0.214, 0.024),
+                "baseline_history_global_post_observation": tensor(0.706, 0.038, 0.004, 0.009, 0.219, 0.024),
+                "ensemble_observation_context_50": tensor(0.701, 0.050, 0.004, 0.010, 0.213, 0.022),
+                "sklearn_observation_context": tensor(0.692, 0.059, 0.004, 0.012, 0.212, 0.021),
+            },
+            live_variant_summary={
+                "observed_summary": {
+                    "class_probs": [0.733, 0.0097, 0.0001, 0.0023, 0.2314, 0.0235],
+                },
+                "variants": [
+                    {"variant": "baseline_history", "live_score": 0.8301, "observation_match": 0.8491, "activity_gap": 0.5542, "offline_mean_round_score": 59.7},
+                    {"variant": "baseline_history_observation_context", "live_score": 0.8236, "observation_match": 0.8137, "activity_gap": 0.5352, "offline_mean_round_score": 71.8},
+                    {"variant": "baseline_history_global_post_observation", "live_score": 0.8180, "observation_match": 0.8071, "activity_gap": 0.5332, "offline_mean_round_score": 72.1},
+                    {"variant": "ensemble_observation_context_50", "live_score": 0.8080, "observation_match": 0.7932, "activity_gap": 0.5444, "offline_mean_round_score": 75.5},
+                    {"variant": "sklearn_observation_context", "live_score": 0.8018, "observation_match": 0.7834, "activity_gap": 0.5506, "offline_mean_round_score": 78.0},
+                ]
+            },
+        )
+        self.assertEqual(selected, "baseline_history_observation_context")
+
     def test_prediction_mass_guardrail_blends_back_extreme_dynamic_shift(self) -> None:
         anchor = np.zeros((2, 2, 6), dtype=float)
         anchor[:, :, 0] = 0.80

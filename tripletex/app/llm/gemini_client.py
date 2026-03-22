@@ -23,6 +23,7 @@ class GeminiClient:
         self._vertex_session: AuthorizedSession | None = None
 
     def generate(self, prompt_package: dict[str, Any]) -> str:
+        request_payload = {key: value for key, value in prompt_package.items() if key != "media"}
         if self.endpoint:
             headers = {"Content-Type": "application/json"}
             if self.auth_token:
@@ -31,7 +32,7 @@ class GeminiClient:
                 response = requests.post(
                     self.endpoint,
                     headers=headers,
-                    json=prompt_package,
+                    json=request_payload,
                     timeout=self.timeout,
                 )
             except requests.RequestException as exc:
@@ -44,7 +45,7 @@ class GeminiClient:
             return response.text
         return self._generate_vertex(prompt_package)
 
-    def repair(self, broken_payload: str, errors: list[str]) -> str:
+    def repair(self, request_payload: dict[str, Any]) -> str:
         return self.generate(
             {
                 "systemInstruction": (
@@ -53,7 +54,7 @@ class GeminiClient:
                     "The top-level sections requestContext, language, understanding, sources, richData, flatBridge, "
                     "executionPlan, validation, and completion must all be JSON objects, never arrays."
                 ),
-                "request": {"invalidJson": broken_payload, "errors": errors},
+                "request": request_payload,
                 "context": {},
             }
         )
@@ -65,17 +66,7 @@ class GeminiClient:
             "contents": [
                 {
                     "role": "user",
-                    "parts": [
-                        {
-                            "text": json.dumps(
-                                {
-                                    "request": prompt_package["request"],
-                                    "context": prompt_package.get("context", {}),
-                                },
-                                ensure_ascii=False,
-                            )
-                        }
-                    ],
+                    "parts": self._build_user_parts(prompt_package),
                 }
             ],
             "generationConfig": {
@@ -115,6 +106,36 @@ class GeminiClient:
         if not text:
             raise RawExecutionError(message="Vertex AI returned no text content.", details={"body": data})
         return text
+
+    def _build_user_parts(self, prompt_package: dict[str, Any]) -> list[dict[str, Any]]:
+        parts: list[dict[str, Any]] = [
+            {
+                "text": json.dumps(
+                    {
+                        "request": prompt_package["request"],
+                        "context": prompt_package.get("context", {}),
+                    },
+                    ensure_ascii=False,
+                )
+            }
+        ]
+        for attachment in prompt_package.get("media", []):
+            mime_type = str(attachment.get("mimeType", ""))
+            content_base64 = attachment.get("contentBase64")
+            if not isinstance(content_base64, str) or not content_base64:
+                continue
+            if not (mime_type.startswith("image/") or mime_type == "application/pdf"):
+                continue
+            parts.append(
+                {
+                    "text": (
+                        f"Attachment {attachment.get('attachmentId')}: "
+                        f"{attachment.get('filename')} ({mime_type})"
+                    )
+                }
+            )
+            parts.append({"inlineData": {"mimeType": mime_type, "data": content_base64}})
+        return parts
 
     def _get_vertex_session(self) -> AuthorizedSession:
         if self._vertex_session is not None:

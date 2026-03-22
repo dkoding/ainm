@@ -1,14 +1,26 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
-from app.llm.contract_utils import input_name, input_names, split_required_inputs
+from app.llm.contract_utils import input_names, split_required_inputs
 from app.raw import load_raw_catalog
 from app.wrapper import load_wrapper_catalog
 
 
 def _tokens(text: str) -> set[str]:
-    return {token for token in text.lower().replace("/", " ").replace("_", " ").split() if len(token) > 2}
+    return {token for token in re.findall(r"[a-z0-9_]+", text.lower().replace("/", " ").replace("-", " ")) if len(token) > 2}
+
+
+TOKEN_EQUIVALENTS = {
+    "attachment": {"attachment", "attachments", "vedlegg", "adjunto", "anhang", "piece"},
+    "employee": {"employee", "employees", "ansatt", "empleado", "mitarbeiter", "employe"},
+    "invoice": {"invoice", "invoices", "faktura", "fakturaer", "factura", "facturas", "rechnung", "rechnungen"},
+    "payment": {"payment", "payments", "betaling", "betale", "pago", "pagar", "zahl", "paid"},
+    "supplier": {"supplier", "suppliers", "leverandor", "leverandør", "fornecedor", "proveedor", "lieferant", "fournisseur"},
+    "timesheet": {"timesheet", "time", "timer", "horas", "heures", "stunden"},
+    "voucher": {"voucher", "vouchers", "bilag", "postering", "ledger", "journal"},
+}
 
 
 class ContextCatalog:
@@ -17,7 +29,7 @@ class ContextCatalog:
         self.wrapper_catalog = load_wrapper_catalog()
 
     def build_slice(self, prompt: str) -> dict[str, Any]:
-        prompt_tokens = _tokens(prompt)
+        prompt_tokens = self._expanded_prompt_tokens(prompt)
         flows = list(self.wrapper_catalog.flows.values())
         commands = list(self.wrapper_catalog.commands.values())
         raw_operations = self._rank(
@@ -46,9 +58,17 @@ class ContextCatalog:
                 "legalFlows": [self._flow_contract_pack(item) for item in sorted(flows, key=lambda item: item["flowName"])],
                 "legalCommands": [self._command_contract_pack(item) for item in sorted(commands, key=lambda item: item["commandName"])],
             },
+            "rawApiContract": {
+                "authority": "Every exact raw operationId listed here is legal, but only exact names are valid.",
+                "legalOperationIds": sorted(self.raw_catalog.operations.keys()),
+                "technicalFlowFamilies": sorted(
+                    {item["technicalFlowFamily"] for item in self.raw_catalog.operations.values() if item.get("technicalFlowFamily")}
+                ),
+            },
+            "policyCatalog": self.wrapper_catalog.policies,
             "flows": [self._flow_pack(item) for item in sorted(flows, key=lambda item: item["flowName"])],
             "commands": [self._command_pack(item) for item in sorted(commands, key=lambda item: item["commandName"])],
-            "rawOperations": [self._raw_pack(item) for item in raw_operations[:25]],
+            "rawOperations": [self._raw_pack(item) for item in raw_operations[:80]],
         }
 
     def _rank(self, values: Any, prompt_tokens: set[str], render: Any) -> list[dict[str, Any]]:
@@ -56,10 +76,27 @@ class ContextCatalog:
         for item in values:
             haystack_tokens = _tokens(render(item))
             score = len(prompt_tokens & haystack_tokens)
+            domain_tokens = _tokens(
+                f"{item.get('domain', '')} {item.get('subdomain', '')} {' '.join(item.get('technicalFlowFamilies', []))}"
+            )
+            score += len(prompt_tokens & domain_tokens) * 2
+            if item.get("domain") in prompt_tokens:
+                score += 3
+            if item.get("subdomain") in prompt_tokens:
+                score += 2
             if score:
                 scored.append((score, item))
         scored.sort(key=lambda item: (-item[0], str(item[1])))
         return [value for _, value in scored]
+
+    def _expanded_prompt_tokens(self, prompt: str) -> set[str]:
+        tokens = _tokens(prompt)
+        expanded = set(tokens)
+        for canonical, synonyms in TOKEN_EQUIVALENTS.items():
+            if tokens & synonyms:
+                expanded.add(canonical)
+                expanded.update(synonyms)
+        return expanded
 
     def _flow_pack(self, item: dict[str, Any]) -> dict[str, Any]:
         return {
@@ -68,6 +105,7 @@ class ContextCatalog:
             "useWhen": item["useWhen"],
             "steps": item["steps"],
             "commandNames": item["commandNames"],
+            "policyKeys": self._flow_policy_keys(item),
         }
 
     def _command_pack(self, item: dict[str, Any]) -> dict[str, Any]:
@@ -82,6 +120,7 @@ class ContextCatalog:
             "inputSpec": item.get("inputSpec"),
             "technicalFlowFamily": item["technicalFlowFamily"],
             "safetyClass": item["safetyClass"],
+            "conformancePolicyKey": item.get("conformancePolicyKey"),
         }
 
     def _command_contract_pack(self, item: dict[str, Any]) -> dict[str, Any]:
@@ -101,6 +140,7 @@ class ContextCatalog:
             "technicalFlowFamily": item["technicalFlowFamily"],
             "safetyClass": item["safetyClass"],
             "allowsBodyPassthrough": bool(item.get("allowsBodyPassthrough")),
+            "conformancePolicyKey": item.get("conformancePolicyKey"),
         }
 
     def _flow_contract_pack(self, item: dict[str, Any]) -> dict[str, Any]:
@@ -114,6 +154,7 @@ class ContextCatalog:
             "allInputs": legal_inputs,
             "inputSpec": item.get("inputSpec"),
             "commandNames": item["commandNames"],
+            "policyKeys": self._flow_policy_keys(item),
         }
 
     def _command_body_fields(self, item: dict[str, Any]) -> list[str]:
@@ -163,4 +204,13 @@ class ContextCatalog:
                 )
             ),
             "requestBodyKind": item.get("requestBody", {}).get("kind"),
+            "conformancePolicyKey": item.get("conformancePolicyKey"),
         }
+
+    def _flow_policy_keys(self, item: dict[str, Any]) -> list[str]:
+        policy_keys = {
+            self.wrapper_catalog.get_command(command_name).get("conformancePolicyKey")
+            for command_name in item.get("commandNames", [])
+            if self.wrapper_catalog.has_command(command_name)
+        }
+        return sorted(policy_key for policy_key in policy_keys if policy_key)

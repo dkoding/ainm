@@ -21,7 +21,7 @@ class RawExecutor:
         path = self._interpolate_path(operation["path"], operation["pathParams"], params)
         query = self._collect_query(operation["queryParams"], params)
         json_body, multipart_data, multipart_files = self._build_body(operation["requestBody"], params)
-        self._validate_remaining_required(operation, query, json_body, multipart_data, params)
+        self._validate_remaining_required(operation, query, json_body, multipart_data, multipart_files, params)
         return self.transport.request(
             context=context,
             method=operation["method"],
@@ -58,7 +58,7 @@ class RawExecutor:
         self,
         body_meta: dict[str, Any],
         arguments: dict[str, Any],
-    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, dict[str, Any] | None]:
+    ) -> tuple[Any, dict[str, Any] | None, dict[str, Any] | None]:
         if not body_meta:
             return None, None, None
         explicit_body = arguments.pop("body", None)
@@ -76,11 +76,13 @@ class RawExecutor:
                     data[key] = value
             return None, data, files
         if explicit_body is not None:
-            if not isinstance(explicit_body, dict):
-                raise RawExecutionError(message="JSON request bodies must be dict values.")
+            if not isinstance(explicit_body, (dict, list)):
+                raise RawExecutionError(message="JSON request bodies must be dict or list values.")
             return explicit_body, None, None
         content = body_meta.get("content", {})
         json_schema = next(iter(content.values()), {})
+        if json_schema.get("type") == "array":
+            return None, None, None
         allowed_properties = {
             key for key, value in json_schema.get("properties", {}).items() if not value.get("readOnly")
         }
@@ -96,6 +98,7 @@ class RawExecutor:
         query: dict[str, Any],
         json_body: dict[str, Any] | None,
         multipart_data: dict[str, Any] | None,
+        multipart_files: dict[str, Any] | None,
         arguments: dict[str, Any],
     ) -> None:
         missing_query = [
@@ -108,13 +111,22 @@ class RawExecutor:
         request_body = operation["requestBody"]
         if request_body.get("required") and json_body is None and multipart_data is None:
             raise RawExecutionError(message="Missing required request body.")
-        if request_body and json_body is not None:
+        if request_body and isinstance(json_body, dict):
             schema = next(iter(request_body.get("content", {}).values()), {})
             required_properties = schema.get("required", [])
             missing_properties = [name for name in required_properties if name not in json_body]
             if missing_properties:
                 raise RawExecutionError(
                     message=f"Missing required body properties: {', '.join(missing_properties)}"
+                )
+        if request_body and request_body.get("kind") == "multipart":
+            schema = next(iter(request_body.get("content", {}).values()), {})
+            required_properties = schema.get("required", [])
+            multipart_keys = set((multipart_data or {}).keys()) | set((multipart_files or {}).keys())
+            missing_properties = [name for name in required_properties if name not in multipart_keys]
+            if missing_properties:
+                raise RawExecutionError(
+                    message=f"Missing required multipart properties: {', '.join(missing_properties)}"
                 )
         unused = {key: value for key, value in arguments.items() if value is not None}
         if unused:

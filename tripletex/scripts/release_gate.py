@@ -40,8 +40,8 @@ def main() -> None:
     flow_catalog = load("flow_catalog.json")
 
     assert operation_catalog["operationCount"] == 800, operation_catalog["operationCount"]
-    assert command_catalog["commandCount"] == 78, command_catalog["commandCount"]
-    assert flow_catalog["flowCount"] == 21, flow_catalog["flowCount"]
+    assert command_catalog["commandCount"] == 84, command_catalog["commandCount"]
+    assert flow_catalog["flowCount"] == 23, flow_catalog["flowCount"]
 
     operations = operation_catalog["operations"]
     commands = command_catalog["commands"]

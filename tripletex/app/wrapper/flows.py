@@ -3,10 +3,18 @@ from __future__ import annotations
 from typing import Any
 
 from app.contracts.execution import ExecutionContext
+from app.llm.contract_utils import split_required_inputs
 from app.raw.errors import RawExecutionError
 from app.wrapper.catalog import WrapperCatalog, load_wrapper_catalog
 from app.wrapper.commands import CommandExecutor
-from app.wrapper.helpers import ensure_single_result, extract_values, id_ref, merge_maps, to_selector_dict
+from app.wrapper.helpers import (
+    default_date_window,
+    ensure_single_result,
+    extract_values,
+    id_ref,
+    merge_maps,
+    to_selector_dict,
+)
 
 
 SEARCH_COMMANDS = {
@@ -20,6 +28,7 @@ SEARCH_COMMANDS = {
     "product": "product.search",
     "product_unit": "product_unit.search",
     "project": "project.search",
+    "supplier": "supplier.search",
     "supplier_invoice": "supplier_invoice.search",
     "travel_cost_category": "travel_cost_category.search",
     "travel_payment_type": "travel_payment_type.search",
@@ -39,6 +48,7 @@ GET_COMMANDS = {
     "invoice": "invoice.get",
     "product": "product.get",
     "project": "project.get",
+    "supplier": "supplier.get",
     "supplier_invoice": "supplier_invoice.get",
     "travel_expense": "travel_expense.get",
     "voucher": "voucher.get",
@@ -69,12 +79,14 @@ class FlowExecutor:
             "travel_expense.delete": self._travel_expense_delete,
             "travel_expense.finalize_to_accounting": self._travel_expense_finalize_to_accounting,
             "project.create_for_customer": self._project_create_for_customer,
+            "supplier.create_or_update": self._supplier_create_or_update,
             "department.create_with_manager": self._department_create_with_manager,
             "department.enable_accounting_module": self._department_enable_accounting_module,
             "voucher.manual_adjustment": self._voucher_manual_adjustment,
             "voucher.reverse_or_correct": self._voucher_reverse_or_correct,
             "ledger.verify_effect": self._ledger_verify_effect,
             "supplier_invoice.register_payment": self._supplier_invoice_register_payment,
+            "supplier_invoice.import_from_attachment": self._supplier_invoice_import_from_attachment,
         }
 
     def execute(self, flow_name: str, inputs: dict[str, Any], context: ExecutionContext) -> Any:
@@ -84,20 +96,49 @@ class FlowExecutor:
             raise RawExecutionError(message=f"Unknown wrapper flow: {flow_name}") from exc
         return handler(inputs, context)
 
-    def _search(self, family: str, selector: Any, context: ExecutionContext) -> Any:
-        return self.commands.execute(SEARCH_COMMANDS[family], to_selector_dict(family, selector), context)
+    def _search(
+        self,
+        family: str,
+        selector: Any,
+        context: ExecutionContext,
+        *,
+        search_date_window: dict[str, Any] | None = None,
+    ) -> Any:
+        return self.commands.execute(
+            SEARCH_COMMANDS[family],
+            self._prepare_search_inputs(family, selector, context, search_date_window=search_date_window),
+            context,
+        )
 
-    def _resolve_record(self, family: str, selector: Any, context: ExecutionContext) -> dict[str, Any]:
+    def _resolve_record(
+        self,
+        family: str,
+        selector: Any,
+        context: ExecutionContext,
+        *,
+        search_date_window: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         if isinstance(selector, dict) and "id" in selector and family in GET_COMMANDS:
             return self._get(family, selector["id"], context)
-        return ensure_single_result(self._search(family, selector, context), family=family, selector=selector)
+        return ensure_single_result(
+            self._search(family, selector, context, search_date_window=search_date_window),
+            family=family,
+            selector=selector,
+        )
 
-    def _resolve_id(self, family: str, selector: Any, context: ExecutionContext) -> int:
+    def _resolve_id(
+        self,
+        family: str,
+        selector: Any,
+        context: ExecutionContext,
+        *,
+        search_date_window: dict[str, Any] | None = None,
+    ) -> int:
         if isinstance(selector, int):
             return selector
         if isinstance(selector, dict) and "id" in selector:
             return selector["id"]
-        record = self._resolve_record(family, selector, context)
+        record = self._resolve_record(family, selector, context, search_date_window=search_date_window)
         if "id" not in record:
             raise RawExecutionError(message=f"Resolved {family} record did not include an id.")
         return record["id"]
@@ -123,6 +164,15 @@ class FlowExecutor:
             payload = self.commands.execute("customer.create", customer, context)
             return self._extract_id(payload, "customer.create")
 
+    def _ensure_supplier_id(self, supplier: Any, context: ExecutionContext) -> int:
+        try:
+            return self._resolve_id("supplier", supplier, context)
+        except RawExecutionError:
+            if not isinstance(supplier, dict):
+                raise
+            created = self.commands.execute("supplier.create", dict(supplier), context)
+            return self._extract_id(created, "supplier.create")
+
     def _extract_id(self, payload: Any, source: str) -> int:
         values = extract_values(payload)
         if not values or not isinstance(values[0], dict) or "id" not in values[0]:
@@ -146,6 +196,7 @@ class FlowExecutor:
             "vat_type_ref": "vat_type",
             "currency_ref": "currency",
             "customer_ref": "customer",
+            "supplier_ref": "supplier",
             "employee_ref": "employee",
             "project_ref": "project",
             "department_ref": "department",
@@ -166,6 +217,54 @@ class FlowExecutor:
         if inputs.get("include_sales_modules"):
             result["salesModules"] = self.commands.execute("company.sales_modules.list", {}, context)
         return result
+
+    def _prepare_search_inputs(
+        self,
+        family: str,
+        selector: Any,
+        context: ExecutionContext,
+        *,
+        search_date_window: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        payload = to_selector_dict(family, selector)
+        command_name = SEARCH_COMMANDS[family]
+        command_meta = self.wrapper_catalog.get_command(command_name)
+        required_inputs, _ = split_required_inputs(command_meta.get("inputs", []), command_meta.get("inputSpec"))
+        pair = self._required_search_window_pair(required_inputs)
+        if not pair:
+            payload.pop("date_window", None)
+            return payload
+        start_key, end_key = pair
+        if payload.get(start_key) is None or payload.get(end_key) is None:
+            window = (
+                search_date_window
+                or payload.pop("date_window", None)
+                or default_date_window(context.current_date)
+            )
+            if not isinstance(window, dict):
+                raise RawExecutionError(message=f"{command_name} requires a date window.")
+            payload.setdefault(start_key, window.get("from"))
+            payload.setdefault(end_key, window.get("to"))
+        payload.pop("date_window", None)
+        return payload
+
+    def _required_search_window_pair(self, required_inputs: list[str]) -> tuple[str, str] | None:
+        pairs = [
+            ("invoice_date_from", "invoice_date_to"),
+            ("date_from", "date_to"),
+        ]
+        for start_key, end_key in pairs:
+            if start_key in required_inputs and end_key in required_inputs:
+                return start_key, end_key
+        return None
+
+    def _resolve_attachment(self, attachment_id: Any, context: ExecutionContext) -> dict[str, Any]:
+        if not isinstance(attachment_id, str) or not attachment_id:
+            raise RawExecutionError(message="attachment_id must reference one of the request attachments.")
+        attachment = context.attachments_by_id.get(attachment_id)
+        if attachment is None:
+            raise RawExecutionError(message=f"Unknown attachment_id {attachment_id}.")
+        return attachment
 
     def _employee_create_basic(self, inputs: dict[str, Any], context: ExecutionContext) -> Any:
         if inputs.get("duplicate_check") and inputs.get("email"):
@@ -292,7 +391,12 @@ class FlowExecutor:
         return self.commands.execute("invoice.create", payload, context)
 
     def _invoice_register_payment(self, inputs: dict[str, Any], context: ExecutionContext) -> Any:
-        invoice = self._resolve_record("invoice", inputs.get("invoice_selector"), context)
+        invoice = self._resolve_record(
+            "invoice",
+            inputs.get("invoice_selector"),
+            context,
+            search_date_window=inputs.get("search_date_window"),
+        )
         payment_spec = dict(inputs.get("payment_spec", {}))
         if payment_spec.get("payment_type_ref") is not None:
             payment_spec["payment_type_id"] = self._resolve_id(
@@ -303,7 +407,12 @@ class FlowExecutor:
         return self.commands.execute("invoice.register_payment", {"id": invoice["id"], "payment_spec": payment_spec}, context)
 
     def _invoice_credit_note(self, inputs: dict[str, Any], context: ExecutionContext) -> Any:
-        invoice = self._resolve_record("invoice", inputs.get("invoice_selector"), context)
+        invoice = self._resolve_record(
+            "invoice",
+            inputs.get("invoice_selector"),
+            context,
+            search_date_window=inputs.get("search_date_window"),
+        )
         return self.commands.execute(
             "invoice.create_credit_note",
             {
@@ -406,6 +515,27 @@ class FlowExecutor:
             payload["department_ref"] = id_ref(self._resolve_id("department", payload.pop("department"), context))
         return self.commands.execute("project.create", payload, context)
 
+    def _supplier_create_or_update(self, inputs: dict[str, Any], context: ExecutionContext) -> Any:
+        payload = dict(inputs)
+        selector = payload.pop("supplier_selector", None)
+        patch_mode = payload.pop("patch_mode", "auto")
+        if payload.get("account_manager") is not None:
+            payload["account_manager_ref"] = id_ref(self._resolve_id("employee", payload.pop("account_manager"), context))
+        lookup = selector or {
+            key: payload[key]
+            for key in ("name", "organization_number", "email", "invoice_email")
+            if payload.get(key)
+        }
+        if lookup and patch_mode != "create":
+            matches = extract_values(self.commands.execute("supplier.search", lookup, context))
+            if len(matches) == 1:
+                current = self._get("supplier", matches[0]["id"], context)
+                update_payload = merge_maps(payload, {"id": current["id"], "version": current.get("version")})
+                return self.commands.execute("supplier.update", update_payload, context)
+            if len(matches) > 1:
+                raise RawExecutionError(message="supplier.create_or_update matched multiple suppliers.")
+        return self.commands.execute("supplier.create", payload, context)
+
     def _department_create_with_manager(self, inputs: dict[str, Any], context: ExecutionContext) -> Any:
         payload = dict(inputs)
         if payload.get("department_manager") is not None:
@@ -433,13 +563,19 @@ class FlowExecutor:
             "date": inputs.get("date"),
             "description": inputs.get("description"),
             "postings": [self._build_posting_line(line, context) for line in inputs.get("postings", [])],
+            "send_to_ledger": inputs.get("send_to_ledger"),
         }
         if inputs.get("voucher_type") is not None:
             payload["voucher_type_ref"] = id_ref(self._resolve_id("voucher_type", inputs["voucher_type"], context))
         return self.commands.execute("voucher.create", payload, context)
 
     def _voucher_reverse_or_correct(self, inputs: dict[str, Any], context: ExecutionContext) -> Any:
-        voucher = self._resolve_record("voucher", inputs.get("voucher_selector"), context)
+        voucher = self._resolve_record(
+            "voucher",
+            inputs.get("voucher_selector"),
+            context,
+            search_date_window=inputs.get("search_date_window"),
+        )
         if inputs.get("correction_mode") == "reverse" or not inputs.get("correction_postings"):
             return self.commands.execute(
                 "voucher.reverse",
@@ -459,12 +595,27 @@ class FlowExecutor:
     def _ledger_verify_effect(self, inputs: dict[str, Any], context: ExecutionContext) -> Any:
         filters = dict(inputs.get("posting_filters", {}))
         if inputs.get("voucher_selector") is not None:
-            voucher = self._resolve_record("voucher", inputs["voucher_selector"], context)
+            voucher = self._resolve_record(
+                "voucher",
+                inputs["voucher_selector"],
+                context,
+                search_date_window=inputs.get("search_date_window") or inputs.get("posting_filters", {}).get("date_window"),
+            )
             filters["voucher_id"] = voucher["id"]
+        if filters.get("date_window") and not filters.get("date_from") and not filters.get("date_to"):
+            window = filters.pop("date_window")
+            if isinstance(window, dict):
+                filters.setdefault("date_from", window.get("from"))
+                filters.setdefault("date_to", window.get("to"))
         return self.commands.execute("ledger.posting.search", filters, context)
 
     def _supplier_invoice_register_payment(self, inputs: dict[str, Any], context: ExecutionContext) -> Any:
-        supplier_invoice = self._resolve_record("supplier_invoice", inputs.get("supplier_invoice_selector"), context)
+        supplier_invoice = self._resolve_record(
+            "supplier_invoice",
+            inputs.get("supplier_invoice_selector"),
+            context,
+            search_date_window=inputs.get("search_date_window"),
+        )
         payload = {
             "invoice_id": supplier_invoice["id"],
             "payment_type": inputs.get("payment_type"),
@@ -476,3 +627,55 @@ class FlowExecutor:
             "partial_payment": inputs.get("partial_payment"),
         }
         return self.commands.execute("supplier_invoice.add_payment", payload, context)
+
+    def _supplier_invoice_import_from_attachment(self, inputs: dict[str, Any], context: ExecutionContext) -> Any:
+        attachment_id = inputs.get("attachment_id")
+        self._resolve_attachment(attachment_id, context)
+        supplier_id = None
+        if inputs.get("supplier") is not None:
+            supplier_id = self._ensure_supplier_id(inputs.get("supplier"), context)
+        imported = self.commands.execute(
+            "ledger.voucher.import_document",
+            {
+                "attachment_id": attachment_id,
+                "description": inputs.get("description"),
+                "split": inputs.get("split"),
+            },
+            context,
+        )
+        voucher_id = self._extract_id(imported, "ledger.voucher.import_document")
+        result: dict[str, Any] = {"imported": imported}
+        incoming_invoice = self.commands.execute("incoming_invoice.get", {"voucher_id": voucher_id}, context)
+        result["incomingInvoice"] = incoming_invoice
+        if inputs.get("invoice_header") is not None or inputs.get("order_lines") is not None or inputs.get("send_to") is not None:
+            invoice_header = dict(inputs.get("invoice_header", {}))
+            if supplier_id is not None and "supplier" not in invoice_header:
+                invoice_header["supplier"] = {"id": supplier_id}
+            version = self._extract_version(incoming_invoice)
+            update_payload = {
+                "voucher_id": voucher_id,
+                "send_to": inputs.get("send_to"),
+                "version": version,
+                "invoice_header": invoice_header or None,
+                "order_lines": inputs.get("order_lines"),
+            }
+            result["updatedIncomingInvoice"] = self.commands.execute("incoming_invoice.update", update_payload, context)
+        if inputs.get("postings"):
+            result["postings"] = self.commands.execute(
+                "supplier_invoice.voucher.update_postings",
+                {
+                    "id": voucher_id,
+                    "voucher_date": inputs.get("voucher_date"),
+                    "send_to_ledger": inputs.get("send_to_ledger"),
+                    "postings": [self._build_posting_line(line, context) for line in inputs.get("postings", [])],
+                },
+                context,
+            )
+        return result
+
+    def _extract_version(self, payload: Any) -> int | None:
+        values = extract_values(payload)
+        if not values or not isinstance(values[0], dict):
+            return None
+        version = values[0].get("version")
+        return version if isinstance(version, int) else None

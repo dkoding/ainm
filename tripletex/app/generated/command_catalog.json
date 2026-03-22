@@ -1,5 +1,5 @@
 {
-  "commandCount": 78,
+  "commandCount": 84,
   "commands": {
     "company.sales_modules.activate": {
       "allowsBodyPassthrough": true,
@@ -56,22 +56,22 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         }
       },
@@ -107,17 +107,17 @@
         },
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -127,7 +127,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         }
       },
@@ -291,7 +291,7 @@
       "inputBindings": {
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -332,7 +332,7 @@
         },
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "customer_account_number": {
@@ -347,12 +347,12 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -377,7 +377,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         }
       },
@@ -550,7 +550,7 @@
       "inputBindings": {
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -586,7 +586,7 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "department_manager_id": {
@@ -601,12 +601,12 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -621,7 +621,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         }
       },
@@ -863,7 +863,7 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "employee_id": {
@@ -873,17 +873,17 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         }
       },
@@ -915,7 +915,7 @@
       "inputBindings": {
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -949,7 +949,7 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "department_id": {
@@ -969,7 +969,7 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "first_name": {
@@ -979,7 +979,7 @@
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "has_system_access": {
@@ -1004,7 +1004,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         }
       },
@@ -1176,7 +1176,7 @@
       "inputBindings": {
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "voucher_id": {
@@ -1425,7 +1425,7 @@
       "inputBindings": {
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -1514,7 +1514,7 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "customer_id": {
@@ -1524,12 +1524,12 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -1559,7 +1559,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "voucher_id": {
@@ -1605,7 +1605,7 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "description": {
@@ -1615,12 +1615,12 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -1635,7 +1635,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         }
       },
@@ -1759,17 +1759,17 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -1814,7 +1814,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         }
       },
@@ -1870,7 +1870,7 @@
         },
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "customer_id": {
@@ -1900,12 +1900,12 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "open_postings": {
@@ -1925,7 +1925,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "supplier_id": {
@@ -1973,6 +1973,60 @@
         "voucher.reverse_or_correct"
       ]
     },
+    "ledger.voucher.import_document": {
+      "allowsBodyPassthrough": true,
+      "commandName": "ledger.voucher.import_document",
+      "conformancePolicyKey": "attachment_accounting",
+      "inputBindings": {
+        "attachment_id": {
+          "targetName": "file",
+          "targetSection": "body",
+          "valueStrategy": "attachment_file"
+        },
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "description": {
+          "targetName": "description",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "split": {
+          "targetName": "split",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`attachment_id`, `description?`, `split?`",
+      "inputs": [
+        "attachment_id",
+        "description",
+        "split"
+      ],
+      "notes": [
+        "`attachment_id` must reference one of the request attachments and is converted to the multipart `file` field."
+      ],
+      "operationId": "LedgerVoucherImportDocument_importDocument",
+      "purpose": "import an attachment into a voucher/incoming-invoice starting point.",
+      "rawMethod": "POST",
+      "rawPath": "/ledger/voucher/importDocument",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "ledger.voucher.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "supplier_invoice.import_from_attachment"
+      ]
+    },
     "ledger.voucher_type.search": {
       "allowsBodyPassthrough": false,
       "commandName": "ledger.voucher_type.search",
@@ -1980,17 +2034,17 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "name": {
@@ -2000,7 +2054,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         }
       },
@@ -2154,7 +2208,7 @@
       "inputBindings": {
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -2294,7 +2348,7 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "customer_id": {
@@ -2304,12 +2358,12 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -2339,7 +2393,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         }
       },
@@ -2559,7 +2613,7 @@
       "inputBindings": {
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -2600,7 +2654,7 @@
         },
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "department_id": {
@@ -2615,12 +2669,12 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "name": {
@@ -2640,7 +2694,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "supplier_id": {
@@ -2742,17 +2796,17 @@
         },
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -2772,7 +2826,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         }
       },
@@ -2964,7 +3018,7 @@
       "inputBindings": {
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -3000,7 +3054,7 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "customer_id": {
@@ -3025,12 +3079,12 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -3065,7 +3119,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "start_date_from": {
@@ -3169,7 +3223,7 @@
       "inputBindings": {
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         }
       },
@@ -3190,6 +3244,277 @@
       ],
       "workflowMembership": [
         "bootstrap.inspect_context"
+      ]
+    },
+    "supplier.create": {
+      "allowsBodyPassthrough": true,
+      "commandName": "supplier.create",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "account_manager_ref": {
+          "targetName": "accountManager",
+          "targetSection": "body",
+          "valueStrategy": "ref_object"
+        },
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "email": {
+          "targetName": "email",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "invoice_email": {
+          "targetName": "invoiceEmail",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "language": {
+          "targetName": "language",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "name": {
+          "targetName": "name",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "organization_number": {
+          "targetName": "organizationNumber",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "phone_number": {
+          "targetName": "phoneNumber",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        },
+        "phone_number_mobile": {
+          "targetName": "phoneNumberMobile",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`name`, `organization_number?`, `email?`, `invoice_email?`, `phone_number?`, `phone_number_mobile?`, `account_manager_ref?`, `language?`, address fields as needed.",
+      "inputs": [
+        "name",
+        "organization_number",
+        "email",
+        "invoice_email",
+        "phone_number",
+        "phone_number_mobile",
+        "account_manager_ref",
+        "language"
+      ],
+      "notes": [],
+      "operationId": "Supplier_post",
+      "purpose": "create a supplier record.",
+      "rawMethod": "POST",
+      "rawPath": "/supplier",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "supplier.create",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "supplier.create_or_update",
+        "supplier_invoice.import_from_attachment"
+      ]
+    },
+    "supplier.get": {
+      "allowsBodyPassthrough": false,
+      "commandName": "supplier.get",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `fields?`",
+      "inputs": [
+        "id",
+        "fields"
+      ],
+      "notes": [],
+      "operationId": "Supplier_get",
+      "purpose": "fetch one supplier by ID for confirmation or version-aware update.",
+      "rawMethod": "GET",
+      "rawPath": "/supplier/{id}",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "supplier.read",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "supplier.create_or_update",
+        "supplier_invoice.import_from_attachment"
+      ]
+    },
+    "supplier.search": {
+      "allowsBodyPassthrough": false,
+      "commandName": "supplier.search",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "account_manager_id": {
+          "targetName": "accountManagerId",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "changed_since": {
+          "targetName": "changedSince",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "count": {
+          "targetName": "count",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "email": {
+          "targetName": "email",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "fields": {
+          "targetName": "fields",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "from": {
+          "targetName": "from",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "invoice_email": {
+          "targetName": "invoiceEmail",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_inactive": {
+          "targetName": "isInactive",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "is_wholesaler": {
+          "targetName": "isWholesaler",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "organization_number": {
+          "targetName": "organizationNumber",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "show_products": {
+          "targetName": "showProducts",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "sorting": {
+          "targetName": "sorting",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "supplier_number": {
+          "targetName": "supplierNumber",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id?`, `supplier_number?`, `organization_number?`, `email?`, `invoice_email?`, `is_inactive?`, `account_manager_id?`, `changed_since?`, `is_wholesaler?`, `show_products?`, `fields?`, `from?`, `count?`, `sorting?`",
+      "inputs": [
+        "id",
+        "supplier_number",
+        "organization_number",
+        "email",
+        "invoice_email",
+        "is_inactive",
+        "account_manager_id",
+        "changed_since",
+        "is_wholesaler",
+        "show_products",
+        "fields",
+        "from",
+        "count",
+        "sorting"
+      ],
+      "notes": [],
+      "operationId": "Supplier_search",
+      "purpose": "resolve suppliers before supplier-invoice and bookkeeping flows.",
+      "rawMethod": "GET",
+      "rawPath": "/supplier",
+      "safetyClass": "read_only",
+      "technicalFlowFamily": "supplier.resolve",
+      "unmappedInputs": [],
+      "verificationChecklist": [],
+      "workflowMembership": [
+        "supplier.create_or_update",
+        "supplier_invoice.import_from_attachment"
+      ]
+    },
+    "supplier.update": {
+      "allowsBodyPassthrough": true,
+      "commandName": "supplier.update",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "version": {
+          "targetName": "version",
+          "targetSection": "body",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, supplier payload including changed fields, `version?`",
+      "inputs": [
+        "id",
+        "version"
+      ],
+      "notes": [],
+      "operationId": "Supplier_put",
+      "purpose": "update a supplier after target resolution.",
+      "rawMethod": "PUT",
+      "rawPath": "/supplier/{id}",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "supplier.update",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "supplier.create_or_update"
       ]
     },
     "supplier_invoice.add_payment": {
@@ -3273,7 +3598,7 @@
       "inputBindings": {
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -3308,17 +3633,17 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -3348,7 +3673,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "supplier_id": {
@@ -3386,7 +3711,68 @@
       "unmappedInputs": [],
       "verificationChecklist": [],
       "workflowMembership": [
-        "supplier_invoice.register_payment"
+        "supplier_invoice.register_payment",
+        "supplier_invoice.import_from_attachment"
+      ]
+    },
+    "supplier_invoice.voucher.update_postings": {
+      "allowsBodyPassthrough": true,
+      "commandName": "supplier_invoice.voucher.update_postings",
+      "conformancePolicyKey": null,
+      "inputBindings": {
+        "body": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "id": {
+          "targetName": "id",
+          "targetSection": "path",
+          "valueStrategy": "plain"
+        },
+        "payload": {
+          "targetName": "payload",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "postings": {
+          "targetName": "body",
+          "targetSection": "body",
+          "valueStrategy": "body_merge"
+        },
+        "send_to_ledger": {
+          "targetName": "sendToLedger",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        },
+        "voucher_date": {
+          "targetName": "voucherDate",
+          "targetSection": "query",
+          "valueStrategy": "plain"
+        }
+      },
+      "inputSpec": "`id`, `postings[]`, `voucher_date?`, `send_to_ledger?`",
+      "inputs": [
+        "id",
+        "postings",
+        "voucher_date",
+        "send_to_ledger"
+      ],
+      "notes": [
+        "body is the postings array; keep it narrow and validated."
+      ],
+      "operationId": "SupplierInvoiceVoucherPostings_putPostings",
+      "purpose": "update the posting lines for a supplier-invoice voucher.",
+      "rawMethod": "PUT",
+      "rawPath": "/supplierInvoice/voucher/{id}/postings",
+      "safetyClass": "mutation",
+      "technicalFlowFamily": "supplier_invoice.voucher.update",
+      "unmappedInputs": [],
+      "verificationChecklist": [
+        "verify mutation effect only when the raw response omits scoring-relevant fields"
+      ],
+      "workflowMembership": [
+        "supplier_invoice.import_from_attachment"
       ]
     },
     "travel_cost_category.search": {
@@ -3396,7 +3782,7 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "description": {
@@ -3406,12 +3792,12 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -3436,7 +3822,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         }
       },
@@ -3482,7 +3868,7 @@
         },
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "body",
           "valueStrategy": "plain"
         },
         "location": {
@@ -3845,7 +4231,7 @@
       "inputBindings": {
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -3973,7 +4359,7 @@
         },
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "body",
           "valueStrategy": "plain"
         },
         "country_code": {
@@ -4069,7 +4455,7 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "department_id": {
@@ -4089,12 +4475,12 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "project_id": {
@@ -4114,7 +4500,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "state": {
@@ -4203,7 +4589,7 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "description": {
@@ -4213,12 +4599,12 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -4243,7 +4629,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         }
       },
@@ -4279,7 +4665,7 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "date_from": {
@@ -4294,12 +4680,12 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "is_valid_accommodation": {
@@ -4339,7 +4725,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "type": {
@@ -4385,7 +4771,7 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "date_from": {
@@ -4400,12 +4786,12 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "is_valid_accommodation": {
@@ -4440,7 +4826,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "travel_report_rate_category_group_id": {
@@ -4496,7 +4882,7 @@
         },
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "date": {
@@ -4506,12 +4892,12 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -4531,7 +4917,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         }
       },
@@ -4567,17 +4953,17 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -4597,7 +4983,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "type_of_vat": {
@@ -4745,7 +5131,7 @@
       "inputBindings": {
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -4820,7 +5206,7 @@
       "inputBindings": {
         "count": {
           "targetName": "count",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "date_from": {
@@ -4835,12 +5221,12 @@
         },
         "fields": {
           "targetName": "fields",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "from": {
           "targetName": "from",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "id": {
@@ -4865,7 +5251,7 @@
         },
         "sorting": {
           "targetName": "sorting",
-          "targetSection": "control",
+          "targetSection": "query",
           "valueStrategy": "plain"
         },
         "type_id": {
