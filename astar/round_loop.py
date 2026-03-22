@@ -445,6 +445,8 @@ def write_round_score_feedback(root: Path, round_id: str, my_rounds: list[dict[s
     rolling_mean = float(sum(historical_scores) / len(historical_scores)) if historical_scores else None
     report_path = root / round_id / "report.json"
     expected_score = None
+    offline_reference_score = None
+    offline_reference_kind = None
     selected_variant = None
     if report_path.exists():
         try:
@@ -452,11 +454,15 @@ def write_round_score_feedback(root: Path, round_id: str, my_rounds: list[dict[s
         except json.JSONDecodeError:
             report = {}
         selected_variant = report.get("prediction_model")
-        expected_score = (
-            report.get("strategy_evaluation", {})
-            .get("summary", {})
-            .get("best_variant_mean_round_score")
-        )
+        strategy_summary = report.get("strategy_evaluation", {}).get("summary", {})
+        offline_reference_score = strategy_summary.get("best_variant_mean_round_score")
+        evaluation_mode = str(strategy_summary.get("evaluation_mode") or "")
+        if offline_reference_score is not None:
+            if "fast_rank" in evaluation_mode:
+                offline_reference_kind = "ranking_only"
+            else:
+                expected_score = offline_reference_score
+                offline_reference_kind = "holdout_expectation"
     regression_flags = []
     if official_score is not None and expected_score is not None and official_score + 8.0 < float(expected_score):
         regression_flags.append("below_offline_expectation")
@@ -468,6 +474,8 @@ def write_round_score_feedback(root: Path, round_id: str, my_rounds: list[dict[s
         "selected_variant": selected_variant,
         "official_round_score": official_score,
         "expected_offline_round_score": expected_score,
+        "offline_reference_score": offline_reference_score,
+        "offline_reference_kind": offline_reference_kind,
         "recent_official_mean_score": rolling_mean,
         "regression_flags": regression_flags,
     }

@@ -67,6 +67,37 @@ class RoundLoopTests(unittest.TestCase):
             payload = json.loads(output.read_text())
             self.assertIn("below_offline_expectation", payload["regression_flags"])
 
+    def test_write_score_feedback_treats_fast_rank_as_ordering_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            report_root = root / "round-2"
+            report_root.mkdir(parents=True)
+            (report_root / "report.json").write_text(
+                json.dumps(
+                    {
+                        "prediction_model": "sklearn",
+                        "strategy_evaluation": {
+                            "summary": {
+                                "evaluation_mode": "full_history_replay_fast_rank_v1",
+                                "best_variant_mean_round_score": 80.0,
+                            }
+                        },
+                    }
+                )
+            )
+            output = write_round_score_feedback(
+                root=root,
+                round_id="round-2",
+                my_rounds=[
+                    {"round_id": "round-1", "status": "completed", "round_score": 78.0},
+                    {"round_id": "round-2", "status": "completed", "round_score": 60.0},
+                ],
+            )
+            payload = json.loads(output.read_text())
+            self.assertIsNone(payload["expected_offline_round_score"])
+            self.assertEqual(payload["offline_reference_kind"], "ranking_only")
+            self.assertNotIn("below_offline_expectation", payload["regression_flags"])
+
     def test_loop_lock_and_heartbeat_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

@@ -176,8 +176,11 @@ class ResponseValidator:
                 if not self.wrapper_catalog.has_command(command.resolved_name):
                     raise RawExecutionError(message=f"Planner referenced unknown command {command.resolved_name}.")
                 self._validate_command_inputs(bridge, command)
-            if command.operationId and not self.raw_catalog.has(command.operationId):
-                raise RawExecutionError(message=f"Planner referenced unknown raw operationId {command.operationId}.")
+            operation_id = command.operationId
+            if operation_id and not self.raw_catalog.has(operation_id):
+                raise RawExecutionError(message=f"Planner referenced unknown raw operationId {operation_id}.")
+            if command.resolved_kind != "friendly_alias":
+                self._validate_raw_inputs(bridge, command, operation_id or command.resolved_name)
 
     def _validate_content(self, bridge: LLMBridgeDocument) -> None:
         if not bridge.language.promptOriginal:
@@ -251,6 +254,55 @@ class ResponseValidator:
             legal_inputs.extend(["body", "payload"])
             raw_meta = self.raw_catalog.get(meta["operationId"])
             body_schema = next(iter(raw_meta.get("requestBody", {}).get("content", {}).values()), {})
+            legal_inputs.extend(
+                name
+                for name, value in body_schema.get("properties", {}).items()
+                if not value.get("readOnly")
+            )
+        return sorted(dict.fromkeys(name for name in legal_inputs if name))
+
+    def _validate_raw_inputs(self, bridge: LLMBridgeDocument, command: Any, operation_id: str) -> None:
+        if not operation_id or not self.raw_catalog.has(operation_id):
+            raise RawExecutionError(message="Planner emitted a raw operation step without a valid operationId.")
+        meta = self.raw_catalog.get(operation_id)
+        legal_inputs = self._legal_raw_inputs(meta)
+        payload: dict[str, Any] = {}
+        for key in (operation_id, command.resolved_name):
+            if key:
+                payload.update(bridge.flatBridge.commandArguments.get(key, {}))
+        payload.update(command.inputs)
+        illegal = sorted(key for key, value in payload.items() if value is not None and key not in legal_inputs)
+        if illegal:
+            raise RawExecutionError(
+                message=f"Planner emitted illegal inputs for raw operation {operation_id}: {', '.join(illegal)}."
+            )
+        if not bridge.validation.isExecutable:
+            return
+        missing_names = [
+            item["name"]
+            for item in meta["pathParams"]
+            if item["required"] and payload.get(item["name"]) is None
+        ]
+        missing_names.extend(
+            item["name"]
+            for item in meta["queryParams"]
+            if item["required"] and payload.get(item["name"]) is None
+        )
+        body_schema = next(iter(meta.get("requestBody", {}).get("content", {}).values()), {})
+        required_body = body_schema.get("required", [])
+        body_payload = payload.get("body") if isinstance(payload.get("body"), dict) else payload
+        missing_names.extend(name for name in required_body if body_payload.get(name) is None)
+        if missing_names:
+            raise RawExecutionError(
+                message=f"Planner omitted required inputs for raw operation {operation_id}: {', '.join(sorted(dict.fromkeys(missing_names)))}."
+            )
+
+    def _legal_raw_inputs(self, meta: dict[str, Any]) -> list[str]:
+        legal_inputs = [item["name"] for item in meta["pathParams"]]
+        legal_inputs.extend(item["name"] for item in meta["queryParams"])
+        if meta.get("requestBody"):
+            legal_inputs.append("body")
+            body_schema = next(iter(meta.get("requestBody", {}).get("content", {}).values()), {})
             legal_inputs.extend(
                 name
                 for name, value in body_schema.get("properties", {}).items()

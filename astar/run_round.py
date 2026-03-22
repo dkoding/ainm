@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from artifacts import ArtifactStore
 from astar_client import AstarAPIError, AstarClient
 from config import (
@@ -511,6 +513,22 @@ def main() -> None:
         live_variant_summary=live_variant_summary,
     )
     predictions = prediction_variants[selected_variant]
+    guardrail_summary = None
+    guardrail_anchor_variant = select_guardrail_anchor_variant(
+        requested_model=args.prediction_model,
+        strategy_evaluation_summary=strategy_evaluation_summary,
+        strategy_feedback_summary=strategy_feedback_summary,
+        prediction_variants=prediction_variants,
+        selected_variant=selected_variant,
+    )
+    if guardrail_anchor_variant is not None:
+        predictions, guardrail_summary = apply_prediction_mass_guardrails(
+            predictions=predictions,
+            anchor_predictions=prediction_variants[guardrail_anchor_variant],
+            observed_summary=(live_variant_summary or {}).get("observed_summary"),
+            selected_variant=selected_variant,
+            anchor_variant=guardrail_anchor_variant,
+        )
     prediction_model_used = selected_variant
 
     if regime_history_prior_model is not None:
@@ -544,6 +562,7 @@ def main() -> None:
         live_variant_summary=live_variant_summary,
         regime_summary=regime_summary,
         tuning_summary=tuning_summary,
+        guardrail_summary=guardrail_summary,
         observation_plan=observation_plan_payload,
         observations_by_seed=observations_by_seed,
         budget_before=budget_before,
@@ -981,31 +1000,233 @@ def select_prediction_variant(
         raise SystemExit("Baseline prediction variant was requested but is unavailable.")
 
     blocked_variants = set((strategy_feedback_summary or {}).get("blocked_variants", []))
+    offline_ranked_variants = ranked_available_variants(
+        strategy_evaluation_summary=strategy_evaluation_summary,
+        prediction_variants=prediction_variants,
+        blocked_variants=blocked_variants,
+    )
+    ambiguous_fallback = select_ambiguous_live_fallback(
+        prediction_variants=prediction_variants,
+        blocked_variants=blocked_variants,
+        offline_ranked_variants=offline_ranked_variants,
+    )
+
     if live_variant_summary is not None:
-        for variant_item in live_variant_summary.get("variants", []):
-            variant_name = str(variant_item.get("variant"))
-            if variant_name in blocked_variants:
-                continue
-            if variant_name in prediction_variants:
-                return variant_name
+        live_ranked_variants = [
+            item
+            for item in live_variant_summary.get("variants", [])
+            if str(item.get("variant")) not in blocked_variants and str(item.get("variant")) in prediction_variants
+        ]
+        if live_ranked_variants:
+            top_variant = str(live_ranked_variants[0].get("variant"))
+            if ambiguous_fallback is None or top_variant == ambiguous_fallback:
+                return top_variant
+            fallback_report = next(
+                (item for item in live_ranked_variants if str(item.get("variant")) == ambiguous_fallback),
+                None,
+            )
+            if fallback_report is None:
+                return top_variant
+            second_score = float(live_ranked_variants[1].get("live_score", 0.0)) if len(live_ranked_variants) > 1 else float("-inf")
+            top_score = float(live_ranked_variants[0].get("live_score", 0.0))
+            fallback_score = float(fallback_report.get("live_score", 0.0))
+            top_match = float(live_ranked_variants[0].get("observation_match", 0.0))
+            fallback_match = float(fallback_report.get("observation_match", 0.0))
+            top_activity_gap = float(live_ranked_variants[0].get("activity_gap", 0.0))
+            fallback_activity_gap = float(fallback_report.get("activity_gap", 0.0))
+            margin_to_second = top_score - second_score if second_score != float("-inf") else top_score
+            margin_to_fallback = top_score - fallback_score
+            if top_variant == "sklearn":
+                raw_override_allowed = (
+                    margin_to_second >= 0.06
+                    and margin_to_fallback >= 0.10
+                    and (top_match - fallback_match) >= 0.05
+                    and top_activity_gap <= (fallback_activity_gap - 0.02)
+                )
+                if not raw_override_allowed:
+                    return ambiguous_fallback
+                return top_variant
+            if margin_to_second < 0.03 and margin_to_fallback < 0.04:
+                return ambiguous_fallback
+            return top_variant
 
-    if strategy_evaluation_summary is not None:
-        ranked_variants = sorted(
-            strategy_evaluation_summary.get("summary", {}).get("variants", []),
-            key=lambda item: float(item.get("mean_round_score", 0.0)),
-            reverse=True,
-        )
-        for variant_item in ranked_variants:
-            variant_name = str(variant_item.get("variant"))
-            if variant_name in blocked_variants:
-                continue
-            if variant_name in prediction_variants:
-                return variant_name
+    if offline_ranked_variants:
+        return offline_ranked_variants[0]
 
-    for fallback in ("ensemble_sklearn_50", "sklearn", "baseline_history", "baseline_static"):
+    for fallback in ("sklearn_observation_context", "ensemble_observation_context_50", "ensemble_sklearn_50", "sklearn", "baseline_history", "baseline_static"):
         if fallback in prediction_variants:
             return fallback
     raise SystemExit("No prediction variants were built.")
+
+
+def ranked_available_variants(
+    *,
+    strategy_evaluation_summary: dict[str, Any] | None,
+    prediction_variants: dict[str, list[Any]],
+    blocked_variants: set[str],
+) -> list[str]:
+    ranked: list[str] = []
+    if strategy_evaluation_summary is not None:
+        for variant_item in sorted(
+            strategy_evaluation_summary.get("summary", {}).get("variants", []),
+            key=lambda item: float(item.get("mean_round_score", 0.0)),
+            reverse=True,
+        ):
+            variant_name = str(variant_item.get("variant"))
+            if variant_name in blocked_variants or variant_name not in prediction_variants or variant_name in ranked:
+                continue
+            ranked.append(variant_name)
+    for fallback in (
+        "sklearn_observation_context",
+        "ensemble_observation_context_50",
+        "sklearn_global_post_observation",
+        "ensemble_global_post_observation_50",
+        "sklearn",
+        "ensemble_sklearn_75",
+        "ensemble_sklearn_50",
+        "baseline_history_observation_context",
+        "baseline_history_global_post_observation",
+        "baseline_history",
+        "baseline_static",
+    ):
+        if fallback in blocked_variants or fallback not in prediction_variants or fallback in ranked:
+            continue
+        ranked.append(fallback)
+    return ranked
+
+
+def select_ambiguous_live_fallback(
+    *,
+    prediction_variants: dict[str, list[Any]],
+    blocked_variants: set[str],
+    offline_ranked_variants: list[str],
+) -> str | None:
+    for preferred in (
+        "sklearn_observation_context",
+        "ensemble_observation_context_50",
+        "sklearn_global_post_observation",
+        "ensemble_global_post_observation_50",
+    ):
+        if preferred in prediction_variants and preferred not in blocked_variants:
+            return preferred
+    return offline_ranked_variants[0] if offline_ranked_variants else None
+
+
+def select_guardrail_anchor_variant(
+    *,
+    requested_model: str,
+    strategy_evaluation_summary: dict[str, Any] | None,
+    strategy_feedback_summary: dict[str, Any] | None,
+    prediction_variants: dict[str, list[Any]],
+    selected_variant: str,
+) -> str | None:
+    if requested_model != "auto":
+        return None
+    blocked_variants = set((strategy_feedback_summary or {}).get("blocked_variants", []))
+    offline_ranked_variants = ranked_available_variants(
+        strategy_evaluation_summary=strategy_evaluation_summary,
+        prediction_variants=prediction_variants,
+        blocked_variants=blocked_variants,
+    )
+    fallback = select_ambiguous_live_fallback(
+        prediction_variants=prediction_variants,
+        blocked_variants=blocked_variants,
+        offline_ranked_variants=offline_ranked_variants,
+    )
+    if fallback is None or fallback == selected_variant:
+        return None
+    return fallback
+
+
+def aggregate_prediction_class_mass(predictions: list[np.ndarray]) -> np.ndarray:
+    totals = np.zeros(6, dtype=float)
+    total_cells = 0
+    for prediction in predictions:
+        totals += np.asarray(prediction, dtype=float).sum(axis=(0, 1))
+        total_cells += int(prediction.shape[0] * prediction.shape[1])
+    if total_cells <= 0:
+        return totals
+    return totals / float(total_cells)
+
+
+def apply_prediction_mass_guardrails(
+    *,
+    predictions: list[np.ndarray],
+    anchor_predictions: list[np.ndarray],
+    observed_summary: dict[str, Any] | None,
+    selected_variant: str,
+    anchor_variant: str,
+) -> tuple[list[np.ndarray], dict[str, Any] | None]:
+    if len(predictions) != len(anchor_predictions):
+        return predictions, None
+    selected_mass = aggregate_prediction_class_mass(predictions)
+    anchor_mass = aggregate_prediction_class_mass(anchor_predictions)
+    observed_summary = observed_summary or {}
+    development = float(np.clip(observed_summary.get("development_signal", 0.0), 0.0, 1.0))
+    trade = float(np.clip(max(observed_summary.get("trade_signal", 0.0), observed_summary.get("port_signal", 0.0)), 0.0, 1.0))
+    conflict = float(np.clip(observed_summary.get("conflict_signal", 0.0), 0.0, 1.0))
+    harshness = float(np.clip(observed_summary.get("harshness_signal", 0.0), 0.0, 1.0))
+
+    max_allowed = np.array(selected_mass, copy=True)
+    max_allowed[1] = max(anchor_mass[1] * (1.45 + 0.25 * development), anchor_mass[1] + 0.04 + 0.04 * development)
+    max_allowed[2] = max(anchor_mass[2] * (1.60 + 0.40 * trade), anchor_mass[2] + 0.004 + 0.025 * trade)
+    max_allowed[3] = max(anchor_mass[3] * (1.60 + 0.30 * max(conflict, harshness)), anchor_mass[3] + 0.004 + 0.02 * max(conflict, harshness))
+    min_empty = max(0.20, anchor_mass[0] - (0.05 + 0.05 * development + 0.03 * trade))
+
+    alpha = 1.0
+    constraints: list[dict[str, float | int]] = []
+    for class_index in (1, 2, 3):
+        if selected_mass[class_index] <= max_allowed[class_index] or selected_mass[class_index] <= anchor_mass[class_index]:
+            continue
+        denom = selected_mass[class_index] - anchor_mass[class_index]
+        if denom <= 0:
+            continue
+        bound = float((max_allowed[class_index] - anchor_mass[class_index]) / denom)
+        alpha = min(alpha, bound)
+        constraints.append(
+            {
+                "class_index": class_index,
+                "selected_mass": float(selected_mass[class_index]),
+                "anchor_mass": float(anchor_mass[class_index]),
+                "max_allowed_mass": float(max_allowed[class_index]),
+                "alpha_bound": float(bound),
+            }
+        )
+    if selected_mass[0] < min_empty and selected_mass[0] < anchor_mass[0]:
+        denom = anchor_mass[0] - selected_mass[0]
+        if denom > 0:
+            bound = float((anchor_mass[0] - min_empty) / denom)
+            alpha = min(alpha, bound)
+            constraints.append(
+                {
+                    "class_index": 0,
+                    "selected_mass": float(selected_mass[0]),
+                    "anchor_mass": float(anchor_mass[0]),
+                    "min_allowed_mass": float(min_empty),
+                    "alpha_bound": float(bound),
+                }
+            )
+    alpha = float(np.clip(alpha, 0.0, 1.0))
+    if alpha >= 0.999 or not constraints:
+        return predictions, None
+
+    guarded_predictions: list[np.ndarray] = []
+    for prediction, anchor in zip(predictions, anchor_predictions, strict=True):
+        tensor = (np.asarray(prediction, dtype=float) * alpha) + (np.asarray(anchor, dtype=float) * (1.0 - alpha))
+        tensor = np.clip(tensor, 1e-12, None)
+        tensor /= tensor.sum(axis=-1, keepdims=True)
+        guarded_predictions.append(tensor)
+    final_mass = aggregate_prediction_class_mass(guarded_predictions)
+    return guarded_predictions, {
+        "applied": True,
+        "selected_variant": selected_variant,
+        "anchor_variant": anchor_variant,
+        "blend_alpha": alpha,
+        "selected_class_mass": selected_mass.tolist(),
+        "anchor_class_mass": anchor_mass.tolist(),
+        "final_class_mass": final_mass.tolist(),
+        "constraints": constraints,
+    }
 
 
 def load_cached_strategy_evaluation(

@@ -152,6 +152,84 @@ class RouterExecutionTests(unittest.TestCase):
         self.assertEqual(result.traces[0].outputs["value"]["id"], 7)
         self.assertEqual([call["method"] for call in transport.calls], ["GET", "POST"])
 
+    def test_router_filters_unrelated_field_bag_inputs_from_raw_command(self) -> None:
+        transport = RecordingTransport(
+            {
+                ("GET", "/timesheet/entry/>totalHours"): {"value": 160.0},
+            }
+        )
+        router = BridgeRouter(raw_executor=RawExecutor(catalog=load_raw_catalog(), transport=transport))
+        bridge = LLMBridgeDocument.model_validate(
+            {
+                "contractVersion": "tripletex.llm_bridge.v1",
+                "flatBridge": {
+                    "fieldBag": {
+                        "startDate": "2026-02-01",
+                        "endDate": "2026-02-29",
+                        "task": "ignore me",
+                    },
+                    "commandArguments": {
+                        "TimesheetEntryTotalHours_getTotalHours": {
+                            "startDate": "2026-02-01",
+                            "endDate": "2026-02-29",
+                        }
+                    },
+                },
+                "executionPlan": {
+                    "fallbackRawCommands": [
+                        {
+                            "stepId": "step_1",
+                            "commandType": "raw_operation",
+                            "operationId": "TimesheetEntryTotalHours_getTotalHours",
+                        }
+                    ],
+                    "stepOrder": ["step_1"],
+                },
+                "validation": {"isExecutable": True, "blockingIssues": [], "warnings": []},
+                "completion": {"completionSignals": ["Hours returned"]},
+            }
+        )
+        router.execute(bridge, self._context())
+        self.assertEqual(transport.calls[0]["params"], {"startDate": "2026-02-01", "endDate": "2026-02-29"})
+
+    def test_router_filters_unrelated_field_bag_inputs_from_friendly_command(self) -> None:
+        transport = RecordingTransport(
+            {
+                ("GET", "/token/session/>whoAmI"): {"value": {"id": 1}},
+            }
+        )
+        router = BridgeRouter(raw_executor=RawExecutor(catalog=load_raw_catalog(), transport=transport))
+        bridge = LLMBridgeDocument.model_validate(
+            {
+                "contractVersion": "tripletex.llm_bridge.v1",
+                "flatBridge": {
+                    "fieldBag": {
+                        "date_range_start": "2026-02-01",
+                    },
+                    "commandArguments": {
+                        "session.who_am_i": {
+                            "fields": "id"
+                        }
+                    },
+                },
+                "executionPlan": {
+                    "selectedCommands": [
+                        {
+                            "stepId": "step_1",
+                            "commandName": "session.who_am_i",
+                            "commandType": "friendly_alias",
+                        }
+                    ],
+                    "stepOrder": ["step_1"],
+                },
+                "validation": {"isExecutable": True, "blockingIssues": [], "warnings": []},
+                "completion": {"completionSignals": ["Identity returned"]},
+            }
+        )
+        router.execute(bridge, self._context())
+        self.assertEqual(transport.calls[0]["params"], {})
+        self.assertIsNone(transport.calls[0]["json_body"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -27,6 +27,7 @@ This file is the rolling checkpoint log for the repository. Update it whenever a
 - Reworked the wrapper surface so all `78` documented friendly commands now have explicit generated input bindings, all `21` documented business flows have concrete handlers, the planner sees the full flow/command catalog, and the service exposes read-only catalogs at `/catalog/commands` and `/catalog/flows`.
 - Added verification assets in [`tests/`](./tests) plus the stdlib release gate [`scripts/release_gate.py`](./scripts/release_gate.py) to audit generated coverage without depending on the full runtime environment.
 - Hardened the planner contract so the LLM prompt now carries the complete legal flow/command allow-list with required inputs, optional inputs, passthrough body fields, and exact-name constraints, and tightened bridge validation so executable plans are rejected if they use illegal inputs or omit required ones for friendly flows/commands.
+- Filtered router-side ambient `fieldBag` and entity data against each target flow/command/raw-operation contract before execution, added raw-operation input validation, and exposed raw fallback legal inputs/body fields in the LLM context so unrelated keys no longer leak into Tripletex calls.
 
 ## Current State
 

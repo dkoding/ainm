@@ -28,6 +28,8 @@ class PromptBuilder:
                 "If required inputs are missing, do not guess them; either choose another legal route or set validation.isExecutable=false with blocking issues. "
                 "Do not invent near-match aliases. For example, if the contract does not list timesheet.entry.sum then timesheet.entry.sum is illegal. "
                 "If you need a raw fallback, use an exact operationId from context.rawOperations and its exact raw parameter names. "
+                "For raw fallbacks, only context.rawOperations[].allowedInputs are legal input names. "
+                "If a raw fallback has requestBodyKind multipart or json, use only its listed bodyFields or a body object with those exact fields. "
                 "Exact raw operationIds must be emitted only in executionPlan.fallbackRawCommands, never in executionPlan.selectedCommands. "
                 "executionPlan.selectedCommands is only for legal friendly command names from context.apiContract.legalCommands. "
                 "Routing priority is strict: choose a documented business flow first, then a documented friendly command, then exact raw operationId fallback. "
@@ -71,7 +73,7 @@ class PromptBuilder:
                     "use context.commands and context.flows for the complete detailed contract surface",
                     "use apiContract.legalCommands to verify every command name and required input before emitting a selected command",
                     "use apiContract.legalFlows to verify every flow name and required input before emitting a selected flow",
-                    "bind raw fallback inputs by exact raw parameter names",
+                    "bind raw fallback inputs only by exact input names from context.rawOperations[].allowedInputs",
                     "place raw operationIds only in executionPlan.fallbackRawCommands with commandType raw_operation and operationId set",
                     "never place a raw operationId in executionPlan.selectedCommands",
                     "include stepOrder whenever multiple steps exist",
@@ -92,6 +94,13 @@ class PromptBuilder:
                             ]
                         },
                         "why": "Raw operationIds must go in fallbackRawCommands, not selectedCommands.",
+                    },
+                    {
+                        "bad": {
+                            "operationId": "LedgerVoucherImportDocument_importDocument",
+                            "inputs": {"attachmentId": "attachment_1", "task": "bookkeep this"},
+                        },
+                        "why": "Those keys are not listed in context.rawOperations[].allowedInputs for that raw operation.",
                     },
                     {
                         "bad": {"commandName": "invoice.create", "inputs": {"customer_id": 7}},

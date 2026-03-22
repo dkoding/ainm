@@ -147,12 +147,13 @@ class BridgeRouter:
 
     def _bind_flow_inputs(self, bridge: LLMBridgeDocument, step: Any) -> dict[str, Any]:
         flow_name = step.resolved_name
-        return merge_maps(
+        merged = merge_maps(
             self._entity_layer(bridge),
             bridge.flatBridge.fieldBag,
             bridge.flatBridge.flowArguments.get(flow_name, {}),
             step.inputs,
         )
+        return self._filter_inputs(merged, self._legal_flow_inputs(flow_name))
 
     def _bind_command_inputs(self, bridge: LLMBridgeDocument, step: Any) -> dict[str, Any]:
         keys = [step.resolved_name]
@@ -161,9 +162,48 @@ class BridgeRouter:
         command_inputs: dict[str, Any] = {}
         for key in keys:
             command_inputs.update(bridge.flatBridge.commandArguments.get(key, {}))
-        return merge_maps(
+        merged = merge_maps(
             self._entity_layer(bridge),
             bridge.flatBridge.fieldBag,
             command_inputs,
             step.inputs,
+        )
+        if step.resolved_kind == "friendly_alias":
+            return self._filter_inputs(merged, self._legal_command_inputs(step.resolved_name))
+        if step.operationId:
+            return self._filter_inputs(merged, self._legal_raw_inputs(step.operationId))
+        return {}
+
+    def _filter_inputs(self, payload: dict[str, Any], allowed_inputs: list[str]) -> dict[str, Any]:
+        allowed = set(allowed_inputs)
+        return {key: value for key, value in payload.items() if key in allowed}
+
+    def _legal_flow_inputs(self, flow_name: str) -> list[str]:
+        meta = self.wrapper_catalog.get_flow(flow_name)
+        return [name for name in meta.get("inputs", []) if name]
+
+    def _legal_command_inputs(self, command_name: str) -> list[str]:
+        meta = self.wrapper_catalog.get_command(command_name)
+        legal_inputs = [name for name in meta.get("inputs", []) if name]
+        if meta.get("allowsBodyPassthrough"):
+            legal_inputs.extend(["body", "payload"])
+            raw_meta = self.raw_catalog.get(meta["operationId"])
+            legal_inputs.extend(self._raw_body_fields(raw_meta))
+        return sorted(dict.fromkeys(legal_inputs))
+
+    def _legal_raw_inputs(self, operation_id: str) -> list[str]:
+        raw_meta = self.raw_catalog.get(operation_id)
+        legal_inputs = [item["name"] for item in raw_meta["pathParams"]]
+        legal_inputs.extend(item["name"] for item in raw_meta["queryParams"])
+        if raw_meta.get("requestBody"):
+            legal_inputs.append("body")
+            legal_inputs.extend(self._raw_body_fields(raw_meta))
+        return sorted(dict.fromkeys(name for name in legal_inputs if name))
+
+    def _raw_body_fields(self, raw_meta: dict[str, Any]) -> list[str]:
+        body_schema = next(iter(raw_meta.get("requestBody", {}).get("content", {}).values()), {})
+        return sorted(
+            name
+            for name, value in body_schema.get("properties", {}).items()
+            if not value.get("readOnly")
         )

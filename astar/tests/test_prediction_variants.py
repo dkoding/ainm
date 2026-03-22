@@ -14,7 +14,12 @@ try:
         score_prediction_variants_for_live_round,
         strategy_signature,
     )
-    from run_round import load_cached_strategy_evaluation, load_strategy_feedback_summary, select_prediction_variant
+    from run_round import (
+        apply_prediction_mass_guardrails,
+        load_cached_strategy_evaluation,
+        load_strategy_feedback_summary,
+        select_prediction_variant,
+    )
 except ImportError as exc:  # pragma: no cover - environment guard
     raise unittest.SkipTest(f"missing runtime dependency: {exc}") from exc
 
@@ -210,6 +215,66 @@ class PredictionVariantTests(unittest.TestCase):
             },
         )
         self.assertEqual(selected, "weak")
+
+    def test_live_variant_ranking_does_not_switch_to_raw_sklearn_without_clear_activity_win(self) -> None:
+        selected = select_prediction_variant(
+            requested_model="auto",
+            strategy_evaluation_summary={
+                "summary": {
+                    "variants": [
+                        {"variant": "sklearn_observation_context", "mean_round_score": 78.0},
+                        {"variant": "sklearn", "mean_round_score": 75.0},
+                    ]
+                }
+            },
+            strategy_feedback_summary={"blocked_variants": []},
+            prediction_variants={"sklearn": [], "sklearn_observation_context": []},
+            live_variant_summary={
+                "variants": [
+                    {
+                        "variant": "sklearn",
+                        "live_score": 0.69,
+                        "observation_match": 0.68,
+                        "activity_gap": 0.53,
+                    },
+                    {
+                        "variant": "sklearn_observation_context",
+                        "live_score": 0.60,
+                        "observation_match": 0.56,
+                        "activity_gap": 0.50,
+                    },
+                ]
+            },
+        )
+        self.assertEqual(selected, "sklearn_observation_context")
+
+    def test_prediction_mass_guardrail_blends_back_extreme_dynamic_shift(self) -> None:
+        anchor = np.zeros((2, 2, 6), dtype=float)
+        anchor[:, :, 0] = 0.80
+        anchor[:, :, 1] = 0.10
+        anchor[:, :, 4] = 0.10
+        selected = np.zeros((2, 2, 6), dtype=float)
+        selected[:, :, 0] = 0.40
+        selected[:, :, 1] = 0.45
+        selected[:, :, 2] = 0.10
+        selected[:, :, 4] = 0.05
+        guarded, summary = apply_prediction_mass_guardrails(
+            predictions=[selected],
+            anchor_predictions=[anchor],
+            observed_summary={
+                "development_signal": 0.2,
+                "trade_signal": 0.1,
+                "conflict_signal": 0.05,
+                "harshness_signal": 0.1,
+                "port_signal": 0.1,
+            },
+            selected_variant="sklearn",
+            anchor_variant="sklearn_observation_context",
+        )
+        self.assertIsNotNone(summary)
+        assert summary is not None
+        self.assertLess(summary["blend_alpha"], 1.0)
+        self.assertLess(summary["final_class_mass"][1], summary["selected_class_mass"][1])
 
 
 if __name__ == "__main__":

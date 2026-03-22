@@ -135,6 +135,15 @@ class ContextCatalog:
         return sorted(dict.fromkeys(name for name in legal_inputs if name))
 
     def _raw_pack(self, item: dict[str, Any]) -> dict[str, Any]:
+        body_schema = next(iter(item.get("requestBody", {}).get("content", {}).values()), {})
+        body_fields = sorted(
+            name
+            for name, value in body_schema.get("properties", {}).items()
+            if not value.get("readOnly")
+        )
+        required_query = sorted(param["name"] for param in item["queryParams"] if param["required"])
+        optional_query = sorted(param["name"] for param in item["queryParams"] if not param["required"])
+        required_body = sorted(body_schema.get("required", []))
         return {
             "operationId": item["operationId"],
             "method": item["method"],
@@ -143,4 +152,15 @@ class ContextCatalog:
             "technicalFlowFamilies": item["technicalFlowFamilies"],
             "pathParams": [param["name"] for param in item["pathParams"]],
             "queryParams": [param["name"] for param in item["queryParams"]],
+            "requiredQueryParams": required_query,
+            "optionalQueryParams": optional_query,
+            "bodyFields": body_fields,
+            "requiredBodyFields": required_body,
+            "allowedInputs": sorted(
+                dict.fromkeys(
+                    [*[param["name"] for param in item["pathParams"]], *[param["name"] for param in item["queryParams"]], *body_fields]
+                    + (["body"] if item.get("requestBody") else [])
+                )
+            ),
+            "requestBodyKind": item.get("requestBody", {}).get("kind"),
         }
