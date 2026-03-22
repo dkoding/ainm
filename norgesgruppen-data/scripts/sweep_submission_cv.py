@@ -69,6 +69,12 @@ def parse_args() -> argparse.Namespace:
         help="One or more classifier prototype_temperature values to try.",
     )
     parser.add_argument(
+        "--prototype-top-ks",
+        nargs="+",
+        type=int,
+        help="One or more classifier prototype_top_k values to try.",
+    )
+    parser.add_argument(
         "--rejector-enabled-values",
         nargs="+",
         type=int,
@@ -126,6 +132,7 @@ def main() -> None:
         classifier_score_alphas=args.classifier_score_alphas,
         prototype_alphas=args.prototype_alphas,
         prototype_temperatures=args.prototype_temperatures,
+        prototype_top_ks=args.prototype_top_ks,
         rejector_enabled_values=args.rejector_enabled_values,
     )
     if args.max_configs is not None:
@@ -272,6 +279,7 @@ def build_candidates(
     classifier_score_alphas: list[float] | None,
     prototype_alphas: list[float] | None,
     prototype_temperatures: list[float] | None,
+    prototype_top_ks: list[int] | None,
     rejector_enabled_values: list[int] | None,
 ) -> list[dict]:
     current_confidence = float(base_config.get("confidence_threshold", 0.2))
@@ -279,6 +287,7 @@ def build_candidates(
     current_alpha = float(base_config.get("classifier", {}).get("score_alpha", 0.5))
     current_prototype_alpha = float(base_config.get("classifier", {}).get("prototype_alpha", 0.0))
     current_prototype_temperature = float(base_config.get("classifier", {}).get("prototype_temperature", 0.1))
+    current_prototype_top_k = int(base_config.get("classifier", {}).get("prototype_top_k", 1))
     current_rejector_enabled = 1 if bool(base_config.get("classifier", {}).get("rejector_enabled", False)) else 0
 
     confidence_values = confidence_thresholds or [current_confidence]
@@ -286,15 +295,17 @@ def build_candidates(
     alpha_values = classifier_score_alphas or [current_alpha]
     prototype_alpha_values = prototype_alphas or [current_prototype_alpha]
     prototype_temperature_values = prototype_temperatures or [current_prototype_temperature]
+    prototype_top_k_values = prototype_top_ks or [current_prototype_top_k]
     rejector_values = rejector_enabled_values or [current_rejector_enabled]
 
     candidates = []
-    for confidence_threshold, nms_iou_threshold, classifier_score_alpha, prototype_alpha, prototype_temperature, rejector_enabled in itertools.product(
+    for confidence_threshold, nms_iou_threshold, classifier_score_alpha, prototype_alpha, prototype_temperature, prototype_top_k, rejector_enabled in itertools.product(
         confidence_values,
         nms_values,
         alpha_values,
         prototype_alpha_values,
         prototype_temperature_values,
+        prototype_top_k_values,
         rejector_values,
     ):
         candidate_config = clone_config(base_config)
@@ -309,6 +320,7 @@ def build_candidates(
                     "score_alpha": classifier_score_alpha,
                     "prototype_alpha": prototype_alpha,
                     "prototype_temperature": prototype_temperature,
+                    "prototype_top_k": int(prototype_top_k),
                     "rejector_enabled": bool(rejector_enabled),
                 },
             },
@@ -321,6 +333,7 @@ def build_candidates(
                     f"__alpha_{format_decimal(classifier_score_alpha)}"
                     f"__proto_{format_decimal(prototype_alpha)}"
                     f"__ptemp_{format_decimal(prototype_temperature)}"
+                    f"__ptopk_{int(prototype_top_k)}"
                     f"__reject_{int(bool(rejector_enabled))}"
                 ),
                 "config": candidate_config,
@@ -330,6 +343,7 @@ def build_candidates(
                     "classifier_score_alpha": classifier_score_alpha,
                     "prototype_alpha": prototype_alpha,
                     "prototype_temperature": prototype_temperature,
+                    "prototype_top_k": int(prototype_top_k),
                     "rejector_enabled": bool(rejector_enabled),
                 },
             }

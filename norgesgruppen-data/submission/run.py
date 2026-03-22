@@ -27,6 +27,7 @@ DEFAULT_CONFIG = {
         "prototype_candidates": ["class_prototypes.npy", "prototypes.npy", "weights/class_prototypes.npy"],
         "prototype_alpha": 0.0,
         "prototype_temperature": 0.1,
+        "prototype_top_k": 1,
         "rejector_enabled": False,
         "rejector_margin": 0.02,
         "rejector_min_product_similarity": None,
@@ -273,6 +274,7 @@ class CropClassifier:
         self.feature_extractor, self.classifier_head = build_crop_classifier_inference_modules(self.model, self.arch)
         self.prototype_alpha = max(0.0, min(1.0, float(config.get("prototype_alpha", 0.0))))
         self.prototype_temperature = max(1e-4, float(config.get("prototype_temperature", 0.1)))
+        self.prototype_top_k = max(1, int(config.get("prototype_top_k", 1)))
         self.prototype_matrix = None
         self.prototype_available = None
         self.product_prototype = None
@@ -346,6 +348,7 @@ class CropClassifier:
                         prototype_matrix=self.prototype_matrix,
                         prototype_available=self.prototype_available,
                         temperature=self.prototype_temperature,
+                        top_k=self.prototype_top_k,
                     )
                     probabilities = (
                         ((1.0 - self.prototype_alpha) * probabilities)
@@ -441,10 +444,9 @@ def load_classifier_prototypes(prototype_path: Path, category_ids: list[int], de
         raise ValueError(f"Unsupported prototype matrix shape in {prototype_path}: {loaded.shape}")
 
     embedding_dim = int(loaded.shape[1] - 1)
-    matrix = torch.zeros((len(category_ids), embedding_dim), dtype=torch.float32, device=device)
-    available = torch.zeros(len(category_ids), dtype=torch.bool, device=device)
     auxiliary_prototypes = {"product": None, "junk": None}
     category_index = {int(category_id): index for index, category_id in enumerate(category_ids)}
+    grouped_rows: dict[int, list[object]] = {}
 
     for row in loaded:
         category_id = int(round(float(row[0])))
@@ -459,12 +461,19 @@ def load_classifier_prototypes(prototype_path: Path, category_ids: list[int], de
         if category_id not in category_index:
             continue
         class_index = category_index[category_id]
-        matrix[class_index] = vector
-        available[class_index] = True
+        grouped_rows.setdefault(class_index, []).append(vector)
 
-    if not bool(available.any().item()):
+    if not grouped_rows:
         return None, None, auxiliary_prototypes
-    matrix[available] = torch.nn.functional.normalize(matrix[available], dim=1)
+
+    max_prototypes = max(len(rows) for rows in grouped_rows.values())
+    matrix = torch.zeros((len(category_ids), max_prototypes, embedding_dim), dtype=torch.float32, device=device)
+    available = torch.zeros((len(category_ids), max_prototypes), dtype=torch.bool, device=device)
+    for class_index, rows in grouped_rows.items():
+        for prototype_index, vector in enumerate(rows):
+            matrix[class_index, prototype_index] = vector
+            available[class_index, prototype_index] = True
+
     return matrix, available, auxiliary_prototypes
 
 
@@ -474,12 +483,27 @@ def normalize_feature_batch(features):
     return torch.nn.functional.normalize(features, dim=1)
 
 
-def prototype_probabilities_from_normalized_features(normalized_features, prototype_matrix, prototype_available, temperature: float):
+def prototype_probabilities_from_normalized_features(
+    normalized_features,
+    prototype_matrix,
+    prototype_available,
+    temperature: float,
+    top_k: int,
+):
     import torch
 
-    logits = normalized_features @ prototype_matrix.T
-    logits = logits.masked_fill(~prototype_available.unsqueeze(0), -1e4)
-    return torch.softmax(logits / temperature, dim=1)
+    similarity = torch.einsum("bd,cpd->bcp", normalized_features, prototype_matrix)
+    similarity = similarity.masked_fill(~prototype_available.unsqueeze(0), -1e4)
+    max_prototype_count = int(prototype_matrix.size(1))
+    top_k = max(1, min(int(top_k), max_prototype_count))
+    top_values = similarity.topk(k=top_k, dim=2).values
+    valid_top_values = top_values > -1e3
+    top_value_sum = top_values.masked_fill(~valid_top_values, 0.0).sum(dim=2)
+    top_value_count = valid_top_values.sum(dim=2).clamp_min(1)
+    class_logits = top_value_sum / top_value_count.to(dtype=top_values.dtype)
+    class_available = prototype_available.any(dim=1)
+    class_logits = class_logits.masked_fill(~class_available.unsqueeze(0), -1e4)
+    return torch.softmax(class_logits / temperature, dim=1)
 
 
 def reject_predictions_from_features(
