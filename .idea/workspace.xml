@@ -5,7 +5,211 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ac6b219e-15c9-495c-bd28-adaae518ad0e" name="Changes" comment="WIP tripletex v2 and astar">
+      <change afterPath="$PROJECT_DIR$/astar/observation_replay.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/astar/refresh_history_support.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/ANAL.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/ANAL2.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/FIXERRORS.mnd" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/NEWBUGS.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V3.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/.env" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/.env.example" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/Dockerfile" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/V4.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/benchmark/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/benchmark/classifier.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/benchmark/executor_registry.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/benchmark/manifests.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/benchmark/models.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/benchmark/registry.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/benchmark/runtime.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/benchmark/telemetry.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/contracts/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/contracts/bridge.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/contracts/execution.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/contracts/solve.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/generated/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/generated/command_catalog.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/generated/conformance_policies.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/generated/flow_catalog.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/generated/operation_catalog.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/llm/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/llm/attachment_evidence_builder.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/llm/attachment_fact_extractor.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/llm/context_catalog.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/llm/contract_utils.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/llm/gemini_client.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/llm/json_payloads.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/llm/llm_planner.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/llm/prompt_builder.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/llm/repair_engine.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/llm/response_validator.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/main.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/openapi_catalog.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/openapi_schema_guard.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/raw/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/raw/catalog.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/raw/errors.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/raw/executor.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/raw/input_coercion.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/raw/transport.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/router/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/router/service.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/runtime_refs.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/semantic_contract.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/solver.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/utils.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/wrapper/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/wrapper/catalog.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/wrapper/commands.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/wrapper/flows.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/app/wrapper/helpers.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/deploy_cloud_run.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/docs/openapi.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/requirements.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/scripts/cloud_run_logs.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/scripts/generate_catalogs.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/scripts/release_gate.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/tests/test_attachment_evidence_builder.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/tests/test_attachment_fact_extractor.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/tests/test_benchmark_classifier.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/tests/test_benchmark_registry.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/tests/test_benchmark_runtime.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/tests/test_catalogs.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/tests/test_context_catalog.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/tests/test_gemini_client.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/tests/test_llm_planner.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/tests/test_raw_input_coercion.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/tests/test_response_validator.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/tests/test_router_execution.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/V4/tests/test_solver.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/app/llm/attachment_fact_extractor.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/app/llm/json_payloads.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/app/openapi_catalog.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/app/openapi_schema_guard.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/app/raw/input_coercion.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/app/runtime_refs.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/app/semantic_contract.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/artifacts/cloud_run_logs/tripletex-agent.log" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/artifacts/cloud_run_logs/tripletex-agent.pid" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/tests/test_attachment_evidence_builder.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/tests/test_attachment_fact_extractor.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/tests/test_context_catalog.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/tests/test_gemini_client.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/tests/test_llm_planner.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/tests/test_raw_input_coercion.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/tests/test_response_validator.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/tests/test_solver.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/.env.example" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/Dockerfile" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/V3.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/contracts/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/contracts/bridge.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/contracts/execution.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/contracts/solve.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/generated/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/generated/command_catalog.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/generated/conformance_policies.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/generated/flow_catalog.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/generated/operation_catalog.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/llm/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/llm/attachment_evidence_builder.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/llm/attachment_fact_extractor.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/llm/context_catalog.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/llm/contract_utils.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/llm/gemini_client.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/llm/json_payloads.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/llm/llm_planner.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/llm/prompt_builder.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/llm/repair_engine.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/llm/response_validator.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/llm/retrieval_backends.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/llm/retrieval_docs.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/llm/spec_reference.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/main.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/openapi_catalog.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/openapi_schema_guard.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/raw/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/raw/catalog.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/raw/errors.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/raw/executor.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/raw/input_coercion.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/raw/transport.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/router/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/router/service.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/runtime_refs.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/semantic_contract.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/solver.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/utils.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/wrapper/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/wrapper/catalog.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/wrapper/commands.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/wrapper/flows.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/app/wrapper/helpers.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/artifacts/cloud_run_logs/tripletex-agent.log" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/artifacts/cloud_run_logs/tripletex-agent.pid" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/deploy_cloud_run.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/docs/openapi.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/requirements.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/scripts/cloud_run_logs.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/scripts/export_retrieval_corpus.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/scripts/generate_catalogs.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/scripts/release_gate.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/tests/test_attachment_evidence_builder.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/tests/test_attachment_fact_extractor.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/tests/test_catalogs.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/tests/test_context_catalog.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/tests/test_gemini_client.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/tests/test_json_payloads.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/tests/test_llm_planner.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/tests/test_raw_input_coercion.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/tests/test_response_validator.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/tests/test_retrieval_backends.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/tests/test_router_execution.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tripletex/v3/tests/test_solver.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/LICENSE.txt" beforeDir="false" afterPath="$PROJECT_DIR$/LICENSE.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/astar/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/SCORENEXT.md" beforeDir="false" afterPath="$PROJECT_DIR$/astar/SCORENEXT.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/evaluate_history.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/evaluate_history.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/evaluate_sklearn_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/evaluate_sklearn_model.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/history_cache.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/history_cache.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/observation_strategy.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/observation_strategy.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/prediction_variants.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/prediction_variants.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/round_loop.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/round_loop.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/run_round.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/run_round.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/sklearn_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/sklearn_model.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/tests/test_observation_strategy.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/tests/test_observation_strategy.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/tests/test_prediction_variants.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/tests/test_prediction_variants.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/tests/test_run_round.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/tests/test_run_round.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/astar/tune_baseline.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/tune_baseline.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/.env.example" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/COMPLETEDTASKS.md" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/COMPLETEDTASKS.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/EXAMPLE.md" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/EXAMPLE.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/generated/command_catalog.json" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/generated/command_catalog.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/generated/flow_catalog.json" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/generated/flow_catalog.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/generated/operation_catalog.json" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/generated/operation_catalog.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/llm/attachment_evidence_builder.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/llm/attachment_evidence_builder.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/llm/context_catalog.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/llm/context_catalog.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/llm/gemini_client.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/llm/gemini_client.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/llm/llm_planner.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/llm/llm_planner.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/llm/prompt_builder.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/llm/prompt_builder.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/llm/repair_engine.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/llm/repair_engine.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/llm/response_validator.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/llm/response_validator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/raw/executor.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/raw/executor.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/router/service.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/router/service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/solver.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/solver.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/wrapper/catalog.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/wrapper/catalog.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/wrapper/commands.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/wrapper/commands.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/wrapper/flows.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/wrapper/flows.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/app/wrapper/helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/wrapper/helpers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/deploy_cloud_run.sh" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/deploy_cloud_run.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/scripts/generate_catalogs.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/scripts/generate_catalogs.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/tests/test_catalogs.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/tests/test_catalogs.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tripletex/tests/test_router_execution.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/tests/test_router_execution.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -57,58 +261,11 @@
       <recent name="D:\work\ainm\tripletex" />
     </key>
   </component>
-  <component name="RunManager">
-    <configuration default="true" type="JetRunConfigurationType">
-      <module name="ainm" />
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
-    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
-      <module name="ainm" />
-      <option name="filePath" />
-      <method v="2" />
-    </configuration>
-    <configuration default="true" type="PythonConfigurationType" factoryName="Python">
-      <module name="ainm" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="" />
-      <option name="IS_MODULE_SDK" value="false" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration default="true" type="Tox" factoryName="Tox">
-      <module name="ainm" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="" />
-      <option name="IS_MODULE_SDK" value="false" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <method v="2" />
-    </configuration>
-  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-jdk-9823dce3aa75-fbdcb00ec9e3-intellij.indexing.shared.core-IU-251.28774.11" />
-        <option value="bundled-js-predefined-d6986cc7102b-09060db00ec0-JavaScript-IU-251.28774.11" />
+        <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.28238.7" />
+        <option value="bundled-js-predefined-d6986cc7102b-a71380e98a7c-JavaScript-IU-252.28238.7" />
       </set>
     </attachedChunks>
   </component>
@@ -122,6 +279,7 @@
       <workItem from="1774000491924" duration="23263000" />
       <workItem from="1774101691772" duration="6532000" />
       <workItem from="1774113700710" duration="6379000" />
+      <workItem from="1774164685111" duration="15301000" />
     </task>
     <task id="LOCAL−00001" summary="Initial scaffolding">
       <option name="closed" value="true" />
@@ -277,11 +435,29 @@
       <option name="presentableId" value="LOCAL−00022" />
       <updated>1774137680123</updated>
     </task>
-    <option name="localTasksCounter" value="23" />
+    <task id="LOCAL−00023" summary="WIP tripletex v2 and astar">
+      <option name="closed" value="true" />
+      <created>1774140345865</created>
+      <option name="number" value="LOCAL−00023" />
+      <option name="presentableId" value="LOCAL−00023" />
+      <updated>1774140345865</updated>
+    </task>
+    <option name="localTasksCounter" value="24" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Initial scaffolding" />

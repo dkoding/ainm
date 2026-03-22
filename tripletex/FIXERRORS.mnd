@@ -1,0 +1,666 @@
+# FIXERRORS
+
+Date: 2026-03-22
+
+## Scope
+
+This analysis reviews the current V2 runtime under `app/` against:
+
+- `RULES.md`
+- `DESC.md`
+- `LLM.md`
+- `EXAMPLE.md`
+- `ANALYSIS.md`
+- `API.md`
+- `PLAN1.md`
+- `TASKS1.md`
+- `PLAN2.md`
+- `TASKS2.md`
+- `docs/openapi.json`
+- local deployed log evidence in `artifacts/cloud_run_logs/tripletex-agent.log`
+
+The goal is to identify remaining deltas, explain the live failures, and define the next fixes in the right order.
+
+## Current V2 Snapshot
+
+What is already true:
+
+- Generated coverage is present and internally consistent:
+  - `800` raw operations
+  - `78` friendly commands
+  - `21` business flows
+- `scripts/release_gate.py` passes.
+- The deployed service boots and serves `GET /health`.
+- At least one real `/solve` path now executes successfully:
+  - the live timesheet smoke test returned HTTP `200`
+  - the log contains `tripletex_solver solve.executed ... steps=1`
+  - the log contains `tripletex_app solve.completed`
+- The earlier raw-parameter leak into `LedgerVoucherImportDocument_importDocument` has been fixed by router-side filtering.
+
+What is not yet true:
+
+- V2 is not yet aligned with the full competition contract in `RULES.md` and `API.md`.
+- V2 is not yet aligned with the remaining planner/runtime expectations in `LLM.md`, `PLAN2.md`, and `TASKS2.md`.
+- Supplier-invoice and attachment-derived bookkeeping tasks are still structurally underpowered.
+
+## Main Live Failure Classes
+
+The current deployed logs show four meaningful failure patterns:
+
+1. `Planner referenced unknown command supplier.search.`
+2. `Tripletex returned HTTP 422 for POST /ledger/voucher` with validation message `voucherType.id` wrong type.
+3. `Planner output omitted executable steps.`
+4. Earlier fixed failure: `Unrecognized parameters for LedgerVoucherImportDocument_importDocument: attachmentId, task`.
+
+The important point is that failure class `4` is already resolved in the current code, while `1`, `2`, and `3` remain active.
+
+## Evidence From Logs
+
+Recent deployed-log evidence:
+
+- `2026-03-22 00:00:01`
+  - `tripletex_solver solve.executed ... steps=1`
+  - `tripletex_app solve.completed`
+  - `POST /solve` returned `200`
+  - This proves the current stack can still execute a valid raw-read path end to end.
+
+- `2026-03-22 00:01:09`
+  - `Tripletex returned HTTP 422 for POST /ledger/voucher`
+  - Tripletex validation says `voucherType.id` is the wrong type
+  - This proves at least one plan got all the way through planner, validator, router, wrapper, and transport, but still produced a semantically invalid payload.
+
+- `2026-03-22 00:01:40`
+  - `Planner output omitted executable steps`
+  - This proves the planner still sometimes returns a bridge shell without an actionable execution plan.
+
+- `2026-03-22 00:03:53`
+  - `Planner referenced unknown command supplier.search`
+  - This proves the prompt/validator combination still allows the model to attempt a non-existent friendly alias instead of using the legal contract correctly.
+
+## Delta Inventory
+
+### Delta 1. `/solve` failure contract does not match the competition contract
+
+Source requirement:
+
+- `RULES.md` Rule 2
+- `API.md` Section 3
+
+Required behavior:
+
+- HTTP `200`
+- body exactly `{"status":"completed"}`
+
+Current code:
+
+- `app/main.py` catches `RawExecutionError` and raises HTTP `422`.
+
+Impact:
+
+- This is a direct contract violation against the competition endpoint.
+- A planner failure or execution failure currently leaks as transport-level failure instead of a competition-conforming response.
+
+Fix:
+
+1. Make `POST /solve` always return `SolveResponse(status="completed")`.
+2. Keep the internal error logging, but never convert `RawExecutionError` into HTTP `422`.
+3. If a plan is blocked or execution fails, the submission will still score poorly, but the endpoint contract will remain valid.
+
+### Delta 2. Attachment handling is still far below the documented minimum
+
+Source requirement:
+
+- `RULES.md` Rule 3
+- `API.md` Section 3
+- `PLAN2.md` Attachment Strategy
+- `TASKS2.md` Phase 4 and Phase 10
+
+Required behavior:
+
+- handle PDFs and images
+- produce structured attachment evidence
+- support attachment-derived bookkeeping
+
+Current code:
+
+- `app/llm/attachment_evidence_builder.py` only decodes text-like files
+- PDFs, images, OCR, and tables are effectively unsupported
+- non-text files produce empty evidence text
+
+Impact:
+
+- Attachment-heavy competition tasks are not genuinely solvable.
+- Planner quality is much worse on supplier invoices, receipts, and scanned documents.
+- This blocks the exact task family that the logs and analysis identify as difficult.
+
+Fix:
+
+1. Add PDF extraction.
+2. Add OCR/VLM extraction for images.
+3. Emit structured evidence fields from `PLAN2.md`:
+   - attachment id
+   - extracted text
+   - OCR text
+   - tables
+   - confidence
+   - provenance
+4. Add attachment-heavy acceptance cases.
+
+### Delta 3. Full raw fallback is required by the docs, but the planner only sees a tiny ranked slice
+
+Source requirement:
+
+- `RULES.md` Rule 7
+- `DESC.md` Section 7
+- `PLAN2.md` Raw fallback routing
+
+Required behavior:
+
+- full raw `operationId` surface is in scope
+
+Current code:
+
+- `app/llm/context_catalog.py` sends only `rawOperations[:25]`
+- ranking is based on naive token overlap on the original prompt text
+- the ranking is not multilingual and not domain-aware
+
+Evidence:
+
+- For the supplier-invoice prompt, the first ranked raw operations are noisy and include irrelevant invoice/order/bank operations.
+- For the same prompt, supplier-oriented raw operations are not reliably surfaced near the top.
+- For the timesheet prompt, even the ranked raw list includes many irrelevant `approve/unapprove` operations ahead of the actual total-hours operation.
+
+Impact:
+
+- Raw fallback is not truly whole-API ready.
+- The model is more likely to hallucinate a friendly alias than to use the correct raw operation.
+- Supplier, inventory, asset, bank, and other non-wrapper families are fragile.
+
+Fix:
+
+1. Stop treating the first 25 raw operations as the effective raw contract.
+2. Add a full raw-operation index or domain-family retrieval layer.
+3. Rank raw operations using:
+   - translated/canonical prompt text
+   - technical flow families
+   - domain hints
+   - not just token overlap
+4. Prefer per-domain retrieval over a single flat top-25 list.
+
+### Delta 4. `fields`, `from`, `count`, and `sorting` are documented as important, but the wrapper drops them
+
+Source requirement:
+
+- `DESC.md` Section 2.3
+- `API.md` Sections 4.1 and 5
+- `ANALYSIS.md` Section 7
+
+Required behavior:
+
+- use `fields`
+- use narrow pagination
+- use targeted search patterns efficiently
+
+Current code:
+
+- `scripts/generate_catalogs.py` marks these as `targetSection = "control"`
+- `app/wrapper/commands.py` discards every `control` binding
+
+Observed effect:
+
+- friendly commands never actually send `fields`
+- friendly commands never send `from`, `count`, or `sorting`
+- even `session.who_am_i` cannot forward its `fields` input
+
+Impact:
+
+- search efficiency is worse than the docs require
+- ambiguity resolution is weaker because sparse field selection is unavailable
+- call count and payload size are worse than necessary
+
+Fix:
+
+1. Rebind `fields`, `from`, `count`, and `sorting` to raw query parameters instead of dropping them.
+2. Keep `date_window` as a higher-level control input if desired, but not ordinary query controls.
+3. Add tests proving that `fields` and pagination survive the friendly wrapper.
+
+### Delta 5. Several business flows are structurally incompatible with the command specs they depend on
+
+Source requirement:
+
+- `DESC.md` Sections 5 and 6
+- `PLAN1.md` Router Binding Strategy
+
+Problem:
+
+Some flows call search commands that, per the generated command catalog, require date windows, but the flows neither accept nor synthesize those required inputs.
+
+Concrete mismatches:
+
+- `invoice.register_payment`
+  - flow uses `invoice.search`
+  - command requires `invoice_date_from`, `invoice_date_to`
+
+- `invoice.credit_note`
+  - flow uses `invoice.search`
+  - command requires `invoice_date_from`, `invoice_date_to`
+
+- `voucher.reverse_or_correct`
+  - flow uses `voucher.search`
+  - command requires `date_from`, `date_to`
+
+- `ledger.verify_effect`
+  - flow may use `voucher.search`
+  - command requires `date_from`, `date_to`
+  - then `ledger.posting.search` requires `date_from`, `date_to`
+
+- `supplier_invoice.register_payment`
+  - flow uses `supplier_invoice.search`
+  - command requires `invoice_date_from`, `invoice_date_to`
+
+Impact:
+
+- these flows are partially impossible as currently implemented
+- even perfect planner output can still fail because the flow internals cannot satisfy the documented command requirements
+
+Fix:
+
+1. For every flow that calls a required-date search command, add date-window inputs to the flow contract.
+2. Add planner rules for synthesizing bounded date windows when the user gives a number or invoice date.
+3. Where possible, prefer `get` by ID after an earlier exact resolution step instead of repeated date-bounded searches.
+4. Update `DESC.md` if the intended flow contract changes.
+
+### Delta 6. Type and shape validation is still too weak for semantic correctness
+
+Source requirement:
+
+- `LLM.md` Validation Rules
+- `PLAN2.md` Validation Strategy
+- `ANALYSIS.md` Section 8
+
+Current code:
+
+- `app/llm/response_validator.py` validates names and presence
+- it does not validate value types deeply
+- `app/wrapper/commands.py` will happily convert a plain string `voucher_type_ref` into `{"id": "<string>"}` via `ref_object`
+
+Evidence:
+
+- live Tripletex error: `voucherType.id` wrong type on `POST /ledger/voucher`
+
+Probable cause:
+
+- the planner is emitting a ref-like input with a human string instead of an integer or resolved object id
+- the validator allows it
+- the wrapper converts it into an object with a string id
+- Tripletex rejects it
+
+Impact:
+
+- semantically wrong payloads pass local validation and only fail after spending a live Tripletex call
+
+Fix:
+
+1. Validate ref-like friendly inputs by type before execution:
+   - integer id
+   - numeric string only if explicitly coerced
+   - object with integer `id`
+2. Reject plain human strings for `*_ref` fields unless the selected business flow is the one responsible for resolution.
+3. Add schema-aware type checks for:
+   - dates
+   - arrays
+   - money fields
+   - id refs
+4. Add one bounded correction retry when Tripletex returns a precise validation error.
+
+### Delta 7. Generated conformance policies exist, but runtime does not use them
+
+Source requirement:
+
+- `PLAN2.md` Failure Mode 6 mitigation
+- `TASKS2.md` security/validation/evaluation phases
+- `ANALYSIS.md` sandbox-sensitive family notes
+
+Current code:
+
+- `app/generated/conformance_policies.json` exists
+- `conformancePolicyKey` exists on commands and operations
+- runtime never consults these policies in planner prompting, validation, or execution
+
+Impact:
+
+- the code has metadata for sensitive families, but it has no behavior attached to it
+- supplier invoice, attachment accounting, travel expense, employee access, and credit note families remain under-constrained
+
+Fix:
+
+1. Inject policy summaries into the prompt only for relevant steps/families.
+2. Add validator rules keyed by `conformancePolicyKey`.
+3. Add family-specific preflight checks and post-error repair rules.
+
+### Delta 8. Supplier domain support is missing from the friendly surface, but supplier workflows are in OpenAPI and needed in real tasks
+
+Source requirement:
+
+- `docs/openapi.json` contains `/supplier`
+- `ANALYSIS.md` and `LLM.md` both treat supplier and supplier invoice entities as in-scope data families
+- `RULES.md` says full raw surface is in scope
+
+Current state:
+
+- OpenAPI exposes:
+  - `GET /supplier`
+  - `GET /supplier/{id}`
+  - `POST /supplier`
+  - `PUT /supplier/{id}`
+- generated raw catalog contains:
+  - `Supplier_search`
+  - `Supplier_get`
+  - `Supplier_post`
+  - `Supplier_put`
+- `DESC.md` friendly command catalog does not include `supplier.search`, `supplier.get`, `supplier.create`, or `supplier.update`
+- live log shows the planner hallucinating `supplier.search`
+
+Impact:
+
+- supplier-centric prompts have no safe friendly resolution path
+- supplier-invoice creation/import tasks naturally want supplier resolution by name/org number
+- the planner currently fills the gap by inventing a command name
+
+Fix options:
+
+1. Preferred:
+   - extend `DESC.md` to include supplier-friendly commands
+   - add a `supplier.create_or_update` flow if supplier creation is in task scope
+2. Minimum:
+   - keep supplier only as raw fallback
+   - explicitly teach the planner to use exact raw `Supplier_search` and `Supplier_post`
+   - never invent `supplier.search`
+
+### Delta 9. There is no business-safe flow for supplier-invoice registration/import from prompt or attachment
+
+Source requirement:
+
+- `ANALYSIS.md` highlights attachment-derived bookkeeping as a hard family
+- `LLM.md` includes supplier and incoming-invoice families
+- `docs/openapi.json` exposes:
+  - `POST /ledger/voucher/importDocument`
+  - `GET /incomingInvoice/{voucherId}`
+  - `PUT /incomingInvoice/{voucherId}`
+  - `PUT /supplierInvoice/voucher/{id}/postings`
+
+Current state:
+
+- friendly surface only covers supplier-invoice payment registration
+- there is no flow for:
+  - importing a supplier invoice document
+  - resolving the created voucher/incoming invoice
+  - updating invoice header/order lines/postings
+  - sending to ledger / finalizing the supplier invoice
+
+Impact:
+
+- a major competition family is not modeled at the business-flow level
+- this explains why document bookkeeping prompts drift toward generic `voucher.create`, `ledger.voucher.importDocument`, or hallucinated supplier commands
+
+Fix:
+
+1. Add a documented supplier-invoice registration/import flow to `DESC.md`.
+2. Model the likely stages explicitly:
+   - supplier resolve/create
+   - document import
+   - incoming invoice fetch/update
+   - supplier invoice postings update
+   - optional verification
+3. Attach the `attachment_accounting` policy to this flow.
+
+### Delta 10. Router execution semantics still drift from the bridge model
+
+Source requirement:
+
+- `LLM.md` Execution Plan Model
+- `PLAN1.md` and `PLAN2.md` integration boundary
+
+Current code:
+
+- `app/router/service.py` uses `selectedCommands`/`fallbackRawCommands` as a hard override in `_default_order`
+- if any commands are present, selected flows are skipped from default execution order
+
+Impact:
+
+- a bridge that contains both flow-level and command-level planning can be interpreted differently than intended
+- flow-level orchestration may be silently bypassed
+
+Fix:
+
+1. Define whether:
+   - `selectedCommands` are explanatory children of a flow, or
+   - independently executable top-level steps
+2. Make router behavior match that model exactly.
+3. If child commands are informational only, do not use them as executable override.
+
+### Delta 11. Planner prompt and repair are still underpowered for the failing domains
+
+Source requirement:
+
+- `PLAN2.md` One-Shot Prompt Contract
+- `TASKS2.md` Phase 7 and Phase 8
+- `EXAMPLE.md`
+
+Current state:
+
+- prompt examples are still sparse
+- there is no family-specific positive/negative example set for:
+  - supplier invoice import
+  - voucher correction
+  - attachment accounting
+  - supplier resolution
+- repair only fixes invalid JSON / bridge-shape issues
+- repair does not address:
+  - omitted step selection
+  - wrong legal route
+  - precise Tripletex validation failures
+
+Impact:
+
+- planner sometimes returns no executable steps
+- planner still hallucinates unavailable aliases in stressed domains
+
+Fix:
+
+1. Add examples for:
+   - supplier invoice payment
+   - supplier invoice import
+   - voucher correction
+   - attachment-derived bookkeeping
+   - blocked plan with missing accounting facts
+2. Add a bounded semantic retry path after precise Tripletex `4xx` validation errors.
+3. Prefer flow-first prompts when resolution dependencies exist.
+
+### Delta 12. Observability is still too weak for efficient debugging
+
+Source requirement:
+
+- `PLAN2.md` Observability Strategy
+
+Current state:
+
+- logs show:
+  - solve failed/succeeded
+  - request id
+  - high-level exception message
+- logs do not show:
+  - the validated bridge
+  - selected flow/command names in a structured record
+  - the raw Tripletex request parameters/body shape
+  - which conformance policy was active
+
+Impact:
+
+- the `voucherType.id` failure cannot be traced to the exact planner output from logs alone
+- the `supplier.search` failure can be seen, but not the surrounding bridge state
+
+Fix:
+
+1. Log a sanitized execution summary:
+   - request id
+   - selected flows
+   - selected commands
+   - fallback raw op ids
+   - selected policy keys
+2. Log sanitized outbound Tripletex request metadata:
+   - path
+   - query keys
+   - body keys
+   - not secret values
+3. Log bridge validation failures with structured error codes.
+
+### Delta 13. Evaluation and acceptance coverage are still far below the documented target
+
+Source requirement:
+
+- `TASKS2.md` Phase 10 and Phase 12
+- `PLAN2.md` Evaluation Strategy
+
+Current state:
+
+- tests focus on catalog coverage and light router execution
+- no acceptance suite exists for:
+  - multilingual prompts
+  - attachments
+  - supplier invoice
+  - voucher correction
+  - raw fallback families
+  - exact `EXAMPLE.md` reproduction
+
+Impact:
+
+- regressions are discovered in production logs instead of in local gates
+
+Fix:
+
+1. Add golden tests for:
+   - `EXAMPLE.md` timesheet case
+   - supplier invoice payment
+   - supplier invoice import
+   - voucher correction
+   - attachment-derived bookkeeping
+2. Add prompt-to-bridge tests, not only router tests.
+3. Add live sandbox smoke tests for the sandbox-sensitive families identified in `ANALYSIS.md`.
+
+## Why The Current Live Calls Fail
+
+### Failure A. `supplier.search` unknown command
+
+Most likely chain:
+
+1. The task semantically needs supplier resolution.
+2. The friendly surface has no supplier command family.
+3. Raw fallback retrieval is weak and noisy for this prompt.
+4. Gemini invents `supplier.search` as a plausible alias.
+5. Validator correctly rejects it.
+6. `/solve` still returns HTTP `422`, which is itself a contract bug.
+
+Primary fix:
+
+- add supplier resolution support, either as friendly aliases in `DESC.md` or as a strongly guided raw-fallback path.
+
+### Failure B. `voucherType.id` wrong type on `POST /ledger/voucher`
+
+Most likely chain:
+
+1. The planner chooses direct voucher creation for a bookkeeping-style task.
+2. The bridge includes a ref-like voucher-type field in the wrong shape.
+3. Local validation checks presence but not semantic type.
+4. Wrapper converts that value into an object Tripletex rejects.
+5. No semantic retry path exists after the precise `422`.
+
+Primary fix:
+
+- add type-aware validation for `*_ref` fields and a bounded semantic retry path.
+
+### Failure C. `Planner output omitted executable steps`
+
+Most likely chain:
+
+1. The planner understands the domain weakly but does not commit to a legal route.
+2. Prompt examples and repair logic are not strong enough for that family.
+3. The validator catches the missing step selection.
+
+Primary fix:
+
+- stronger domain examples, stronger route-selection constraints, and better raw/friendly retrieval.
+
+## Fix Order
+
+### Phase 1. Contract and observability baseline
+
+1. Make `/solve` always return HTTP `200` with `{"status":"completed"}`.
+2. Add structured sanitized logging for:
+   - bridge summary
+   - selected steps
+   - outbound Tripletex call shapes
+   - Tripletex validation errors
+
+### Phase 2. Make the existing wrapper surface actually conform
+
+3. Stop dropping `fields`, `from`, `count`, and `sorting`.
+4. Audit every flow against the command requirements it internally calls.
+5. Add missing flow inputs or internal bounded search synthesis where required.
+
+### Phase 3. Stop preventable semantic `4xx` calls
+
+6. Add type-aware validation for ref fields and payload shapes.
+7. Reject human strings in `*_ref` slots unless a business flow is responsible for resolving them.
+8. Add one bounded post-Tripletex semantic retry for precise validation errors.
+
+### Phase 4. Close the supplier and supplier-invoice gaps
+
+9. Decide whether supplier CRUD belongs in the friendly surface.
+10. Add a business-safe supplier-invoice registration/import flow.
+11. Update `DESC.md`, regenerate catalogs, and add tests.
+
+### Phase 5. Make raw fallback genuinely whole-surface
+
+12. Replace the naive raw top-25 context with domain-aware retrieval.
+13. Rank on canonicalized prompt text, not only original tokens.
+14. Expose better technical-family context to Gemini.
+
+### Phase 6. Finish the attachment path
+
+15. Implement PDF/image extraction.
+16. Attach provenance and confidence.
+17. Add attachment-heavy evaluation cases and sandbox smoke tests.
+
+## Highest-Value Immediate Fixes
+
+If the goal is to improve real success rate fastest, the next code changes should be:
+
+1. `/solve` response-contract fix
+2. control-query-parameter fix
+3. flow/search-required-input audit and repair
+4. ref-type validation
+5. supplier/supplier-invoice path design
+6. observability upgrade
+
+That order gives the fastest reduction in:
+
+- competition contract drift
+- opaque failures
+- preventable Tripletex `4xx` calls
+- supplier-invoice failure rate
+
+## Final Assessment
+
+V2 is no longer a scaffold. It is a functioning stack with generated catalogs, a planner, a router, a wrapper layer, and a raw executor. It already proves one real successful execution path.
+
+The remaining problems are not “the whole architecture is wrong.” The remaining problems are:
+
+- contract drift at the `/solve` edge
+- under-implemented attachment support
+- incomplete supplier/supplier-invoice modeling
+- weak semantic validation before Tripletex calls
+- weak raw-operation retrieval for true full-surface fallback
+- insufficient observability to debug live failures quickly
+
+Those are fixable deltas, and the logs now point to them clearly.

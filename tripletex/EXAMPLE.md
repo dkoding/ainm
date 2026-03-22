@@ -182,16 +182,12 @@ Representative JSON:
     }
   },
   "executionPlan": {
-    "selectedFlows": [
-      {
-        "name": "timesheet.entry.read",
-        "kind": "technical_flow_family"
-      }
-    ],
-    "selectedCommands": [
+    "selectedFlows": [],
+    "selectedCommands": [],
+    "fallbackRawCommands": [
       {
         "stepId": "step_1",
-        "command": "TimesheetEntryTotalHours_getTotalHours",
+        "commandType": "raw_operation",
         "operationId": "TimesheetEntryTotalHours_getTotalHours",
         "purpose": "Get total worked hours for the token owner in February 2026"
       }

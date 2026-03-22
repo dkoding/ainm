@@ -1,6 +1,4 @@
-Copyright (c) 2026 DKIT AS
-
-All rights reserved.
+Copyright (c) 2026 DKIT AS - All rights reserved.
 
 No part of this repository may be reproduced, distributed, modified, stored in a retrieval system, transmitted, or used in any form or by any means — electronic, mechanical, photocopying, recording, or otherwise — without explicit prior written permission from the copyright holder.
 

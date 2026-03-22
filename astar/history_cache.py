@@ -126,6 +126,36 @@ def summarize_history_cache(root: str | Path, cache_prefix: str = DEFAULT_HISTOR
     }
 
 
+def history_round_entries_with_analysis(
+    index: dict[str, Any] | None,
+    *,
+    exclude_round_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    if not index:
+        return []
+    excluded = {str(item) for item in (exclude_round_ids or set())}
+    entries: list[dict[str, Any]] = []
+    for round_entry in index.get("rounds", []):
+        round_id = str(round_entry.get("round_id"))
+        if round_id in excluded:
+            continue
+        if not round_entry.get("analysis_cached_seeds"):
+            continue
+        entries.append(round_entry)
+    return entries
+
+
+def history_round_ids_with_analysis(
+    index: dict[str, Any] | None,
+    *,
+    exclude_round_ids: set[str] | None = None,
+) -> list[str]:
+    return [
+        str(round_entry.get("round_id"))
+        for round_entry in history_round_entries_with_analysis(index, exclude_round_ids=exclude_round_ids)
+    ]
+
+
 def iter_cached_analysis_records(
     root: str | Path,
     cache_prefix: str = DEFAULT_HISTORY_CACHE_PREFIX,

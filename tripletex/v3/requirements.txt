@@ -1,0 +1,5 @@
+fastapi
+google-auth
+pypdf
+requests
+uvicorn[standard]

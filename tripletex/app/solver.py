@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 
 from app.contracts import ExecutionContext, ExecutionResult, SolveRequest
 from app.llm import LLMPlanner
+from app.openapi_catalog import load_openapi_catalog
 from app.raw.errors import RawExecutionError
 from app.router import BridgeRouter
 
@@ -20,6 +21,7 @@ class SolveService:
         self.planner = planner or LLMPlanner()
         self.router = router or BridgeRouter()
         self.timezone_name = os.getenv("TRIPLETEX_TIMEZONE", "Europe/Oslo")
+        self.openapi_catalog = load_openapi_catalog()
 
     def execute(self, request: SolveRequest) -> ExecutionResult:
         request_id = str(uuid4())
@@ -76,6 +78,12 @@ class SolveService:
         try:
             result = self.router.execute(bridge, execution_context)
         except RawExecutionError as exc:
+            capability_issues = self._blocking_issues_from_capability_error(exc)
+            if capability_issues:
+                raise RawExecutionError(
+                    message="Bridge JSON is blocked.",
+                    details={"blockingIssues": capability_issues},
+                ) from exc
             if exc.status_code in {400, 409, 422}:
                 repaired_bridge = self.planner.repair_after_execution_error(
                     request=request,
@@ -93,8 +101,75 @@ class SolveService:
                     [step.operationId or step.resolved_name for step in repaired_bridge.executionPlan.fallbackRawCommands],
                     self.router._selected_policy_keys(repaired_bridge),
                 )
-                result = self.router.execute(repaired_bridge, execution_context)
+                try:
+                    result = self.router.execute(repaired_bridge, execution_context)
+                except RawExecutionError as retry_exc:
+                    capability_issues = self._blocking_issues_from_capability_error(retry_exc)
+                    if capability_issues:
+                        raise RawExecutionError(
+                            message="Bridge JSON is blocked.",
+                            details={"blockingIssues": capability_issues},
+                        ) from retry_exc
+                    blocking_issues = self._blocking_issues_from_retry_error(retry_exc)
+                    if blocking_issues:
+                        raise RawExecutionError(
+                            message="Bridge JSON is blocked.",
+                            details={"blockingIssues": blocking_issues},
+                        ) from retry_exc
+                    raise
             else:
                 raise
         logger.info("solve.executed request_id=%s steps=%s", request_id, len(result.traces))
         return result
+
+    def _blocking_issues_from_capability_error(self, error: RawExecutionError) -> list[str] | None:
+        if error.status_code != 403:
+            return None
+        details = error.details if isinstance(error.details, dict) else {}
+        operation_id = details.get("operationId")
+        if not isinstance(operation_id, str) or not operation_id.strip():
+            return None
+        profile = self.openapi_catalog.capability_profile(operation_id)
+        if not profile.get("isRestricted"):
+            return None
+        summary = profile.get("summary") or operation_id
+        if profile.get("isPilotOnly"):
+            return [f"The task requires {summary}, but that Tripletex API is restricted to pilot-enabled tenants."]
+        return [f"The task requires {summary}, but that Tripletex API is restricted for the current tenant."]
+
+    def _blocking_issues_from_retry_error(self, error: RawExecutionError) -> list[str] | None:
+        if error.status_code not in {400, 409, 422}:
+            return None
+        details = error.details if isinstance(error.details, dict) else {}
+        body = details.get("body")
+        if not isinstance(body, dict):
+            return None
+        validation_messages = body.get("validationMessages")
+        if not isinstance(validation_messages, list) or not validation_messages:
+            return None
+        blocking_issues: list[str] = []
+        for item in validation_messages:
+            if not isinstance(item, dict):
+                return None
+            message = str(item.get("message") or "").strip()
+            if not message or not self._is_missing_required_message(message):
+                return None
+            field = str(item.get("field") or "").strip()
+            if field:
+                blocking_issues.append(f"Tripletex requires {field}: {message}")
+            else:
+                blocking_issues.append(f"Tripletex requires additional data: {message}")
+        return blocking_issues or None
+
+    def _is_missing_required_message(self, message: str) -> bool:
+        normalized = message.strip().lower()
+        required_markers = (
+            "feltet må fylles ut",
+            "kan ikke være",
+            "required",
+            "must be provided",
+            "must not be empty",
+            "cannot be empty",
+            "mandatory",
+        )
+        return any(marker in normalized for marker in required_markers)

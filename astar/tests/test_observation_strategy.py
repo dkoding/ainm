@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 try:
     import numpy as np
     from history_priors import HistoryPriorModel, RoundPrior
-    from observation_strategy import build_round_viewport_plan, select_next_viewport_request
+    from observation_strategy import build_round_viewport_plan, score_viewport_request, select_next_viewport_request
 except ImportError as exc:  # pragma: no cover - environment guard
     raise unittest.SkipTest(f"missing runtime dependency: {exc}") from exc
 
@@ -148,6 +148,149 @@ class ObservationStrategyTests(unittest.TestCase):
         assert selection is not None
         self.assertIn("regime_disagreement", selection["score_components"])
         self.assertGreaterEqual(selection["score_components"]["regime_disagreement"], 0.0)
+
+    def test_trigger_components_are_reported_after_observations(self) -> None:
+        round_detail = self._round_detail()
+        selection = select_next_viewport_request(
+            round_detail=round_detail,
+            viewport_size=15,
+            observations_by_seed={
+                0: [
+                    {
+                        "grid": [[2 for _ in range(15)] for _ in range(15)],
+                        "settlements": [{"x": 5, "y": 5, "has_port": True, "alive": True, "owner_id": "a"}],
+                        "viewport": {"x": 0, "y": 0, "w": 15, "h": 15},
+                        "width": 40,
+                        "height": 40,
+                    }
+                ]
+            },
+        )
+        self.assertIsNotNone(selection)
+        assert selection is not None
+        components = selection["score_components"]
+        for key in (
+            "development_trigger",
+            "trade_trigger",
+            "collapse_trigger",
+            "development_gap",
+            "trade_gap",
+            "trigger_activation",
+            "trigger_signal_bonus",
+        ):
+            self.assertIn(key, components)
+        self.assertGreaterEqual(components["trigger_signal_bonus"], 0.0)
+
+    def test_trade_trigger_prefers_coastal_probe_when_round_looks_trade_heavy(self) -> None:
+        grid = [[11 for _ in range(40)] for _ in range(40)]
+        for y in range(25, 40):
+            for x in range(40):
+                grid[y][x] = 10
+        state = {
+            "grid": grid,
+            "settlements": [{"x": 7, "y": 7, "has_port": False}],
+        }
+        request_inland = next(
+            item
+            for item in build_round_viewport_plan(
+                round_detail={"map_width": 40, "map_height": 40, "initial_states": [state]},
+                total_queries=1,
+                viewport_size=15,
+            )[0]
+        )
+        request_coastal = next(
+            item
+            for item in build_round_viewport_plan(
+                round_detail={"map_width": 40, "map_height": 40, "initial_states": [state]},
+                total_queries=9,
+                viewport_size=15,
+            )[0]
+            if item.viewport_y == 15
+        )
+        base_prediction = np.full((40, 40, 6), 1.0 / 6.0, dtype=float)
+        entropy_grid = -np.sum(base_prediction * np.log(base_prediction), axis=-1)
+        empty_summary = {
+            "cell_observation_counts": np.zeros((40, 40), dtype=int),
+            "cell_class_counts": {},
+            "cell_entropy": {},
+        }
+        trade_heavy_context = {
+            "signal_gaps": {"development": 0.0, "trade": 0.8, "conflict": 0.0, "harshness": 0.0},
+            "trigger_activation": 1.0,
+        }
+        inland = score_viewport_request(
+            state=state,
+            request=request_inland,
+            prediction_tensor=base_prediction,
+            entropy_grid=entropy_grid,
+            observation_summary=empty_summary,
+            repeat_count=0,
+            seed_unique_coverage=1,
+            round_trigger_context=trade_heavy_context,
+        )
+        coastal = score_viewport_request(
+            state=state,
+            request=request_coastal,
+            prediction_tensor=base_prediction,
+            entropy_grid=entropy_grid,
+            observation_summary=empty_summary,
+            repeat_count=0,
+            seed_unique_coverage=1,
+            round_trigger_context=trade_heavy_context,
+        )
+        self.assertGreater(coastal["score_components"]["trade_trigger"], inland["score_components"]["trade_trigger"])
+        self.assertGreater(coastal["score"], inland["score"])
+
+    def test_resource_trigger_prefers_window_near_high_wealth_observed_settlement(self) -> None:
+        grid = [[11 for _ in range(40)] for _ in range(40)]
+        for y in range(25, 40):
+            for x in range(40):
+                grid[y][x] = 10
+        state = {
+            "grid": grid,
+            "settlements": [{"x": 18, "y": 20, "has_port": False}],
+        }
+        base_prediction = np.full((40, 40, 6), 1.0 / 6.0, dtype=float)
+        entropy_grid = -np.sum(base_prediction * np.log(base_prediction), axis=-1)
+        empty_summary = {
+            "cell_observation_counts": np.zeros((40, 40), dtype=int),
+            "cell_class_counts": {},
+            "cell_entropy": {},
+        }
+        growth_context = {
+            "signal_gaps": {"development": 0.35, "trade": 0.45, "conflict": 0.0, "harshness": 0.0},
+            "trigger_activation": 1.0,
+        }
+        resource_context = {
+            "targets": [
+                {"kind": "wealth", "x": 18, "y": 20, "weight": 1.0, "has_port": False},
+            ]
+        }
+        nearby = score_viewport_request(
+            state=state,
+            request=next(item for item in build_round_viewport_plan(round_detail={"map_width": 40, "map_height": 40, "initial_states": [state]}, total_queries=9, viewport_size=15)[0] if item.viewport_x == 15 and item.viewport_y == 15),
+            prediction_tensor=base_prediction,
+            entropy_grid=entropy_grid,
+            observation_summary=empty_summary,
+            repeat_count=0,
+            seed_unique_coverage=1,
+            round_trigger_context=growth_context,
+            resource_trigger_context=resource_context,
+        )
+        far = score_viewport_request(
+            state=state,
+            request=next(item for item in build_round_viewport_plan(round_detail={"map_width": 40, "map_height": 40, "initial_states": [state]}, total_queries=9, viewport_size=15)[0] if item.viewport_x == 0 and item.viewport_y == 0),
+            prediction_tensor=base_prediction,
+            entropy_grid=entropy_grid,
+            observation_summary=empty_summary,
+            repeat_count=0,
+            seed_unique_coverage=1,
+            round_trigger_context=growth_context,
+            resource_trigger_context=resource_context,
+        )
+        self.assertGreater(nearby["score_components"]["resource_wealth_trigger"], far["score_components"]["resource_wealth_trigger"])
+        self.assertGreater(nearby["score_components"]["resource_trigger_bonus"], far["score_components"]["resource_trigger_bonus"])
+        self.assertGreater(nearby["score"], far["score"])
 
 
 if __name__ == "__main__":

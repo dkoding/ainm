@@ -135,6 +135,7 @@ def tick(args: argparse.Namespace, client: AstarClient, artifact_store: Artifact
         for item in rounds
         if str(item.get("status")).lower() == "completed"
     ]
+    needs_history_support_refresh = False
     for round_id in completed_round_ids:
         if round_id in state.reviewed_round_ids:
             continue
@@ -144,6 +145,24 @@ def tick(args: argparse.Namespace, client: AstarClient, artifact_store: Artifact
         run_post_round_review(args=args, round_id=round_id, out_dir=args.out_dir)
         write_round_score_feedback(root=Path(args.out_dir), round_id=round_id, my_rounds=my_rounds)
         state.reviewed_round_ids.append(round_id)
+        needs_history_support_refresh = True
+    if needs_history_support_refresh:
+        try:
+            run_history_support_refresh(args=args, out_dir=args.out_dir)
+        except Exception as exc:
+            print(f"loop warning: history support refresh failed: {exc}")
+            log_loop_event(
+                root=Path(args.out_dir),
+                event_type="history_support_refresh_error",
+                message="history support refresh failed",
+                error=str(exc),
+            )
+        else:
+            log_loop_event(
+                root=Path(args.out_dir),
+                event_type="history_support_refresh",
+                message="history support refresh completed",
+            )
 
     active_round = choose_active_round(rounds=rounds, my_rounds=my_rounds)
     if not active_round:
@@ -396,6 +415,20 @@ def run_post_round_review(args: argparse.Namespace, round_id: str, out_dir: str)
         "post_round_review.py",
         "--round-id",
         round_id,
+        "--out-dir",
+        out_dir,
+    ]
+    run_local_command(command, cwd=Path(__file__).resolve().parent)
+
+
+def run_history_support_refresh(args: argparse.Namespace, out_dir: str) -> None:
+    command = [
+        sys.executable,
+        "refresh_history_support.py",
+        "--token",
+        args.token,
+        "--base-url",
+        args.base_url,
         "--out-dir",
         out_dir,
     ]

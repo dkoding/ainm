@@ -37,9 +37,10 @@ What is included here:
 - `history_cache.py`: completed-round cache sync and cache-loading helpers for `/analysis` data.
 - `history_priors.py`: empirical prior builder that learns simple class distributions from cached completed rounds and can reweight them by round-regime similarity.
 - `history_dataset.py`: JSONL dataset builder from cached completed-round analysis.
+- `observation_replay.py`: shared cached and synthetic observation replay helpers used by offline variant evaluation and post-observation model training.
 - `feature_engineering.py`: shared per-cell feature extraction used by dataset generation and local ML inference.
 - `scoring.py`: offline entropy-weighted KL scorer matching the organizer docs.
-- `sklearn_model.py`: local scikit-learn soft-target random-forest training and inference helpers over the cached history dataset, including entropy-aware sample weighting and held-out round calibration.
+- `sklearn_model.py`: local scikit-learn soft-target random-forest training and inference helpers over the cached history dataset, including entropy-aware sample weighting, held-out round calibration, and a learned post-observation residual model for unsampled cells.
 - `supervise_round_loop.py`: lightweight local supervisor that restarts `round_loop.py` if it exits or stops heartbeating.
 - `reporting.py`: compact per-run reporting helper for prediction summaries and budget context.
 - `tune_baseline.py`: cached grid search for baseline floor and history-prior strength over completed rounds.
@@ -47,6 +48,7 @@ What is included here:
 - `evaluate_history.py`: CLI entrypoint for offline evaluation on cached rounds.
 - `train_sklearn_model.py`: CLI entrypoint for training a local random-forest regressor from cached history.
 - `evaluate_sklearn_model.py`: CLI entrypoint for leave-one-round-out evaluation of the local sklearn model.
+- `resource_analysis.py`: CLI entrypoint for per-settlement and per-window resource analysis from cached simulation snapshots joined to completed-round ground truth.
 - `validate_predictions.py`: local prediction validator before submit.
 - `resume_round.py`: rebuild and optionally submit predictions from cached simulation artifacts.
 - `sync_history_cache.py`: CLI entrypoint for downloading and caching completed-round history.
@@ -122,6 +124,12 @@ Evaluate the local scikit-learn model with leave-one-round-out scoring:
 
 ```bash
 python3 evaluate_sklearn_model.py
+```
+
+Analyze observed settlement resources against completed-round outcomes:
+
+```bash
+python3 resource_analysis.py
 ```
 
 If there is no active round, rerun with an explicit historical round:
@@ -210,16 +218,16 @@ Notes:
 - Completed-round cache data is written under `artifacts/history/...` by default, with `index.json` summarizing what has been synced. The sync now also attempts `scoring` rounds when `/analysis` is already available.
 - By default, `run_round.py` refreshes completed-round history first, tunes the baseline if defaults are in use, retrains the local sklearn model on completed rounds only, re-evaluates it, and then predicts the active round.
 - History sync now always pulls the full completed-round history. There is no round-limit flag in the default workflow anymore.
-- The default live query policy is now `50` queries: up to `45` unique tile samples chosen by the adaptive information-gain planner, then `5` targeted repeat samples on the highest-uncertainty windows. The planner now also scores windows by historical regime disagreement, not just local entropy.
+- The default live query policy is now `50` queries: up to `45` unique tile samples chosen by the adaptive information-gain planner, then `5` targeted repeat samples on the highest-uncertainty windows. The planner now also scores windows by historical regime disagreement, observation-triggered development/trade/collapse probes, and resource-triggered settlement follow-ups from high-wealth or stressed repeated observations, not just local entropy.
 - The updated scaffold can spend simulator queries and blend observed outcomes back into the per-cell probability tensor.
 - `sync_history_cache.py` can cache completed-round `/analysis` payloads locally so startup logic can reuse them without refetching every file first.
 - When cached analysis exists, `run_round.py` can automatically build simple empirical priors from that history and blend them into the baseline.
 - When cached analysis exists and default baseline knobs are still in use, `run_round.py` can tune the probability floor and history-prior strength automatically before the active-round prediction step.
 - When cached analysis exists and `scikit-learn` is installed, `run_round.py` can retrain the local random-forest regressor before current-round inference. Training uses completed rounds only; the active round is never added to training before prediction.
 - The sklearn path now trains with entropy-aware sample weights, applies held-out round calibration before the final floor step, and records dynamic-cell diagnostics during evaluation.
-- In `auto` mode, `run_round.py` now compares `baseline_history`, `sklearn`, observation-conditioned variants, and ensemble variants on completed rounds using replayed observations. Real cached historical simulations are preferred when available; synthetic observation-backed replays are the fallback.
+- In `auto` mode, `run_round.py` now compares `baseline_history`, `sklearn`, observation-conditioned variants, learned post-observation variants, and ensemble variants on completed rounds using replayed observations. Real cached historical simulations are preferred when available; synthetic observation-backed replays are the fallback.
 - Live observations can now reweight the history prior by round-regime similarity before the baseline and ensemble variants are built, and that inference now includes round-level summaries from observed settlement stats when present.
-- Live observations can now also influence unsampled cells through an observation-conditioned global variant instead of only patching directly observed windows.
+- Live observations can now also influence unsampled cells through both a heuristic global post-observation variant and a learned residual post-observation variant trained from replayed completed rounds, instead of only patching directly observed windows.
 - `round_loop.py` records official server round scores from `my_rounds`, runs post-round review when a round completes, writes score-feedback artifacts, and can automatically avoid a repeatedly regressing variant in `auto` mode.
 - `round_loop.py` now writes `loop/events.jsonl`, `loop/heartbeat.json`, and a `loop/loop.lock` file so automation decisions are auditable and duplicate watchers are easier to avoid.
 - `supervise_round_loop.py` can now watch `round_loop.py` and restart it if the heartbeat goes stale.
@@ -240,6 +248,7 @@ Important paths:
 - `artifacts/history/rounds/<round_id>/team/analysis/seed_<n>.json`: cached completed-round analysis
 - `artifacts/history/datasets/cell_examples.jsonl`: training dataset built from cached history
 - `artifacts/history/evaluation.json`: offline evaluation summary
+- `artifacts/history/resource_analysis.json`: resource-level settlement and window analysis from cached simulations
 - `artifacts/<round_id>/report.json`: current run report
 - `artifacts/<round_id>/predictions_initial/seed_<n>.json`: early safe submission payloads when staged submit is enabled
 - `artifacts/<round_id>/predictions/seed_<n>.json`: submission payloads

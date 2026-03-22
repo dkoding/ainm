@@ -1,0 +1,29 @@
+{
+  "policies": {
+    "attachment_accounting": {
+      "summary": "Attachment-derived bookkeeping requires explicit provenance and extraction confidence handling.",
+      "title": "Attachment Accounting"
+    },
+    "department_module_activation": {
+      "summary": "Sales module activation uses named module purchases, not boolean feature flags.",
+      "title": "Department Module Activation"
+    },
+    "employee_access_mapping": {
+      "summary": "Keep natural-language role mapping to user type and entitlement templates in one maintained policy layer.",
+      "title": "Employee Access Mapping"
+    },
+    "invoice_credit_note": {
+      "summary": "Credit-note and correction flows require sandbox-confirmed payload and minimal verification.",
+      "title": "Invoice Credit Note"
+    },
+    "supplier_invoice_payment": {
+      "summary": "Payment registration should prefer the action endpoint and keep payload narrow.",
+      "title": "Supplier Invoice Payment"
+    },
+    "travel_expense_payload": {
+      "summary": "Base travel expense creation and row creation have schema quirks and should use dedicated row commands.",
+      "title": "Travel Expense Payload"
+    }
+  },
+  "policyCount": 6
+}

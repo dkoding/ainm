@@ -30,7 +30,7 @@ from config import (
     AstarSettings,
 )
 from evaluate_sklearn_model import evaluate_sklearn_history
-from history_cache import load_history_index, summarize_history_cache, sync_history_cache
+from history_cache import history_round_ids_with_analysis, load_history_index, summarize_history_cache, sync_history_cache
 from history_priors import infer_regime_history_prior_model, load_history_prior_model
 from observation_strategy import ViewportRequest, select_next_viewport_request
 from prediction_variants import (
@@ -464,7 +464,7 @@ def main() -> None:
             )
         artifact_store.write_json(round_root / "team" / "observation_plan.json", observation_plan_payload)
         query_plan_summary = {
-            "planner": "adaptive_information_gain_v2",
+            "planner": "adaptive_information_gain_v3_triggered",
             "total_queries_requested": total_queries,
             "total_queries_planned": sum(len(requests) for requests in planned_requests.values()),
             "per_seed_queries_planned": {str(seed_index): len(requests) for seed_index, requests in planned_requests.items()},
@@ -520,6 +520,7 @@ def main() -> None:
         strategy_feedback_summary=strategy_feedback_summary,
         prediction_variants=prediction_variants,
         selected_variant=selected_variant,
+        live_variant_summary=live_variant_summary,
     )
     if guardrail_anchor_variant is not None:
         predictions, guardrail_summary = apply_prediction_mass_guardrails(
@@ -856,14 +857,7 @@ def load_expected_history_round_ids(
     exclude_round_ids: set[str] | None,
 ) -> list[str]:
     index = load_history_index(root=root, cache_prefix=cache_prefix) or {}
-    round_ids = []
-    excluded = {str(item) for item in (exclude_round_ids or set())}
-    for round_entry in index.get("rounds", []):
-        round_id = str(round_entry["round_id"])
-        if round_id in excluded:
-            continue
-        round_ids.append(round_id)
-    return round_ids
+    return history_round_ids_with_analysis(index, exclude_round_ids=exclude_round_ids)
 
 
 def load_cached_training_summary(*, sklearn_model_path: Path) -> dict[str, Any] | None:
@@ -1017,6 +1011,11 @@ def select_prediction_variant(
             prediction_variants=prediction_variants,
             blocked_variants=blocked_variants,
         )
+        moderate_sparse_variant = select_moderately_sparse_live_variant(
+            live_variant_summary=live_variant_summary,
+            prediction_variants=prediction_variants,
+            blocked_variants=blocked_variants,
+        )
         live_ranked_variants = [
             item
             for item in live_variant_summary.get("variants", [])
@@ -1024,16 +1023,27 @@ def select_prediction_variant(
         ]
         if live_ranked_variants:
             top_variant = str(live_ranked_variants[0].get("variant"))
+            top_score = float(live_ranked_variants[0].get("live_score", 0.0))
+            top_activity_gap = float(live_ranked_variants[0].get("activity_gap", 0.0))
             if low_activity_variant is not None and low_activity_variant in prediction_variants:
                 low_activity_report = next(
                     (item for item in live_ranked_variants if str(item.get("variant")) == low_activity_variant),
                     None,
                 )
                 if low_activity_report is not None:
-                    top_score = float(live_ranked_variants[0].get("live_score", 0.0))
                     low_activity_score = float(low_activity_report.get("live_score", 0.0))
-                    if (top_score - low_activity_score) <= 0.02:
+                    if (top_score - low_activity_score) <= 0.03:
                         return low_activity_variant
+            if moderate_sparse_variant is not None and _is_aggressive_live_variant(top_variant):
+                moderate_sparse_report = next(
+                    (item for item in live_ranked_variants if str(item.get("variant")) == moderate_sparse_variant),
+                    None,
+                )
+                if moderate_sparse_report is not None:
+                    moderate_sparse_score = float(moderate_sparse_report.get("live_score", 0.0))
+                    moderate_sparse_gap = float(moderate_sparse_report.get("activity_gap", 0.0))
+                    if (top_score - moderate_sparse_score) <= 0.08 and moderate_sparse_gap <= (top_activity_gap - 0.02):
+                        return moderate_sparse_variant
             if ambiguous_fallback is None or top_variant == ambiguous_fallback:
                 return top_variant
             fallback_report = next(
@@ -1043,11 +1053,9 @@ def select_prediction_variant(
             if fallback_report is None:
                 return top_variant
             second_score = float(live_ranked_variants[1].get("live_score", 0.0)) if len(live_ranked_variants) > 1 else float("-inf")
-            top_score = float(live_ranked_variants[0].get("live_score", 0.0))
             fallback_score = float(fallback_report.get("live_score", 0.0))
             top_match = float(live_ranked_variants[0].get("observation_match", 0.0))
             fallback_match = float(fallback_report.get("observation_match", 0.0))
-            top_activity_gap = float(live_ranked_variants[0].get("activity_gap", 0.0))
             fallback_activity_gap = float(fallback_report.get("activity_gap", 0.0))
             margin_to_second = top_score - second_score if second_score != float("-inf") else top_score
             margin_to_fallback = top_score - fallback_score
@@ -1068,7 +1076,7 @@ def select_prediction_variant(
     if offline_ranked_variants:
         return offline_ranked_variants[0]
 
-    for fallback in ("sklearn_observation_context", "ensemble_observation_context_50", "ensemble_sklearn_50", "sklearn", "baseline_history", "baseline_static"):
+    for fallback in ("sklearn_learned_post_observation", "sklearn_observation_context", "ensemble_observation_context_50", "ensemble_sklearn_50", "sklearn", "baseline_history", "baseline_static"):
         if fallback in prediction_variants:
             return fallback
     raise SystemExit("No prediction variants were built.")
@@ -1092,6 +1100,7 @@ def ranked_available_variants(
                 continue
             ranked.append(variant_name)
     for fallback in (
+        "sklearn_learned_post_observation",
         "sklearn_observation_context",
         "ensemble_observation_context_50",
         "sklearn_global_post_observation",
@@ -1117,6 +1126,7 @@ def select_ambiguous_live_fallback(
     offline_ranked_variants: list[str],
 ) -> str | None:
     for preferred in (
+        "sklearn_learned_post_observation",
         "sklearn_observation_context",
         "ensemble_observation_context_50",
         "sklearn_global_post_observation",
@@ -1176,6 +1186,73 @@ def select_low_activity_live_variant(
     return eligible[0][3]
 
 
+def select_moderately_sparse_live_variant(
+    *,
+    live_variant_summary: dict[str, Any],
+    prediction_variants: dict[str, list[Any]],
+    blocked_variants: set[str],
+) -> str | None:
+    observed_summary = live_variant_summary.get("observed_summary", {}) or {}
+    class_probs = observed_summary.get("class_probs", []) or []
+    if len(class_probs) < 4:
+        return None
+    observed_dynamic_mass = float(class_probs[1] + class_probs[2] + class_probs[3])
+    development_signal = float(observed_summary.get("development_signal", 0.0))
+    trade_signal = float(max(observed_summary.get("trade_signal", 0.0), observed_summary.get("port_signal", 0.0)))
+    harshness_signal = float(observed_summary.get("harshness_signal", 0.0))
+    if observed_dynamic_mass <= 0.04 or observed_dynamic_mass > 0.08:
+        return None
+    if development_signal > 0.09 or trade_signal > 0.05 or harshness_signal < 0.35:
+        return None
+
+    preferred_candidates = (
+        "ensemble_observation_context_50",
+        "ensemble_global_post_observation_50",
+        "sklearn_global_post_observation",
+        "sklearn_observation_context",
+        "baseline_history_observation_context",
+        "baseline_history_global_post_observation",
+    )
+    live_reports = {
+        str(item.get("variant")): item
+        for item in live_variant_summary.get("variants", [])
+        if str(item.get("variant")) in prediction_variants and str(item.get("variant")) not in blocked_variants
+    }
+    candidate_reports = [live_reports[variant_name] for variant_name in preferred_candidates if variant_name in live_reports]
+    if not candidate_reports:
+        return None
+
+    min_activity_gap = min(float(item.get("activity_gap", 0.0)) for item in candidate_reports)
+    best_live_score = max(float(item.get("live_score", 0.0)) for item in candidate_reports)
+    eligible_reports = [
+        item
+        for item in candidate_reports
+        if float(item.get("activity_gap", 0.0)) <= (min_activity_gap + 0.01)
+        and float(item.get("live_score", 0.0)) >= (best_live_score - 0.02)
+    ]
+    if not eligible_reports:
+        eligible_reports = candidate_reports
+    eligible_reports.sort(
+        key=lambda item: (
+            float(item.get("offline_mean_round_score", 0.0)),
+            float(item.get("live_score", 0.0)),
+            -float(item.get("activity_gap", 0.0)),
+        ),
+        reverse=True,
+    )
+    return str(eligible_reports[0].get("variant"))
+
+
+def _is_aggressive_live_variant(variant_name: str) -> bool:
+    return variant_name in {
+        "sklearn",
+        "sklearn_rare_class_lift",
+        "ensemble_sklearn_25",
+        "ensemble_sklearn_50",
+        "ensemble_sklearn_75",
+    }
+
+
 def select_guardrail_anchor_variant(
     *,
     requested_model: str,
@@ -1183,10 +1260,26 @@ def select_guardrail_anchor_variant(
     strategy_feedback_summary: dict[str, Any] | None,
     prediction_variants: dict[str, list[Any]],
     selected_variant: str,
+    live_variant_summary: dict[str, Any] | None = None,
 ) -> str | None:
     if requested_model != "auto":
         return None
     blocked_variants = set((strategy_feedback_summary or {}).get("blocked_variants", []))
+    if live_variant_summary is not None and _is_aggressive_live_variant(selected_variant):
+        low_activity_anchor = select_low_activity_live_variant(
+            live_variant_summary=live_variant_summary,
+            prediction_variants=prediction_variants,
+            blocked_variants=blocked_variants,
+        )
+        if low_activity_anchor is not None and low_activity_anchor != selected_variant:
+            return low_activity_anchor
+        moderate_sparse_anchor = select_moderately_sparse_live_variant(
+            live_variant_summary=live_variant_summary,
+            prediction_variants=prediction_variants,
+            blocked_variants=blocked_variants,
+        )
+        if moderate_sparse_anchor is not None and moderate_sparse_anchor != selected_variant:
+            return moderate_sparse_anchor
     offline_ranked_variants = ranked_available_variants(
         strategy_evaluation_summary=strategy_evaluation_summary,
         prediction_variants=prediction_variants,
@@ -1315,7 +1408,7 @@ def load_cached_strategy_evaluation(
         return None
     summary = cached.get("summary", {})
     cached_round_ids = list(summary.get("history_round_ids", []))
-    current_round_ids = [str(item["round_id"]) for item in history_summary.get("rounds", [])]
+    current_round_ids = history_round_ids_with_analysis(history_summary)
     if cached_round_ids != current_round_ids:
         return None
     expected_signature = strategy_signature(
@@ -1359,7 +1452,7 @@ def load_cached_tuning_report(
     except json.JSONDecodeError:
         return None
     cached_round_ids = list(cached.get("history_round_ids", []))
-    current_round_ids = [str(item["round_id"]) for item in history_summary.get("rounds", [])]
+    current_round_ids = history_round_ids_with_analysis(history_summary)
     if cached_round_ids != current_round_ids:
         return None
     return cached

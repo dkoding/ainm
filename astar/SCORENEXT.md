@@ -127,6 +127,12 @@ Where it should live:
 - new model path near [sklearn_model.py](sklearn_model.py)
 - variant integration in [prediction_variants.py](prediction_variants.py)
 
+Current repo status:
+
+- A first in-repo version of this now exists as `sklearn_learned_post_observation`.
+- It is implemented as a lightweight residual model trained from synthetic replay observations over cached completed rounds.
+- The main remaining extension within this priority is richer per-seed observation-summary conditioning if the current global-summary model plateaus.
+
 Expected impact: very high.
 
 ### Priority 2: Split Query Policy Into Discovery Then Uncertainty Estimation

@@ -7,7 +7,7 @@ from typing import Any
 
 from baseline import build_round_predictions
 from config import DEFAULT_HISTORY_CACHE_PREFIX, DEFAULT_OUTPUT_DIR, DEFAULT_PREDICTION_FLOOR
-from history_cache import load_history_index
+from history_cache import history_round_entries_with_analysis, load_history_index
 from history_priors import build_history_prior_model
 from scoring import round_score, seed_score
 
@@ -65,10 +65,11 @@ def evaluate_history_cache(
     if not index:
         raise SystemExit(f"No history cache found under {root_path / cache_prefix}.")
 
+    round_entries = history_round_entries_with_analysis(index)
     rounds_report: list[dict[str, Any]] = []
     all_seed_scores: list[float] = []
 
-    for round_entry in index.get("rounds", []):
+    for round_entry in round_entries:
         round_id = str(round_entry["round_id"])
         round_detail_path = root_path / cache_prefix / "rounds" / round_id / "public" / "round_detail.json"
         round_detail = json.loads(round_detail_path.read_text())
