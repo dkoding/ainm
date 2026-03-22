@@ -6,28 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="ac6b219e-15c9-495c-bd28-adaae518ad0e" name="Changes" comment="WIP tripletex v2 and astar">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/run_round.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/run_round.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/astar/tests/test_prediction_variants.py" beforeDir="false" afterPath="$PROJECT_DIR$/astar/tests/test_prediction_variants.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/COMPLETEDTASKS.md" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/COMPLETEDTASKS.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/DESC.md" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/DESC.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/contracts/execution.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/contracts/execution.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/llm/attachment_evidence_builder.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/llm/attachment_evidence_builder.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/llm/context_catalog.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/llm/context_catalog.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/llm/gemini_client.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/llm/gemini_client.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/llm/llm_planner.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/llm/llm_planner.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/llm/prompt_builder.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/llm/prompt_builder.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/llm/repair_engine.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/llm/repair_engine.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/llm/response_validator.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/llm/response_validator.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/raw/executor.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/raw/executor.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/raw/transport.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/raw/transport.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/router/service.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/router/service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/solver.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/solver.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/wrapper/commands.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/wrapper/commands.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/wrapper/flows.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/wrapper/flows.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/app/wrapper/helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/app/wrapper/helpers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tripletex/scripts/generate_catalogs.py" beforeDir="false" afterPath="$PROJECT_DIR$/tripletex/scripts/generate_catalogs.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
