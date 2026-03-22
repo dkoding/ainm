@@ -6,7 +6,6 @@ from typing import Any
 from app.contracts import ExecutionContext, ExecutionResult, LLMBridgeDocument, StepTrace
 from app.raw import RawExecutor, load_raw_catalog
 from app.raw.errors import RawExecutionError
-from app.runtime_refs import canonical_step_output_binding, resolve_step_output_binding
 from app.wrapper import CommandExecutor, FlowExecutor, load_wrapper_catalog
 from app.wrapper.helpers import merge_maps
 
@@ -97,16 +96,15 @@ class BridgeRouter:
             if step["kind"] == "flow":
                 payload = self.flow_executor.execute(
                     step["name"],
-                    self._bind_flow_inputs(bridge, step["object"], context, result.outputs),
+                    self._bind_flow_inputs(bridge, step["object"]),
                     context,
                 )
                 result.add_trace(StepTrace(step_id=step_id, step_type="flow", name=step["name"], outputs=payload))
                 continue
             if step["object"].resolved_kind == "friendly_alias":
-                inputs = self._bind_command_inputs(bridge, step["object"], context, result.outputs)
                 payload = self.command_executor.execute(
                     step["name"],
-                    inputs,
+                    self._bind_command_inputs(bridge, step["object"]),
                     context,
                 )
                 result.add_trace(
@@ -115,12 +113,12 @@ class BridgeRouter:
                         step_type="command",
                         name=step["name"],
                         operation_id=step["operation_id"],
-                        inputs=inputs,
+                        inputs=self._bind_command_inputs(bridge, step["object"]),
                         outputs=payload,
                     )
                 )
                 continue
-            inputs = self._bind_command_inputs(bridge, step["object"], context, result.outputs)
+            inputs = self._bind_command_inputs(bridge, step["object"])
             payload = self.raw_executor.execute(step["operation_id"], inputs, context)
             result.add_trace(
                 StepTrace(
@@ -164,7 +162,6 @@ class BridgeRouter:
             ordered.append(step_id)
         return ordered
 
-
     def _entity_layer(self, bridge: LLMBridgeDocument) -> dict[str, Any]:
         data: dict[str, Any] = {}
         rich_entities = bridge.richData.entities or {}
@@ -180,13 +177,7 @@ class BridgeRouter:
                         data.update(entity.get("payload", {}))
         return data
 
-    def _bind_flow_inputs(
-        self,
-        bridge: LLMBridgeDocument,
-        step: Any,
-        context: ExecutionContext,
-        prior_outputs: dict[str, Any],
-    ) -> dict[str, Any]:
+    def _bind_flow_inputs(self, bridge: LLMBridgeDocument, step: Any) -> dict[str, Any]:
         flow_name = step.resolved_name
         merged = merge_maps(
             self._entity_layer(bridge),
@@ -194,16 +185,9 @@ class BridgeRouter:
             bridge.flatBridge.flowArguments.get(flow_name, {}),
             step.inputs,
         )
-        filtered = self._filter_inputs(merged, self._legal_flow_inputs(flow_name))
-        return self._resolve_step_output_bindings(filtered, prior_outputs)
+        return self._filter_inputs(merged, self._legal_flow_inputs(flow_name))
 
-    def _bind_command_inputs(
-        self,
-        bridge: LLMBridgeDocument,
-        step: Any,
-        context: ExecutionContext,
-        prior_outputs: dict[str, Any],
-    ) -> dict[str, Any]:
+    def _bind_command_inputs(self, bridge: LLMBridgeDocument, step: Any) -> dict[str, Any]:
         keys = [step.resolved_name]
         if step.operationId:
             keys.append(step.operationId)
@@ -217,37 +201,14 @@ class BridgeRouter:
             step.inputs,
         )
         if step.resolved_kind == "friendly_alias":
-            filtered = self._filter_inputs(merged, self._legal_command_inputs(step.resolved_name))
-            return self._resolve_step_output_bindings(filtered, prior_outputs)
+            return self._filter_inputs(merged, self._legal_command_inputs(step.resolved_name))
         if step.operationId:
-            filtered = self._filter_inputs(merged, self._legal_raw_inputs(step.operationId))
-            return self._resolve_step_output_bindings(filtered, prior_outputs)
+            return self._filter_inputs(merged, self._legal_raw_inputs(step.operationId))
         return {}
 
     def _filter_inputs(self, payload: dict[str, Any], allowed_inputs: list[str]) -> dict[str, Any]:
         allowed = set(allowed_inputs)
         return {key: value for key, value in payload.items() if key in allowed}
-
-    def _resolve_step_output_bindings(self, value: Any, prior_outputs: dict[str, Any]) -> Any:
-        binding = canonical_step_output_binding(value)
-        if binding is not None:
-            try:
-                return resolve_step_output_binding(binding, prior_outputs)
-            except KeyError as exc:
-                raise RawExecutionError(
-                    message=(
-                        f"Unable to resolve step-output binding from {binding['stepId']} using path "
-                        f"{binding.get('path')!r} before the consuming step executed."
-                    )
-                ) from exc
-        if isinstance(value, dict):
-            return {
-                key: self._resolve_step_output_bindings(item, prior_outputs)
-                for key, item in value.items()
-            }
-        if isinstance(value, list):
-            return [self._resolve_step_output_bindings(item, prior_outputs) for item in value]
-        return value
 
     def _legal_flow_inputs(self, flow_name: str) -> list[str]:
         meta = self.wrapper_catalog.get_flow(flow_name)

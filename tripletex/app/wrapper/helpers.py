@@ -5,7 +5,6 @@ import re
 from typing import Any
 
 from app.raw.errors import RawExecutionError
-from app.semantic_contract import canonicalize_selector_value, selector_family_for_entity
 from app.utils import camel_case, normalize_key
 
 
@@ -87,14 +86,13 @@ def ensure_single_result(payload: Any, *, family: str, selector: Any) -> dict[st
 
 
 def to_selector_dict(family: str, value: Any) -> dict[str, Any]:
-    selector_family = selector_family_for_entity(family)
     if isinstance(value, dict):
-        return canonicalize_selector_value(selector_family, value)
+        return value
     if isinstance(value, int):
         return {"id": value}
     if isinstance(value, str):
         field = DEFAULT_SELECTOR_STRING_FIELDS.get(family, "name")
-        return canonicalize_selector_value(selector_family, {field: value})
+        return {field: value}
     raise RawExecutionError(message=f"Unsupported selector value for {family}: {value!r}")
 
 

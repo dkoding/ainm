@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 
 from baseline import build_seed_prediction, summarize_observations
-from history_priors import HistoryPriorModel, summarize_observed_round_behavior
+from history_priors import HistoryPriorModel
 
 
 @dataclass(frozen=True)
@@ -132,10 +132,10 @@ def select_next_viewport_request(
     coverage = seed_unique_coverage(round_detail=round_detail, observations_by_seed=observations_by_seed, already_selected=already_selected)
     minimum_seed_coverage = min(coverage.values(), default=0)
 
-    current_predictions: dict[int, np.ndarray] = {}
-    observation_summaries: dict[int, dict[str, Any]] = {}
+    candidates: list[dict[str, Any]] = []
+    unique_candidates_exist = False
     for seed_index, state in enumerate(round_detail["initial_states"]):
-        current_predictions[seed_index] = build_seed_prediction(
+        current_prediction = build_seed_prediction(
             state=state,
             floor=floor,
             observation_samples=observations_by_seed.get(seed_index, []),
@@ -143,26 +143,12 @@ def select_next_viewport_request(
             history_prior_model=history_prior_model,
             history_prior_strength=history_prior_strength,
         )
-        observation_summaries[seed_index] = summarize_observations(
+        entropy_grid = _entropy_grid(current_prediction)
+        observation_summary = summarize_observations(
             observations_by_seed.get(seed_index, []),
             map_height=map_height,
             map_width=map_width,
         )
-    round_trigger_context = _build_round_trigger_context(
-        predictions=current_predictions,
-        observations_by_seed=observations_by_seed,
-    )
-    resource_trigger_contexts = _build_seed_resource_trigger_contexts(
-        round_detail=round_detail,
-        observations_by_seed=observations_by_seed,
-    )
-
-    candidates: list[dict[str, Any]] = []
-    unique_candidates_exist = False
-    for seed_index, state in enumerate(round_detail["initial_states"]):
-        current_prediction = current_predictions[seed_index]
-        entropy_grid = _entropy_grid(current_prediction)
-        observation_summary = observation_summaries[seed_index]
 
         for request in build_seed_tiled_sweep_requests(
             seed_index=seed_index,
@@ -187,8 +173,6 @@ def select_next_viewport_request(
                 repeat_count=repeat_count,
                 seed_unique_coverage=coverage.get(seed_index, 0),
                 history_prior_model=history_prior_model,
-                round_trigger_context=round_trigger_context,
-                resource_trigger_context=resource_trigger_contexts.get(seed_index),
             )
             phase = "explore" if is_unique_candidate else "exploit"
             if is_unique_candidate:
@@ -271,8 +255,6 @@ def score_viewport_request(
     repeat_count: int,
     seed_unique_coverage: int,
     history_prior_model: HistoryPriorModel | None = None,
-    round_trigger_context: dict[str, Any] | None = None,
-    resource_trigger_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     grid = np.asarray(state["grid"], dtype=int)
     settlements = list(state.get("settlements", []))
@@ -295,13 +277,6 @@ def score_viewport_request(
     coastline_importance = _coastline_importance(grid=grid, request=request)
     frontier_importance = _frontier_importance(grid=grid, request=request)
     regime_disagreement = _regime_disagreement(state=state, request=request, history_prior_model=history_prior_model)
-    plains_openness = _plains_openness(patch)
-    forest_signal = float(np.mean(patch == 4)) if patch.size > 0 else 0.0
-    development_trigger = settlement_importance * (0.45 + 0.70 * frontier_importance + 0.35 * plains_openness)
-    trade_trigger = coastline_importance * (0.35 + 1.10 * settlement_importance + 0.55 * frontier_importance)
-    collapse_trigger = settlement_importance * (
-        0.30 + 0.90 * frontier_importance + 0.55 * historical_volatility + 0.20 * forest_signal
-    )
 
     observed_uncertainty_sum = 0.0
     observed_uncertainty_cells = 0
@@ -323,54 +298,6 @@ def score_viewport_request(
         y1=y1,
     )
 
-    development_gap = 0.0
-    trade_gap = 0.0
-    conflict_gap = 0.0
-    harshness_gap = 0.0
-    trigger_activation = 0.0
-    trigger_signal_bonus = 0.0
-    resource_wealth_trigger = 0.0
-    resource_pressure_trigger = 0.0
-    resource_trigger_bonus = 0.0
-    if round_trigger_context is not None:
-        signal_gaps = round_trigger_context.get("signal_gaps", {})
-        development_gap = float(signal_gaps.get("development", 0.0))
-        trade_gap = float(signal_gaps.get("trade", 0.0))
-        conflict_gap = float(signal_gaps.get("conflict", 0.0))
-        harshness_gap = float(signal_gaps.get("harshness", 0.0))
-        trigger_activation = float(round_trigger_context.get("trigger_activation", 0.0))
-        collapse_gap = max(conflict_gap, harshness_gap)
-        trigger_signal_bonus = trigger_activation * (
-            (0.40 + 2.40 * development_gap) * development_trigger
-            + (0.45 + 2.80 * trade_gap) * trade_trigger
-            + (0.35 + 2.30 * collapse_gap) * collapse_trigger
-        )
-    if resource_trigger_context is not None:
-        for target in resource_trigger_context.get("targets", []):
-            proximity = _viewport_target_proximity(
-                request=request,
-                x=int(target["x"]),
-                y=int(target["y"]),
-                radius=6.0,
-            )
-            if proximity <= 0:
-                continue
-            if str(target.get("kind")) == "wealth":
-                non_port_bonus = 1.15 if not bool(target.get("has_port", False)) else 0.75
-                resource_wealth_trigger += float(target.get("weight", 0.0)) * proximity * non_port_bonus * (
-                    0.60 + 0.70 * coastline_importance + 0.35 * frontier_importance
-                )
-            elif str(target.get("kind")) == "pressure":
-                resource_pressure_trigger += float(target.get("weight", 0.0)) * proximity * (
-                    0.55 + 0.65 * frontier_importance + 0.25 * settlement_importance
-                )
-        collapse_gap = max(conflict_gap, harshness_gap)
-        growth_gap = max(development_gap, trade_gap)
-        resource_trigger_bonus = trigger_activation * (
-            (0.18 + 1.70 * growth_gap) * resource_wealth_trigger
-            + (0.18 + 1.40 * collapse_gap) * resource_pressure_trigger
-        )
-
     coverage_bonus = 1.0 / float(seed_unique_coverage + 1)
     repeat_penalty = 1.0 / float(repeat_count + 1)
     if repeat_count == 0:
@@ -385,8 +312,6 @@ def score_viewport_request(
             + 0.30 * frontier_importance
             + 0.90 * regime_disagreement
             + 0.55 * coverage_bonus
-            + 2.00 * trigger_signal_bonus
-            + 1.10 * resource_trigger_bonus
         )
     else:
         phase_boost = 0.0
@@ -400,8 +325,6 @@ def score_viewport_request(
             + 0.20 * coastline_importance
             + 0.40 * frontier_importance
             + 0.35 * regime_disagreement
-            + 1.60 * trigger_signal_bonus
-            + 1.05 * resource_trigger_bonus
         ) * repeat_penalty
 
     return {
@@ -417,19 +340,6 @@ def score_viewport_request(
             "coastline_importance": coastline_importance,
             "frontier_importance": frontier_importance,
             "regime_disagreement": regime_disagreement,
-            "plains_openness": plains_openness,
-            "development_trigger": development_trigger,
-            "trade_trigger": trade_trigger,
-            "collapse_trigger": collapse_trigger,
-            "development_gap": development_gap,
-            "trade_gap": trade_gap,
-            "conflict_gap": conflict_gap,
-            "harshness_gap": harshness_gap,
-            "trigger_activation": trigger_activation,
-            "trigger_signal_bonus": trigger_signal_bonus,
-            "resource_wealth_trigger": resource_wealth_trigger,
-            "resource_pressure_trigger": resource_pressure_trigger,
-            "resource_trigger_bonus": resource_trigger_bonus,
             "coverage_bonus": coverage_bonus,
             "repeat_penalty": repeat_penalty,
             "repeat_count": repeat_count,
@@ -492,140 +402,6 @@ def _terrain_volatility_proxy(patch: np.ndarray) -> np.ndarray:
     return volatility
 
 
-def _build_round_trigger_context(
-    *,
-    predictions: dict[int, np.ndarray],
-    observations_by_seed: dict[int, list[dict[str, Any]]],
-) -> dict[str, Any]:
-    if not predictions:
-        return {"signal_gaps": {}, "trigger_activation": 0.0, "observed_summary": {}, "predicted_signals": {}}
-    stacked = np.stack(list(predictions.values()), axis=0)
-    mean_probs = stacked.mean(axis=(0, 1, 2))
-    predicted_signals = {
-        "development": float(mean_probs[1] + mean_probs[2]),
-        "trade": float(mean_probs[2]),
-        "conflict": float(mean_probs[3]),
-        "harshness": float(mean_probs[3] + (0.25 * mean_probs[4])),
-    }
-    observed_summary = {}
-    signal_gaps = {key: 0.0 for key in predicted_signals}
-    trigger_activation = 0.0
-    if observations_by_seed and any(observations_by_seed.values()):
-        observed_summary = summarize_observed_round_behavior(observations_by_seed)
-        observed_signals = {
-            "development": float(observed_summary.get("development_signal", 0.0)),
-            "trade": float(max(observed_summary.get("trade_signal", 0.0), observed_summary.get("port_signal", 0.0))),
-            "conflict": float(observed_summary.get("conflict_signal", 0.0)),
-            "harshness": float(observed_summary.get("harshness_signal", 0.0)),
-        }
-        signal_gaps = {
-            key: float(max(0.0, observed_signals[key] - predicted_signals.get(key, 0.0)))
-            for key in predicted_signals
-        }
-        observed_cells = float(observed_summary.get("observed_cells", 0.0) or 0.0)
-        trigger_activation = float(np.clip(observed_cells / 900.0, 0.0, 1.0))
-    return {
-        "observed_summary": observed_summary,
-        "predicted_signals": predicted_signals,
-        "signal_gaps": signal_gaps,
-        "trigger_activation": trigger_activation,
-    }
-
-
-def _build_seed_resource_trigger_contexts(
-    *,
-    round_detail: dict[str, Any],
-    observations_by_seed: dict[int, list[dict[str, Any]]],
-) -> dict[int, dict[str, Any]]:
-    contexts: dict[int, dict[str, Any]] = {}
-    for seed_index, state in enumerate(round_detail["initial_states"]):
-        samples = list(observations_by_seed.get(seed_index, []))
-        if not samples:
-            continue
-        settlements = _dedup_observed_settlements(samples)
-        seed_targets: list[dict[str, Any]] = []
-        for item in settlements.values():
-            x = int(item["x"])
-            y = int(item["y"])
-            wealth = float(np.mean(item["wealth_values"])) if item["wealth_values"] else 0.0
-            food = float(np.mean(item["food_values"])) if item["food_values"] else 0.0
-            defense = float(np.mean(item["defense_values"])) if item["defense_values"] else 0.0
-            population_values = item["population_values"]
-            population_drop = float(max(0.0, population_values[0] - population_values[-1])) if len(population_values) > 1 else 0.0
-            repeated = len(population_values) > 1
-
-            wealth_weight = float(np.clip((wealth - 0.015) / 0.015, 0.0, 1.0))
-            pressure_weight = float(
-                np.clip(population_drop / 0.30, 0.0, 1.0)
-                + np.clip((0.35 - food) / 0.20, 0.0, 1.0)
-                + 0.5 * np.clip((defense - 0.70) / 0.20, 0.0, 1.0)
-            )
-            if wealth_weight > 0.0:
-                seed_targets.append(
-                    {
-                        "kind": "wealth",
-                        "x": x,
-                        "y": y,
-                        "weight": wealth_weight,
-                        "has_port": bool(item["has_port"]),
-                    }
-                )
-            if pressure_weight > 0.0:
-                seed_targets.append(
-                    {
-                        "kind": "pressure",
-                        "x": x,
-                        "y": y,
-                        "weight": pressure_weight,
-                        "has_port": bool(item["has_port"]),
-                        "repeated": repeated,
-                    }
-                )
-        if seed_targets:
-            contexts[seed_index] = {
-                "targets": seed_targets,
-                "observed_settlements": len(settlements),
-            }
-    return contexts
-
-
-def _dedup_observed_settlements(samples: list[dict[str, Any]]) -> dict[tuple[int, int], dict[str, Any]]:
-    grouped: dict[tuple[int, int], dict[str, Any]] = {}
-    ordered_samples = sorted(
-        samples,
-        key=lambda item: int(item.get("queries_used", item.get("response", {}).get("queries_used", 0)) or 0),
-    )
-    for sample in ordered_samples:
-        for settlement in sample.get("settlements", []):
-            x = int(settlement["x"])
-            y = int(settlement["y"])
-            key = (x, y)
-            entry = grouped.setdefault(
-                key,
-                {
-                    "x": x,
-                    "y": y,
-                    "has_port": bool(settlement.get("has_port", False)),
-                    "population_values": [],
-                    "food_values": [],
-                    "wealth_values": [],
-                    "defense_values": [],
-                },
-            )
-            entry["has_port"] = entry["has_port"] or bool(settlement.get("has_port", False))
-            entry["population_values"].append(float(settlement.get("population", 0.0) or 0.0))
-            entry["food_values"].append(float(settlement.get("food", 0.0) or 0.0))
-            entry["wealth_values"].append(float(settlement.get("wealth", 0.0) or 0.0))
-            entry["defense_values"].append(float(settlement.get("defense", 0.0) or 0.0))
-    return grouped
-
-
-def _plains_openness(patch: np.ndarray) -> float:
-    if patch.size <= 0:
-        return 0.0
-    return float(np.mean(np.isin(patch, [0, 1, 2, 11])))
-
-
 def _observed_activity_mass(
     *,
     summary: dict[str, Any],
@@ -645,25 +421,6 @@ def _observed_activity_mass(
         return 0.0
     probs = totals / totals.sum()
     return float(probs[1] + probs[2] + probs[3])
-
-
-def _viewport_target_proximity(
-    *,
-    request: ViewportRequest,
-    x: int,
-    y: int,
-    radius: float,
-) -> float:
-    x0 = int(request.viewport_x)
-    y0 = int(request.viewport_y)
-    x1 = x0 + int(request.viewport_w)
-    y1 = y0 + int(request.viewport_h)
-    dx = 0 if x0 <= x < x1 else min(abs(x - x0), abs(x - (x1 - 1)))
-    dy = 0 if y0 <= y < y1 else min(abs(y - y0), abs(y - (y1 - 1)))
-    distance = float(dx + dy)
-    if distance > radius:
-        return 0.0
-    return float(1.0 - (distance / max(radius, 1.0)))
 
 
 def _settlement_importance(settlements: list[dict[str, Any]], request: ViewportRequest) -> float:

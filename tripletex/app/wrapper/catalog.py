@@ -17,8 +17,6 @@ class WrapperCatalog:
         self.commands = commands["commands"]
         self.flows = flows["flows"]
         self.policies = policies["policies"]
-        self.selector_families = flows.get("selectorFamilies") or commands.get("selectorFamilies") or {}
-        self.payload_families = flows.get("payloadFamilies") or commands.get("payloadFamilies") or {}
         self.command_count = commands["commandCount"]
         self.flow_count = flows["flowCount"]
 

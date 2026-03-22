@@ -7,7 +7,7 @@ from pathlib import Path
 
 from config import DEFAULT_HISTORY_CACHE_PREFIX, DEFAULT_OUTPUT_DIR
 from evaluate_history import evaluate_history_cache
-from history_cache import history_round_ids_with_analysis, load_history_index
+from history_cache import load_history_index
 
 
 def parse_args() -> argparse.Namespace:
@@ -40,7 +40,7 @@ def tune_baseline_from_history(
 ) -> dict:
     root_path = Path(root)
     index = load_history_index(root=root_path, cache_prefix=cache_prefix)
-    history_round_ids = history_round_ids_with_analysis(index) if index else []
+    history_round_ids = [str(item["round_id"]) for item in index.get("rounds", [])] if index else []
     floors = floors or [0.005, 0.01, 0.02]
     history_prior_strengths = history_prior_strengths or [0.5, 1.0, 2.0, 4.0]
     results = []

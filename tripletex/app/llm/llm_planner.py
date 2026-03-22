@@ -5,7 +5,6 @@ from typing import Any
 
 from app.contracts import LLMBridgeDocument, SolveRequest
 from app.llm.attachment_evidence_builder import AttachmentEvidenceBuilder
-from app.llm.attachment_fact_extractor import AttachmentFactExtractor
 from app.llm.context_catalog import ContextCatalog
 from app.llm.gemini_client import GeminiClient
 from app.llm.prompt_builder import PromptBuilder
@@ -19,7 +18,6 @@ class LLMPlanner:
         self,
         *,
         evidence_builder: AttachmentEvidenceBuilder | None = None,
-        attachment_fact_extractor: AttachmentFactExtractor | None = None,
         context_catalog: ContextCatalog | None = None,
         prompt_builder: PromptBuilder | None = None,
         client: GeminiClient | None = None,
@@ -27,10 +25,9 @@ class LLMPlanner:
         repair_engine: RepairEngine | None = None,
     ) -> None:
         self.evidence_builder = evidence_builder or AttachmentEvidenceBuilder()
-        self.client = client or GeminiClient()
-        self.attachment_fact_extractor = attachment_fact_extractor or AttachmentFactExtractor(client=self.client)
         self.context_catalog = context_catalog or ContextCatalog()
         self.prompt_builder = prompt_builder or PromptBuilder()
+        self.client = client or GeminiClient()
         self.validator = validator or ResponseValidator()
         self.repair_engine = repair_engine or RepairEngine(client=self.client)
 
@@ -39,25 +36,19 @@ class LLMPlanner:
         if direct is not None:
             return direct
         evidence = self.evidence_builder.build(request.files)
-        attachment_media = [
-            {
-                "attachmentId": f"attachment_{index}",
-                "filename": file.filename,
-                "mimeType": file.mime_type,
-                "contentBase64": file.content_base64,
-            }
-            for index, file in enumerate(request.files, start=1)
-        ]
-        evidence = self.attachment_fact_extractor.enrich(
-            prompt=request.prompt,
-            evidence=evidence,
-            attachment_media=attachment_media,
-        )
         context_slice = self.context_catalog.build_slice(request.prompt)
         prompt_package = self.prompt_builder.build(
             prompt=request.prompt,
             evidence=evidence,
-            attachment_media=attachment_media,
+            attachment_media=[
+                {
+                    "attachmentId": f"attachment_{index}",
+                    "filename": file.filename,
+                    "mimeType": file.mime_type,
+                    "contentBase64": file.content_base64,
+                }
+                for index, file in enumerate(request.files, start=1)
+            ],
             current_date=current_date,
             timezone=timezone,
             context_slice=context_slice,
@@ -74,7 +65,6 @@ class LLMPlanner:
                 timezone=timezone,
                 request_id=request_id,
                 attachment_count=len(request.files),
-                attachments=evidence,
             )
         except RawExecutionError as exc:
             repair_errors = [exc.message]
@@ -91,7 +81,6 @@ class LLMPlanner:
                     timezone=timezone,
                     request_id=request_id,
                     attachment_count=len(request.files),
-                    attachments=evidence,
                 )
             raise
 
@@ -106,25 +95,19 @@ class LLMPlanner:
         request_id: str,
     ) -> LLMBridgeDocument:
         evidence = self.evidence_builder.build(request.files)
-        attachment_media = [
-            {
-                "attachmentId": f"attachment_{index}",
-                "filename": file.filename,
-                "mimeType": file.mime_type,
-                "contentBase64": file.content_base64,
-            }
-            for index, file in enumerate(request.files, start=1)
-        ]
-        evidence = self.attachment_fact_extractor.enrich(
-            prompt=request.prompt,
-            evidence=evidence,
-            attachment_media=attachment_media,
-        )
         context_slice = self.context_catalog.build_slice(request.prompt)
         prompt_package = self.prompt_builder.build(
             prompt=request.prompt,
             evidence=evidence,
-            attachment_media=attachment_media,
+            attachment_media=[
+                {
+                    "attachmentId": f"attachment_{index}",
+                    "filename": file.filename,
+                    "mimeType": file.mime_type,
+                    "contentBase64": file.content_base64,
+                }
+                for index, file in enumerate(request.files, start=1)
+            ],
             current_date=current_date,
             timezone=timezone,
             context_slice=context_slice,
@@ -145,7 +128,6 @@ class LLMPlanner:
             timezone=timezone,
             request_id=request_id,
             attachment_count=len(request.files),
-            attachments=evidence,
         )
 
     def _maybe_validate_direct_json(self, prompt: str) -> LLMBridgeDocument | None:
@@ -165,7 +147,6 @@ class LLMPlanner:
             timezone="",
             request_id="",
             attachment_count=0,
-            attachments=[],
         )
 
     def _validate_with_request_defaults(
@@ -177,7 +158,6 @@ class LLMPlanner:
         timezone: str,
         request_id: str,
         attachment_count: int,
-        attachments: list[dict[str, Any]],
     ) -> LLMBridgeDocument:
         candidate = self._prepare_candidate(
             payload,
@@ -186,7 +166,6 @@ class LLMPlanner:
             timezone=timezone,
             request_id=request_id,
             attachment_count=attachment_count,
-            attachments=attachments,
         )
         return self.validator.validate(candidate)
 
@@ -199,7 +178,6 @@ class LLMPlanner:
         timezone: str,
         request_id: str,
         attachment_count: int,
-        attachments: list[dict[str, Any]],
     ) -> str | dict[str, Any]:
         if isinstance(payload, str):
             try:
@@ -216,6 +194,5 @@ class LLMPlanner:
             "timezone": timezone,
             "requestId": request_id,
             "attachmentCount": attachment_count,
-            "attachments": attachments,
         }
         return data

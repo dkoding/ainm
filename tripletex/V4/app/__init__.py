@@ -1,1 +1,0 @@
-# Tripletex scaffold package.

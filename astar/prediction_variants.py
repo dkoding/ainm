@@ -10,39 +10,24 @@ import numpy as np
 
 from baseline import apply_probability_floor, blend_observations, build_round_predictions, summarize_observations
 from config import DEFAULT_HISTORY_CACHE_PREFIX, DEFAULT_OUTPUT_DIR, DEFAULT_PREDICTION_FLOOR
-from history_cache import history_round_entries_with_analysis, load_history_index
+from history_cache import load_history_index
 from history_priors import (
     HistoryPriorModel,
     infer_regime_history_prior_model,
     load_history_prior_model,
     summarize_observed_round_behavior,
 )
-from observation_replay import load_cached_round_observations, synthesize_observations_from_analysis
+from observation_strategy import select_next_viewport_request
 from scoring import round_score, seed_score
 from sklearn_model import (
     FEATURE_COLUMNS,
     SklearnModelArtifact,
-    apply_post_observation_model_to_prediction_set,
     build_round_predictions_from_model,
     train_random_forest_from_history,
 )
 
 
 ENSEMBLE_SKLEARN_WEIGHTS = (0.25, 0.5, 0.75)
-OFFLINE_SCORE_FALLBACKS = {
-    "baseline_history_observation_context": ("baseline_history",),
-    "baseline_history_global_post_observation": ("baseline_history_observation_context", "baseline_history"),
-    "ensemble_observation_context_50": ("ensemble_sklearn_50", "sklearn_observation_context"),
-    "ensemble_global_post_observation_50": (
-        "ensemble_observation_context_50",
-        "sklearn_global_post_observation",
-        "ensemble_sklearn_50",
-    ),
-    "sklearn_global_post_observation": ("sklearn_observation_context", "sklearn"),
-    "sklearn_learned_post_observation": ("sklearn_global_post_observation", "sklearn_observation_context", "sklearn"),
-    "sklearn_resource_post_observation": ("sklearn_global_post_observation", "sklearn_observation_context", "sklearn"),
-    "sklearn_rare_class_lift": ("sklearn_global_post_observation", "sklearn_observation_context", "sklearn"),
-}
 
 
 def build_prediction_variants(
@@ -120,15 +105,6 @@ def build_prediction_variants(
             )
             variants["sklearn_observation_context"] = conditioned_sklearn
             floor_distributions["sklearn_observation_context"] = sklearn_artifact.floor_distribution
-            if sklearn_artifact.post_observation_model is not None:
-                variants["sklearn_learned_post_observation"] = apply_post_observation_model_to_prediction_set(
-                    artifact=sklearn_artifact,
-                    round_detail=round_detail,
-                    predictions=conditioned_sklearn,
-                    observations_by_seed=observations_by_seed,
-                    floor=floor,
-                )
-                floor_distributions["sklearn_learned_post_observation"] = sklearn_artifact.floor_distribution
             variants["sklearn_global_post_observation"] = apply_global_post_observation_to_prediction_set(
                 round_detail=round_detail,
                 predictions=conditioned_sklearn,
@@ -137,14 +113,6 @@ def build_prediction_variants(
                 floor_distribution=sklearn_artifact.floor_distribution,
             )
             floor_distributions["sklearn_global_post_observation"] = sklearn_artifact.floor_distribution
-            variants["sklearn_resource_post_observation"] = apply_resource_post_observation_to_prediction_set(
-                round_detail=round_detail,
-                predictions=conditioned_sklearn,
-                observations_by_seed=observations_by_seed,
-                floor=floor,
-                floor_distribution=sklearn_artifact.floor_distribution,
-            )
-            floor_distributions["sklearn_resource_post_observation"] = sklearn_artifact.floor_distribution
             variants["sklearn_rare_class_lift"] = apply_rare_class_lifting_to_prediction_set(
                 round_detail=round_detail,
                 predictions=variants["sklearn_global_post_observation"],
@@ -268,11 +236,10 @@ def evaluate_prediction_variants(
     if not index:
         raise SystemExit(f"No history cache found under {root_path / cache_prefix}.")
 
-    round_entries = history_round_entries_with_analysis(index)
     variant_round_scores: dict[str, list[float]] = {}
     rounds_report: list[dict[str, Any]] = []
 
-    for round_entry in round_entries:
+    for round_entry in index.get("rounds", []):
         round_id = str(round_entry["round_id"])
         round_detail_path = root_path / cache_prefix / "rounds" / round_id / "public" / "round_detail.json"
         if not round_detail_path.exists():
@@ -374,7 +341,7 @@ def evaluate_prediction_variants(
             "best_variant_mean_round_score": best_variant["mean_round_score"] if best_variant is not None else None,
             "completed_rounds_evaluated": len(rounds_report),
             "strategy_signature": strategy_signature(
-                history_round_ids=[str(round_entry["round_id"]) for round_entry in round_entries],
+                history_round_ids=[str(round_entry["round_id"]) for round_entry in index.get("rounds", [])],
                 floor=floor,
                 prior_strength=prior_strength,
                 history_prior_strength=history_prior_strength,
@@ -385,8 +352,8 @@ def evaluate_prediction_variants(
                 simulate_queries=simulate_queries,
                 viewport_size=viewport_size,
             ),
-            "history_round_ids": [str(round_entry["round_id"]) for round_entry in round_entries],
-            "history_round_numbers": [int(round_entry.get("round_number", 0) or 0) for round_entry in round_entries],
+            "history_round_ids": [str(round_entry["round_id"]) for round_entry in index.get("rounds", [])],
+            "history_round_numbers": [int(round_entry.get("round_number", 0) or 0) for round_entry in index.get("rounds", [])],
             "variants": summary_variants,
             "floor": floor,
             "prior_strength": prior_strength,
@@ -416,7 +383,7 @@ def strategy_signature(
     viewport_size: int,
 ) -> str:
     payload = {
-        "version": 4,
+        "version": 3,
         "history_round_ids": list(history_round_ids),
         "floor": float(floor),
         "prior_strength": float(prior_strength),
@@ -429,7 +396,7 @@ def strategy_signature(
         "viewport_size": int(viewport_size),
         "ensemble_weights": list(ENSEMBLE_SKLEARN_WEIGHTS),
         "feature_columns": list(FEATURE_COLUMNS),
-        "planner": "adaptive_information_gain_v3_triggered",
+        "planner": "adaptive_information_gain_v2",
         "observation_mode": "cached_or_synthetic_replay_v3",
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
@@ -466,6 +433,133 @@ def load_replay_observations(
         random_state=random_state,
     )
     return synthetic, "synthetic_analysis_sampling"
+
+
+def load_cached_round_observations(root: Path, round_id: str, max_queries: int) -> dict[int, list[dict[str, Any]]]:
+    observations_by_seed: dict[int, list[dict[str, Any]]] = {}
+    sim_root = root / round_id / "team" / "simulations"
+    if not sim_root.exists():
+        return observations_by_seed
+    total_loaded = 0
+    for seed_dir in sorted(sim_root.glob("seed_*")):
+        seed_index = int(seed_dir.name.split("_")[1])
+        observations_by_seed[seed_index] = []
+        for query_path in sorted(seed_dir.glob("query_*.json")):
+            if total_loaded >= max_queries:
+                break
+            payload = json.loads(query_path.read_text())
+            observations_by_seed[seed_index].append(payload["response"])
+            total_loaded += 1
+        if total_loaded >= max_queries:
+            break
+    return observations_by_seed
+
+
+def synthesize_observations_from_analysis(
+    *,
+    round_detail: dict[str, Any],
+    round_id: str,
+    root: Path,
+    cache_prefix: str,
+    total_queries: int,
+    viewport_size: int,
+    history_prior_model: HistoryPriorModel | None,
+    history_prior_strength: float,
+    prior_strength: float,
+    floor: float,
+    random_state: int,
+) -> dict[int, list[dict[str, Any]]]:
+    observations_by_seed: dict[int, list[dict[str, Any]]] = {
+        seed_index: [] for seed_index, _state in enumerate(round_detail["initial_states"])
+    }
+    analysis_by_seed: dict[int, dict[str, Any]] = {}
+    for seed_index, _state in enumerate(round_detail["initial_states"]):
+        analysis_path = root / cache_prefix / "rounds" / round_id / "team" / "analysis" / f"seed_{seed_index}.json"
+        if analysis_path.exists():
+            analysis_by_seed[seed_index] = json.loads(analysis_path.read_text())
+    if not analysis_by_seed:
+        return observations_by_seed
+
+    seed_material = f"{round_id}:{random_state}".encode("utf-8")
+    stable_seed = int(hashlib.sha256(seed_material).hexdigest()[:8], 16)
+    rng = np.random.default_rng(stable_seed)
+    planned_requests: dict[int, list[Any]] = {seed_index: [] for seed_index in observations_by_seed}
+    for _ in range(total_queries):
+        planning_history_prior_model = history_prior_model
+        if planning_history_prior_model is not None and any(observations_by_seed.values()):
+            planning_history_prior_model, _ = infer_regime_history_prior_model(
+                history_prior_model=planning_history_prior_model,
+                round_detail=round_detail,
+                observations_by_seed=observations_by_seed,
+            )
+        selection = select_next_viewport_request(
+            round_detail=round_detail,
+            viewport_size=viewport_size,
+            observations_by_seed=observations_by_seed,
+            already_selected=planned_requests,
+            history_prior_model=planning_history_prior_model,
+            history_prior_strength=history_prior_strength,
+            prior_strength=prior_strength,
+            floor=floor,
+        )
+        if selection is None:
+            break
+        request = selection["request"]
+        planned_requests[request.seed_index].append(request)
+        analysis = analysis_by_seed.get(request.seed_index)
+        if analysis is None:
+            continue
+        observations_by_seed[request.seed_index].append(
+            synthesize_single_observation(
+                analysis=analysis,
+                seed_index=request.seed_index,
+                viewport_x=request.viewport_x,
+                viewport_y=request.viewport_y,
+                viewport_w=request.viewport_w,
+                viewport_h=request.viewport_h,
+                rng=rng,
+            )
+        )
+    return observations_by_seed
+
+
+def synthesize_single_observation(
+    *,
+    analysis: dict[str, Any],
+    seed_index: int,
+    viewport_x: int,
+    viewport_y: int,
+    viewport_w: int,
+    viewport_h: int,
+    rng: np.random.Generator,
+) -> dict[str, Any]:
+    ground_truth = np.asarray(analysis["ground_truth"], dtype=float)
+    initial_grid = np.asarray(analysis["initial_grid"], dtype=int)
+    patch_truth = ground_truth[viewport_y : viewport_y + viewport_h, viewport_x : viewport_x + viewport_w]
+    patch_initial = initial_grid[viewport_y : viewport_y + viewport_h, viewport_x : viewport_x + viewport_w]
+    sampled_grid = np.zeros((viewport_h, viewport_w), dtype=int)
+    for y in range(viewport_h):
+        for x in range(viewport_w):
+            sampled_class = int(rng.choice(np.arange(patch_truth.shape[-1]), p=patch_truth[y, x]))
+            sampled_grid[y, x] = sampled_class_to_terrain_code(sampled_class, int(patch_initial[y, x]))
+    return {
+        "seed_index": seed_index,
+        "grid": sampled_grid.tolist(),
+        "settlements": [],
+        "viewport": {"x": viewport_x, "y": viewport_y, "w": viewport_w, "h": viewport_h},
+        "width": int(analysis["width"]),
+        "height": int(analysis["height"]),
+        "queries_used": None,
+        "queries_max": 50,
+    }
+
+
+def sampled_class_to_terrain_code(class_index: int, initial_code: int) -> int:
+    if class_index == 0:
+        if initial_code in {0, 10, 11}:
+            return int(initial_code)
+        return 11
+    return int(class_index)
 
 
 def apply_observation_conditioning_to_prediction_set(
@@ -546,32 +640,6 @@ def apply_rare_class_lifting_to_prediction_set(
     return conditioned
 
 
-def apply_resource_post_observation_to_prediction_set(
-    *,
-    round_detail: dict[str, Any],
-    predictions: list[np.ndarray],
-    observations_by_seed: dict[int, list[dict[str, Any]]],
-    floor: float,
-    floor_distribution: np.ndarray | None = None,
-) -> list[np.ndarray]:
-    if not observations_by_seed or not any(observations_by_seed.values()):
-        return [prediction.copy() for prediction in predictions]
-    round_context = build_round_observation_context(round_detail=round_detail, observations_by_seed=observations_by_seed)
-    conditioned: list[np.ndarray] = []
-    for seed_index, prediction in enumerate(predictions):
-        conditioned.append(
-            apply_resource_post_observation_to_seed(
-                round_detail=round_detail,
-                seed_index=seed_index,
-                prediction=prediction,
-                round_context=round_context,
-                floor=floor,
-                floor_distribution=floor_distribution,
-            )
-        )
-    return conditioned
-
-
 def build_round_observation_context(
     *,
     round_detail: dict[str, Any],
@@ -619,11 +687,6 @@ def build_round_observation_context(
                 global_coastal_totals += probs
         seed_contexts[seed_index] = {
             "observed_cells": observed_cells,
-            "observed_settlements": _summarize_observed_settlements(
-                samples=observations_by_seed.get(seed_index, []),
-                grid=grid,
-                coastal_mask=coastal_mask,
-            ),
             "class_probs": _normalize_prob_vector(seed_class_totals),
             "terrain_probs": {code: _normalize_prob_vector(totals) for code, totals in seed_terrain_totals.items()},
             "coastal_probs": _normalize_prob_vector(seed_coastal_totals),
@@ -779,119 +842,6 @@ def apply_rare_class_lifting_to_seed(
     return apply_probability_floor(adjusted, floor=floor, floor_distribution=floor_distribution)
 
 
-def apply_resource_post_observation_to_seed(
-    *,
-    round_detail: dict[str, Any],
-    seed_index: int,
-    prediction: np.ndarray,
-    round_context: dict[str, Any],
-    floor: float,
-    floor_distribution: np.ndarray | None,
-) -> np.ndarray:
-    state = round_detail["initial_states"][seed_index]
-    grid = np.asarray(state["grid"], dtype=int)
-    coastal_mask = _build_coastal_mask(grid)
-    seed_context = round_context.get("seed_contexts", {}).get(seed_index, {})
-    observed_settlements = list(seed_context.get("observed_settlements", []))
-    if not observed_settlements:
-        return apply_probability_floor(prediction, floor=floor, floor_distribution=floor_distribution)
-
-    observed_summary = round_context.get("observed_summary", {})
-    mean_food = float(observed_summary.get("mean_food", 0.0))
-    mean_wealth = float(observed_summary.get("mean_wealth", 0.0))
-    coverage_fraction = (
-        float(np.mean([float(item.get("coverage_fraction", 0.0)) for item in round_context.get("seed_contexts", {}).values()]))
-        if round_context.get("seed_contexts")
-        else 0.0
-    )
-    strength = float(np.clip(0.10 + 0.60 * coverage_fraction, 0.0, 0.32))
-
-    adjusted = prediction.astype(float, copy=True)
-    for y in range(grid.shape[0]):
-        for x in range(grid.shape[1]):
-            terrain_code = int(grid[y, x])
-            if terrain_code in {10, 5}:
-                continue
-            coastal_signal = 1.0 if bool(coastal_mask[y, x]) else 0.0
-            frontier_signal = _local_frontier_score(grid=grid, x=x, y=y)
-            settlement_pull = 0.0
-            port_pull = 0.0
-            ruin_pull = 0.0
-            stability_pull = 0.0
-
-            for observed in observed_settlements:
-                distance = abs(int(observed["x"]) - x) + abs(int(observed["y"]) - y)
-                proximity = _proximity_signal(distance, radius=3.25)
-                if proximity <= 0.05:
-                    continue
-
-                wealth_signal = float(
-                    np.clip(
-                        (float(observed.get("wealth", 0.0)) - max(0.75 * mean_wealth, 0.006))
-                        / max(0.018, 1.4 * mean_wealth),
-                        0.0,
-                        1.6,
-                    )
-                )
-                food_signal = float(
-                    np.clip(
-                        (float(observed.get("food", 0.0)) - max(mean_food, 0.45)) / 0.28,
-                        0.0,
-                        1.5,
-                    )
-                )
-                low_food_signal = float(
-                    np.clip((max(mean_food, 0.45) - float(observed.get("food", 0.0))) / 0.24, 0.0, 1.5)
-                )
-                pressure_signal = float(
-                    np.clip(
-                        max(
-                            -float(observed.get("population_delta_first_last", 0.0)) / 0.22,
-                            0.55 * low_food_signal
-                            + 0.30 * float(observed.get("defense", 0.0))
-                            + 0.20 * max(-float(observed.get("food_delta_first_last", 0.0)), 0.0) / 0.12,
-                        ),
-                        0.0,
-                        1.8,
-                    )
-                )
-
-                if bool(observed.get("has_port")):
-                    port_pull += proximity * (0.35 + 0.55 * wealth_signal) * (0.70 + 0.30 * coastal_signal)
-                else:
-                    settlement_pull += proximity * wealth_signal * (0.60 + 0.20 * frontier_signal)
-                    port_pull += proximity * wealth_signal * coastal_signal * 0.18
-                    stability_pull += proximity * food_signal * (0.55 + 0.20 * (1.0 - coastal_signal))
-
-                if int(observed.get("observation_count", 1)) > 1 or pressure_signal > 0.35:
-                    ruin_pull += proximity * pressure_signal * (0.35 + 0.45 * frontier_signal)
-                    settlement_pull -= proximity * 0.12 * pressure_signal
-
-            settlement_pull = float(np.clip(settlement_pull, -0.35, 1.8))
-            port_pull = float(np.clip(port_pull, 0.0, 1.4))
-            ruin_pull = float(np.clip(ruin_pull, 0.0, 1.8))
-            stability_pull = float(np.clip(stability_pull, 0.0, 1.3))
-
-            base = adjusted[y, x]
-            lifted = np.array(base, copy=True)
-            lifted[1] *= 1.0 + strength * 0.75 * settlement_pull
-            lifted[2] *= 1.0 + strength * 0.95 * port_pull
-            lifted[3] *= 1.0 + strength * 0.85 * ruin_pull
-            lifted[4] *= 1.0 + strength * 0.18 * stability_pull
-            lifted[0] *= max(
-                0.35,
-                1.0
-                + strength * 0.22 * stability_pull
-                - strength * 0.20 * max(settlement_pull, 0.0)
-                - strength * 0.24 * port_pull
-                - strength * 0.18 * ruin_pull,
-            )
-            lifted = np.clip(lifted, 1e-12, None)
-            lifted /= lifted.sum()
-            adjusted[y, x] = lifted
-    return apply_probability_floor(adjusted, floor=floor, floor_distribution=floor_distribution)
-
-
 def infer_round_observation_axes(observed_summary: dict[str, Any]) -> dict[str, float]:
     return {
         "development": float(np.clip(observed_summary.get("development_signal", 0.0), 0.0, 1.0)),
@@ -923,10 +873,7 @@ def score_prediction_variants_for_live_round(
             observations_by_seed=observations_by_seed,
         )
         activity_gap = _variant_activity_gap(predictions=predictions, round_context=round_context)
-        offline_mean, offline_score_source = _resolve_offline_variant_score(
-            variant_name=variant_name,
-            offline_scores=offline_scores,
-        )
+        offline_mean = float(offline_scores.get(variant_name, 0.0))
         live_score = float(observation_match - (0.25 * activity_gap) + (0.002 * offline_mean))
         variant_reports.append(
             {
@@ -935,7 +882,6 @@ def score_prediction_variants_for_live_round(
                 "observation_match": observation_match,
                 "activity_gap": activity_gap,
                 "offline_mean_round_score": offline_mean,
-                "offline_score_source": offline_score_source,
             }
         )
     variant_reports = sorted(variant_reports, key=lambda item: (item["live_score"], item["offline_mean_round_score"]), reverse=True)
@@ -945,55 +891,6 @@ def score_prediction_variants_for_live_round(
         "variants": variant_reports,
         "best_variant": variant_reports[0]["variant"] if variant_reports else None,
     }
-
-
-def _resolve_offline_variant_score(
-    *,
-    variant_name: str,
-    offline_scores: dict[str, float],
-) -> tuple[float, str]:
-    exact = offline_scores.get(variant_name)
-    if exact is not None:
-        return float(exact), "exact"
-
-    for fallback_name in OFFLINE_SCORE_FALLBACKS.get(variant_name, ()):
-        fallback_score = offline_scores.get(fallback_name)
-        if fallback_score is not None:
-            return float(fallback_score), f"fallback:{fallback_name}"
-
-    family_candidates: list[str] = []
-    if variant_name.startswith("sklearn_") or variant_name == "sklearn":
-        family_candidates = [
-            name
-            for name in ("sklearn_observation_context", "sklearn_global_post_observation", "sklearn")
-            if name in offline_scores
-        ]
-    elif variant_name.startswith("baseline_history"):
-        family_candidates = [
-            name
-            for name in ("baseline_history_observation_context", "baseline_history_global_post_observation", "baseline_history")
-            if name in offline_scores
-        ]
-    elif variant_name.startswith("ensemble_"):
-        family_candidates = [
-            name
-            for name in (
-                "ensemble_observation_context_50",
-                "ensemble_global_post_observation_50",
-                "ensemble_sklearn_75",
-                "ensemble_sklearn_50",
-                "ensemble_sklearn_25",
-            )
-            if name in offline_scores
-        ]
-    if family_candidates:
-        scores = np.asarray([float(offline_scores[name]) for name in family_candidates], dtype=float)
-        return float(scores.mean()), "fallback:family_mean"
-
-    if offline_scores:
-        scores = np.asarray(list(offline_scores.values()), dtype=float)
-        return float(np.median(scores)), "fallback:median"
-    return 0.0, "missing"
 
 
 def _spatial_observation_prior(
@@ -1030,47 +927,6 @@ def _normalize_prob_vector(values: np.ndarray) -> np.ndarray | None:
     if total <= 0:
         return None
     return np.asarray(values, dtype=float) / total
-
-
-def _summarize_observed_settlements(
-    *,
-    samples: list[dict[str, Any]],
-    grid: np.ndarray,
-    coastal_mask: np.ndarray,
-) -> list[dict[str, Any]]:
-    grouped: dict[tuple[int, int], list[dict[str, Any]]] = {}
-    for query_index, sample in enumerate(samples):
-        for settlement in sample.get("settlements", []):
-            x = int(settlement["x"])
-            y = int(settlement["y"])
-            grouped.setdefault((x, y), []).append(
-                {
-                    "x": x,
-                    "y": y,
-                    "query_index": int(query_index),
-                    "has_port": bool(settlement.get("has_port")),
-                    "alive": bool(settlement.get("alive", True)),
-                    "owner_id": settlement.get("owner_id"),
-                    "population": float(settlement.get("population", 0.0) or 0.0),
-                    "food": float(settlement.get("food", 0.0) or 0.0),
-                    "wealth": float(settlement.get("wealth", 0.0) or 0.0),
-                    "defense": float(settlement.get("defense", 0.0) or 0.0),
-                }
-            )
-
-    summarized: list[dict[str, Any]] = []
-    for (x, y), records in grouped.items():
-        ordered = sorted(records, key=lambda item: int(item["query_index"]))
-        representative = dict(ordered[-1])
-        representative["observation_count"] = len(ordered)
-        representative["coast_adjacent"] = bool(coastal_mask[y, x])
-        representative["frontier_score"] = _local_frontier_score(grid=grid, x=x, y=y)
-        for key in ("population", "food", "wealth", "defense"):
-            values = np.asarray([float(item[key]) for item in ordered], dtype=float)
-            representative[key] = float(values.mean())
-            representative[f"{key}_delta_first_last"] = float(values[-1] - values[0]) if len(values) > 1 else 0.0
-        summarized.append(representative)
-    return summarized
 
 
 def _build_coastal_mask(grid: np.ndarray) -> np.ndarray:

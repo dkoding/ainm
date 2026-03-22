@@ -5,10 +5,8 @@ import re
 from typing import Any
 
 from app.contracts.execution import ExecutionContext
-from app.openapi_schema_guard import validate_request_body_value
 from app.raw.catalog import RawCatalog, load_raw_catalog
 from app.raw.errors import RawExecutionError
-from app.raw.input_coercion import RawInputCoercer
 from app.raw.transport import TripletexTransport
 
 
@@ -16,42 +14,23 @@ class RawExecutor:
     def __init__(self, catalog: RawCatalog | None = None, transport: TripletexTransport | None = None) -> None:
         self.catalog = catalog or load_raw_catalog()
         self.transport = transport or TripletexTransport()
-        self.input_coercer = RawInputCoercer(raw_catalog=self.catalog)
 
     def execute(self, operation_id: str, arguments: dict[str, Any], context: ExecutionContext) -> Any:
         operation = self.catalog.get(operation_id)
-        params = self.input_coercer.normalize_operation_inputs(operation_id, dict(arguments))
+        params = dict(arguments)
         path = self._interpolate_path(operation["path"], operation["pathParams"], params)
         query = self._collect_query(operation["queryParams"], params)
-        json_body, multipart_data, multipart_files = self._build_body(operation, params)
-        if operation["requestBody"].get("kind") != "multipart" and json_body is not None:
-            validate_request_body_value(
-                json_body,
-                raw_meta=operation,
-                field_name="body",
-                operation_id=operation["operationId"],
-                body_label="Translated body",
-            )
+        json_body, multipart_data, multipart_files = self._build_body(operation["requestBody"], params)
         self._validate_remaining_required(operation, query, json_body, multipart_data, multipart_files, params)
-        try:
-            return self.transport.request(
-                context=context,
-                method=operation["method"],
-                path=path,
-                params=query,
-                json_body=json_body,
-                multipart_data=multipart_data,
-                multipart_files=multipart_files,
-            )
-        except RawExecutionError as exc:
-            details = dict(exc.details)
-            details.setdefault("operationId", operation["operationId"])
-            raise RawExecutionError(
-                message=exc.message,
-                status_code=exc.status_code,
-                request_id=exc.request_id,
-                details=details,
-            ) from exc
+        return self.transport.request(
+            context=context,
+            method=operation["method"],
+            path=path,
+            params=query,
+            json_body=json_body,
+            multipart_data=multipart_data,
+            multipart_files=multipart_files,
+        )
 
     def _interpolate_path(
         self,
@@ -77,11 +56,9 @@ class RawExecutor:
 
     def _build_body(
         self,
-        operation: dict[str, Any],
+        body_meta: dict[str, Any],
         arguments: dict[str, Any],
     ) -> tuple[Any, dict[str, Any] | None, dict[str, Any] | None]:
-        body_meta = operation["requestBody"]
-        body_schema = self.input_coercer.openapi_catalog.body_schema(operation["operationId"])
         if not body_meta:
             return None, None, None
         explicit_body = arguments.pop("body", None)
@@ -102,10 +79,12 @@ class RawExecutor:
             if not isinstance(explicit_body, (dict, list)):
                 raise RawExecutionError(message="JSON request bodies must be dict or list values.")
             return explicit_body, None, None
-        if body_schema.get("type") == "array":
+        content = body_meta.get("content", {})
+        json_schema = next(iter(content.values()), {})
+        if json_schema.get("type") == "array":
             return None, None, None
         allowed_properties = {
-            key for key, value in body_schema.get("properties", {}).items() if not value.get("readOnly")
+            key for key, value in json_schema.get("properties", {}).items() if not value.get("readOnly")
         }
         body: dict[str, Any] = {}
         for key in list(arguments.keys()):
@@ -125,9 +104,7 @@ class RawExecutor:
         missing_query = [
             parameter["name"]
             for parameter in operation["queryParams"]
-            if parameter["required"]
-            and parameter["name"] not in query
-            and not self.input_coercer.has_documented_default(operation["operationId"], parameter["name"], section="query")
+            if parameter["required"] and parameter["name"] not in query
         ]
         if missing_query:
             raise RawExecutionError(message=f"Missing required query parameters: {', '.join(missing_query)}")
@@ -135,28 +112,18 @@ class RawExecutor:
         if request_body.get("required") and json_body is None and multipart_data is None:
             raise RawExecutionError(message="Missing required request body.")
         if request_body and isinstance(json_body, dict):
-            schema = self.input_coercer.openapi_catalog.body_schema(operation["operationId"])
+            schema = next(iter(request_body.get("content", {}).values()), {})
             required_properties = schema.get("required", [])
-            missing_properties = [
-                name
-                for name in required_properties
-                if name not in json_body
-                and not self.input_coercer.has_documented_default(operation["operationId"], name, section="body")
-            ]
+            missing_properties = [name for name in required_properties if name not in json_body]
             if missing_properties:
                 raise RawExecutionError(
                     message=f"Missing required body properties: {', '.join(missing_properties)}"
                 )
         if request_body and request_body.get("kind") == "multipart":
-            schema = self.input_coercer.openapi_catalog.body_schema(operation["operationId"])
+            schema = next(iter(request_body.get("content", {}).values()), {})
             required_properties = schema.get("required", [])
             multipart_keys = set((multipart_data or {}).keys()) | set((multipart_files or {}).keys())
-            missing_properties = [
-                name
-                for name in required_properties
-                if name not in multipart_keys
-                and not self.input_coercer.has_documented_default(operation["operationId"], name, section="body")
-            ]
+            missing_properties = [name for name in required_properties if name not in multipart_keys]
             if missing_properties:
                 raise RawExecutionError(
                     message=f"Missing required multipart properties: {', '.join(missing_properties)}"

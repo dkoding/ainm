@@ -27,14 +27,6 @@
           "valueStrategy": "body_merge"
         }
       },
-      "inputSemantics": {
-        "cost_start_date": {
-          "kind": "scalar"
-        },
-        "name": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`name`, `cost_start_date?`",
       "inputs": [
         "name",
@@ -48,7 +40,6 @@
       "rawMethod": "POST",
       "rawPath": "/company/salesmodules",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "company.salesmodules.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -84,20 +75,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "fields",
@@ -111,7 +88,6 @@
       "rawMethod": "GET",
       "rawPath": "/company/salesmodules",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "company.salesmodules.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -155,26 +131,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "code": {
-          "kind": "scalar"
-        },
-        "count": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id?`, `code?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "id",
@@ -190,7 +146,6 @@
       "rawMethod": "GET",
       "rawPath": "/currency",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "currency.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -208,9 +163,6 @@
       "conformancePolicyKey": null,
       "inputBindings": {
         "account_manager_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "accountManager",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -221,9 +173,6 @@
           "valueStrategy": "body_merge"
         },
         "department_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "department",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -274,38 +223,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "account_manager_ref": {
-          "kind": "reference"
-        },
-        "department_ref": {
-          "kind": "reference"
-        },
-        "email": {
-          "kind": "scalar"
-        },
-        "invoice_email": {
-          "kind": "scalar"
-        },
-        "is_supplier": {
-          "kind": "scalar"
-        },
-        "language": {
-          "kind": "scalar"
-        },
-        "name": {
-          "kind": "scalar"
-        },
-        "organization_number": {
-          "kind": "scalar"
-        },
-        "phone_number": {
-          "kind": "scalar"
-        },
-        "phone_number_mobile": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`name`, `organization_number?`, `email?`, `invoice_email?`, `phone_number?`, `phone_number_mobile?`, `department_ref?`, `account_manager_ref?`, `language?`, `is_supplier?`, address fields as needed.",
       "inputs": [
         "name",
@@ -325,7 +242,6 @@
       "rawMethod": "POST",
       "rawPath": "/customer",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "customer.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -346,11 +262,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`",
       "inputs": [
         "id"
@@ -363,7 +274,6 @@
       "rawMethod": "DELETE",
       "rawPath": "/customer/{id}",
       "safetyClass": "destructive",
-      "selectorFamily": null,
       "technicalFlowFamily": "customer.delete",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -390,14 +300,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "fields": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `fields?`",
       "inputs": [
         "id",
@@ -409,7 +311,6 @@
       "rawMethod": "GET",
       "rawPath": "/customer/{id}",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "customer.read",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -435,19 +336,11 @@
           "valueStrategy": "plain"
         },
         "customer_account_number": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "customer_selector"
-          },
           "targetName": "customerAccountNumber",
           "targetSection": "query",
           "valueStrategy": "plain"
         },
         "email": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "customer_selector"
-          },
           "targetName": "email",
           "targetSection": "query",
           "valueStrategy": "plain"
@@ -463,19 +356,11 @@
           "valueStrategy": "plain"
         },
         "id": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "customer_selector"
-          },
           "targetName": "id",
           "targetSection": "query",
           "valueStrategy": "plain"
         },
         "invoice_email": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "customer_selector"
-          },
           "targetName": "invoiceEmail",
           "targetSection": "query",
           "valueStrategy": "plain"
@@ -486,10 +371,6 @@
           "valueStrategy": "plain"
         },
         "organization_number": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "customer_selector"
-          },
           "targetName": "organizationNumber",
           "targetSection": "query",
           "valueStrategy": "plain"
@@ -498,47 +379,6 @@
           "targetName": "sorting",
           "targetSection": "query",
           "valueStrategy": "plain"
-        }
-      },
-      "inputSemantics": {
-        "account_manager_id": {
-          "kind": "scalar"
-        },
-        "count": {
-          "kind": "scalar"
-        },
-        "customer_account_number": {
-          "kind": "selector_field",
-          "selectorFamily": "customer_selector"
-        },
-        "email": {
-          "kind": "selector_field",
-          "selectorFamily": "customer_selector"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "selector_field",
-          "selectorFamily": "customer_selector"
-        },
-        "invoice_email": {
-          "kind": "selector_field",
-          "selectorFamily": "customer_selector"
-        },
-        "name": {
-          "kind": "selector_field",
-          "selectorFamily": "customer_selector"
-        },
-        "organization_number": {
-          "kind": "selector_field",
-          "selectorFamily": "customer_selector"
-        },
-        "sorting": {
-          "kind": "scalar"
         }
       },
       "inputSpec": "`id?`, `customer_account_number?`, `organization_number?`, `email?`, `invoice_email?`, `name?`, `account_manager_id?`, `fields?`, `from?`, `count?`, `sorting?`",
@@ -563,7 +403,6 @@
       "rawMethod": "GET",
       "rawPath": "/customer",
       "safetyClass": "read_only",
-      "selectorFamily": "customer_selector",
       "technicalFlowFamily": "customer.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -600,14 +439,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        },
-        "version": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, customer payload, `version?`",
       "inputs": [
         "id",
@@ -619,7 +450,6 @@
       "rawMethod": "PUT",
       "rawPath": "/customer/{id}",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "customer.update",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -640,9 +470,6 @@
           "valueStrategy": "body_merge"
         },
         "department_manager_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "departmentManager",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -663,17 +490,6 @@
           "valueStrategy": "body_merge"
         }
       },
-      "inputSemantics": {
-        "department_manager_ref": {
-          "kind": "reference"
-        },
-        "department_number": {
-          "kind": "scalar"
-        },
-        "name": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`name`, `department_number?`, `department_manager_ref?`",
       "inputs": [
         "name",
@@ -686,7 +502,6 @@
       "rawMethod": "POST",
       "rawPath": "/department",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "department.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -708,11 +523,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`",
       "inputs": [
         "id"
@@ -723,7 +533,6 @@
       "rawMethod": "DELETE",
       "rawPath": "/department/{id}",
       "safetyClass": "destructive",
-      "selectorFamily": null,
       "technicalFlowFamily": "department.delete",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -750,14 +559,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "fields": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `fields?`",
       "inputs": [
         "id",
@@ -769,7 +570,6 @@
       "rawMethod": "GET",
       "rawPath": "/department/{id}",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "department.read",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -790,19 +590,11 @@
           "valueStrategy": "plain"
         },
         "department_manager_id": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "department_selector"
-          },
           "targetName": "departmentManagerId",
           "targetSection": "query",
           "valueStrategy": "plain"
         },
         "department_number": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "department_selector"
-          },
           "targetName": "departmentNumber",
           "targetSection": "query",
           "valueStrategy": "plain"
@@ -818,19 +610,11 @@
           "valueStrategy": "plain"
         },
         "id": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "department_selector"
-          },
           "targetName": "id",
           "targetSection": "query",
           "valueStrategy": "plain"
         },
         "name": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "department_selector"
-          },
           "targetName": "name",
           "targetSection": "query",
           "valueStrategy": "plain"
@@ -839,36 +623,6 @@
           "targetName": "sorting",
           "targetSection": "query",
           "valueStrategy": "plain"
-        }
-      },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "department_manager_id": {
-          "kind": "selector_field",
-          "selectorFamily": "department_selector"
-        },
-        "department_number": {
-          "kind": "selector_field",
-          "selectorFamily": "department_selector"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "selector_field",
-          "selectorFamily": "department_selector"
-        },
-        "name": {
-          "kind": "selector_field",
-          "selectorFamily": "department_selector"
-        },
-        "sorting": {
-          "kind": "scalar"
         }
       },
       "inputSpec": "`id?`, `name?`, `department_number?`, `department_manager_id?`, `fields?`, `from?`, `count?`, `sorting?`",
@@ -888,7 +642,6 @@
       "rawMethod": "GET",
       "rawPath": "/department",
       "safetyClass": "read_only",
-      "selectorFamily": "department_selector",
       "technicalFlowFamily": "department.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -923,14 +676,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        },
-        "version": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, department payload, `version?`",
       "inputs": [
         "id",
@@ -942,7 +687,6 @@
       "rawMethod": "PUT",
       "rawPath": "/department/{id}",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "department.update",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -963,9 +707,6 @@
           "valueStrategy": "body_merge"
         },
         "department_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "department",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -1001,26 +742,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "department_ref": {
-          "kind": "reference"
-        },
-        "email": {
-          "kind": "scalar"
-        },
-        "first_name": {
-          "kind": "scalar"
-        },
-        "last_name": {
-          "kind": "scalar"
-        },
-        "phone_number_mobile": {
-          "kind": "scalar"
-        },
-        "user_type": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`first_name`, `last_name`, `email?`, `phone_number_mobile?`, `department_ref?`, `user_type?`, other employee payload fields when needed.",
       "inputs": [
         "first_name",
@@ -1038,7 +759,6 @@
       "rawMethod": "POST",
       "rawPath": "/employee",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "employee.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -1075,20 +795,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "add_to_existing": {
-          "kind": "scalar"
-        },
-        "customer_id": {
-          "kind": "scalar"
-        },
-        "employee_id": {
-          "kind": "scalar"
-        },
-        "template": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`employee_id`, `customer_id`, `template`, `add_to_existing?`",
       "inputs": [
         "employee_id",
@@ -1102,7 +808,6 @@
       "rawMethod": "PUT",
       "rawPath": "/employee/entitlement/:grantClientEntitlementsByTemplate",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "employee.entitlement.grant_client_entitlements_by_template",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -1129,14 +834,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "employee_id": {
-          "kind": "scalar"
-        },
-        "template": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`employee_id`, `template`",
       "inputs": [
         "employee_id",
@@ -1150,7 +847,6 @@
       "rawMethod": "PUT",
       "rawPath": "/employee/entitlement/:grantEntitlementsByTemplate",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "employee.entitlement.grant_entitlements_by_template",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -1191,23 +887,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "employee_id": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`employee_id?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "employee_id",
@@ -1222,7 +901,6 @@
       "rawMethod": "GET",
       "rawPath": "/employee/entitlement",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "employee.entitlement.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -1246,14 +924,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "fields": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `fields?`",
       "inputs": [
         "id",
@@ -1265,7 +935,6 @@
       "rawMethod": "GET",
       "rawPath": "/employee/{id}",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "employee.read",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -1284,28 +953,16 @@
           "valueStrategy": "plain"
         },
         "department_id": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "employee_selector"
-          },
           "targetName": "departmentId",
           "targetSection": "query",
           "valueStrategy": "plain"
         },
         "email": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "employee_selector"
-          },
           "targetName": "email",
           "targetSection": "query",
           "valueStrategy": "plain"
         },
         "employee_number": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "employee_selector"
-          },
           "targetName": "employeeNumber",
           "targetSection": "query",
           "valueStrategy": "plain"
@@ -1316,10 +973,6 @@
           "valueStrategy": "plain"
         },
         "first_name": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "employee_selector"
-          },
           "targetName": "firstName",
           "targetSection": "query",
           "valueStrategy": "plain"
@@ -1335,19 +988,11 @@
           "valueStrategy": "plain"
         },
         "id": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "employee_selector"
-          },
           "targetName": "id",
           "targetSection": "query",
           "valueStrategy": "plain"
         },
         "last_name": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "employee_selector"
-          },
           "targetName": "lastName",
           "targetSection": "query",
           "valueStrategy": "plain"
@@ -1361,50 +1006,6 @@
           "targetName": "sorting",
           "targetSection": "query",
           "valueStrategy": "plain"
-        }
-      },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "department_id": {
-          "kind": "selector_field",
-          "selectorFamily": "employee_selector"
-        },
-        "email": {
-          "kind": "selector_field",
-          "selectorFamily": "employee_selector"
-        },
-        "employee_number": {
-          "kind": "selector_field",
-          "selectorFamily": "employee_selector"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "first_name": {
-          "kind": "selector_field",
-          "selectorFamily": "employee_selector"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "has_system_access": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "selector_field",
-          "selectorFamily": "employee_selector"
-        },
-        "last_name": {
-          "kind": "selector_field",
-          "selectorFamily": "employee_selector"
-        },
-        "only_project_managers": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
         }
       },
       "inputSpec": "`id?`, `first_name?`, `last_name?`, `employee_number?`, `email?`, `department_id?`, `has_system_access?`, `only_project_managers?`, `fields?`, `from?`, `count?`, `sorting?`",
@@ -1428,7 +1029,6 @@
       "rawMethod": "GET",
       "rawPath": "/employee",
       "safetyClass": "read_only",
-      "selectorFamily": "employee_selector",
       "technicalFlowFamily": "employee.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -1464,14 +1064,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        },
-        "version": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, employee payload including changed fields, `version?`",
       "inputs": [
         "id",
@@ -1483,7 +1075,6 @@
       "rawMethod": "PUT",
       "rawPath": "/employee/{id}",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "employee.update",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -1550,32 +1141,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "amount_currency": {
-          "kind": "scalar"
-        },
-        "creditor_iban_or_bban": {
-          "kind": "scalar"
-        },
-        "kid_or_receiver_reference": {
-          "kind": "scalar"
-        },
-        "partial_payment": {
-          "kind": "scalar"
-        },
-        "payment_date": {
-          "kind": "scalar"
-        },
-        "payment_type_client_uuid": {
-          "kind": "scalar"
-        },
-        "use_default_payment_type": {
-          "kind": "scalar"
-        },
-        "voucher_id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`voucher_id`, `payment_type_client_uuid?`, `amount_currency?`, `payment_date?`, `creditor_iban_or_bban?`, `kid_or_receiver_reference?`, `use_default_payment_type?`, `partial_payment?`",
       "inputs": [
         "voucher_id",
@@ -1595,7 +1160,6 @@
       "rawMethod": "POST",
       "rawPath": "/incomingInvoice/{voucherId}/addPayment",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "incoming_invoice.add_payment.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -1621,14 +1185,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "fields": {
-          "kind": "scalar"
-        },
-        "voucher_id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`voucher_id`, `fields?`",
       "inputs": [
         "voucher_id",
@@ -1642,7 +1198,6 @@
       "rawMethod": "GET",
       "rawPath": "/incomingInvoice/{voucherId}",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "incoming_invoice.read",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -1691,23 +1246,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "invoice_header": {
-          "kind": "scalar"
-        },
-        "order_lines": {
-          "kind": "scalar"
-        },
-        "send_to": {
-          "kind": "scalar"
-        },
-        "version": {
-          "kind": "scalar"
-        },
-        "voucher_id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`voucher_id`, `send_to?`, `version?`, `invoice_header?`, `order_lines[]?`",
       "inputs": [
         "voucher_id",
@@ -1724,7 +1262,6 @@
       "rawMethod": "PUT",
       "rawPath": "/incomingInvoice/{voucherId}",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "incoming_invoice.update",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -1750,9 +1287,6 @@
           "valueStrategy": "plain"
         },
         "customer_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "customer",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -1793,32 +1327,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "comment": {
-          "kind": "scalar"
-        },
-        "customer_ref": {
-          "kind": "reference"
-        },
-        "invoice_comment": {
-          "kind": "scalar"
-        },
-        "invoice_date": {
-          "kind": "scalar"
-        },
-        "invoice_due_date": {
-          "kind": "scalar"
-        },
-        "orders": {
-          "kind": "scalar"
-        },
-        "paid_amount": {
-          "kind": "scalar"
-        },
-        "payment_type_id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`invoice_date`, `invoice_due_date?`, `customer_ref`, `orders[]?`, `payment_type_id?`, `paid_amount?`, `invoice_comment?`, `comment?`",
       "inputs": [
         "invoice_date",
@@ -1838,7 +1346,6 @@
       "rawMethod": "POST",
       "rawPath": "/invoice",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "invoice.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -1884,26 +1391,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "comment": {
-          "kind": "scalar"
-        },
-        "credit_note_email": {
-          "kind": "scalar"
-        },
-        "date": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        },
-        "send_to_customer": {
-          "kind": "scalar"
-        },
-        "send_type": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `date`, `comment?`, `credit_note_email?`, `send_to_customer?`, `send_type?`",
       "inputs": [
         "id",
@@ -1921,7 +1408,6 @@
       "rawMethod": "PUT",
       "rawPath": "/invoice/{id}/:createCreditNote",
       "safetyClass": "high_risk",
-      "selectorFamily": null,
       "technicalFlowFamily": "invoice.create_credit_note",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -1948,14 +1434,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "fields": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `fields?`",
       "inputs": [
         "id",
@@ -1967,7 +1445,6 @@
       "rawMethod": "GET",
       "rawPath": "/invoice/{id}",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "invoice.read",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -2007,23 +1484,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        },
-        "paid_amount": {
-          "kind": "scalar"
-        },
-        "paid_amount_currency": {
-          "kind": "scalar"
-        },
-        "payment_date": {
-          "kind": "scalar"
-        },
-        "payment_type_id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `payment_date`, `payment_type_id`, `paid_amount`, `paid_amount_currency?`",
       "inputs": [
         "id",
@@ -2038,7 +1498,6 @@
       "rawMethod": "PUT",
       "rawPath": "/invoice/{id}/:payment",
       "safetyClass": "state_change",
-      "selectorFamily": null,
       "technicalFlowFamily": "invoice.payment",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -2109,41 +1568,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "customer_id": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        },
-        "invoice_date_from": {
-          "kind": "scalar"
-        },
-        "invoice_date_to": {
-          "kind": "scalar"
-        },
-        "invoice_number": {
-          "kind": "scalar"
-        },
-        "kid": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        },
-        "voucher_id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id?`, `invoice_number?`, `kid?`, `voucher_id?`, `customer_id?`, `invoice_date_from`, `invoice_date_to`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "id",
@@ -2166,7 +1590,6 @@
       "rawMethod": "GET",
       "rawPath": "/invoice",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "invoice.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -2216,29 +1639,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "description": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        },
-        "query": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id?`, `description?`, `query?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "id",
@@ -2255,7 +1655,6 @@
       "rawMethod": "GET",
       "rawPath": "/invoice/paymentType",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "invoice.payment_type.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -2286,9 +1685,6 @@
           "valueStrategy": "ref_object"
         },
         "department_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "department",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -2324,41 +1720,9 @@
           "valueStrategy": "body_merge"
         },
         "vat_type_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "vatType",
           "targetSection": "body",
           "valueStrategy": "ref_object"
-        }
-      },
-      "inputSemantics": {
-        "bank_account_number": {
-          "kind": "scalar"
-        },
-        "currency_ref": {
-          "kind": "reference"
-        },
-        "department_ref": {
-          "kind": "reference"
-        },
-        "description": {
-          "kind": "scalar"
-        },
-        "is_bank_account": {
-          "kind": "scalar"
-        },
-        "ledger_type": {
-          "kind": "scalar"
-        },
-        "name": {
-          "kind": "scalar"
-        },
-        "number": {
-          "kind": "scalar"
-        },
-        "vat_type_ref": {
-          "kind": "reference"
         }
       },
       "inputSpec": "`number`, `name`, `description?`, `ledger_type?`, `vat_type_ref?`, `currency_ref?`, `is_bank_account?`, `bank_account_number?`, `department_ref?`",
@@ -2379,7 +1743,6 @@
       "rawMethod": "POST",
       "rawPath": "/ledger/account",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "ledger.account.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -2455,44 +1818,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        },
-        "is_applicable_for_supplier_invoice": {
-          "kind": "scalar"
-        },
-        "is_balance_account": {
-          "kind": "scalar"
-        },
-        "is_bank_account": {
-          "kind": "scalar"
-        },
-        "is_inactive": {
-          "kind": "scalar"
-        },
-        "ledger_type": {
-          "kind": "scalar"
-        },
-        "number": {
-          "kind": "scalar"
-        },
-        "saft_code": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id?`, `number?`, `is_bank_account?`, `is_inactive?`, `is_applicable_for_supplier_invoice?`, `ledger_type?`, `is_balance_account?`, `saft_code?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "id",
@@ -2514,7 +1839,6 @@
       "rawMethod": "GET",
       "rawPath": "/ledger/account",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "ledger.account.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -2615,59 +1939,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "account_id": {
-          "kind": "scalar"
-        },
-        "account_number_from": {
-          "kind": "scalar"
-        },
-        "account_number_to": {
-          "kind": "scalar"
-        },
-        "count": {
-          "kind": "scalar"
-        },
-        "customer_id": {
-          "kind": "scalar"
-        },
-        "date_from": {
-          "kind": "scalar"
-        },
-        "date_to": {
-          "kind": "scalar"
-        },
-        "department_id": {
-          "kind": "scalar"
-        },
-        "employee_id": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "open_postings": {
-          "kind": "scalar"
-        },
-        "product_id": {
-          "kind": "scalar"
-        },
-        "project_id": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        },
-        "supplier_id": {
-          "kind": "scalar"
-        },
-        "type": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`date_from`, `date_to`, `open_postings?`, `account_id?`, `supplier_id?`, `customer_id?`, `employee_id?`, `department_id?`, `project_id?`, `product_id?`, `account_number_from?`, `account_number_to?`, `type?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "date_from",
@@ -2694,7 +1965,6 @@
       "rawMethod": "GET",
       "rawPath": "/ledger/posting",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "ledger.posting.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -2734,17 +2004,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "attachment_id": {
-          "kind": "scalar"
-        },
-        "description": {
-          "kind": "scalar"
-        },
-        "split": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`attachment_id`, `description?`, `split?`",
       "inputs": [
         "attachment_id",
@@ -2759,7 +2018,6 @@
       "rawMethod": "POST",
       "rawPath": "/ledger/voucher/importDocument",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "ledger.voucher.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -2800,23 +2058,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "name": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`name?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "name",
@@ -2831,7 +2072,6 @@
       "rawMethod": "GET",
       "rawPath": "/ledger/voucherType",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "ledger.voucher_type.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -2856,17 +2096,11 @@
           "valueStrategy": "ref_object"
         },
         "customer_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "customer",
           "targetSection": "body",
           "valueStrategy": "ref_object"
         },
         "department_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "department",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -2892,10 +2126,6 @@
           "valueStrategy": "plain"
         },
         "order_lines": {
-          "semantic": {
-            "itemFamily": "line_item",
-            "kind": "array_payload"
-          },
           "targetName": "orderLines",
           "targetSection": "body",
           "valueStrategy": "plain"
@@ -2906,42 +2136,9 @@
           "valueStrategy": "body_merge"
         },
         "project_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "project",
           "targetSection": "body",
           "valueStrategy": "ref_object"
-        }
-      },
-      "inputSemantics": {
-        "currency_ref": {
-          "kind": "reference"
-        },
-        "customer_ref": {
-          "kind": "reference"
-        },
-        "department_ref": {
-          "kind": "reference"
-        },
-        "invoice_comment": {
-          "kind": "scalar"
-        },
-        "invoices_due_in": {
-          "kind": "scalar"
-        },
-        "invoices_due_in_type": {
-          "kind": "scalar"
-        },
-        "order_date": {
-          "kind": "scalar"
-        },
-        "order_lines": {
-          "itemFamily": "line_item",
-          "kind": "array_payload"
-        },
-        "project_ref": {
-          "kind": "reference"
         }
       },
       "inputSpec": "`customer_ref`, `order_date`, `project_ref?`, `department_ref?`, `invoice_comment?`, `currency_ref?`, `invoices_due_in?`, `invoices_due_in_type?`, `order_lines[]?`",
@@ -2964,7 +2161,6 @@
       "rawMethod": "POST",
       "rawPath": "/order",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "order.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -2985,11 +2181,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`",
       "inputs": [
         "id"
@@ -3000,7 +2191,6 @@
       "rawMethod": "DELETE",
       "rawPath": "/order/{id}",
       "safetyClass": "destructive",
-      "selectorFamily": null,
       "technicalFlowFamily": "order.delete",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -3027,14 +2217,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "fields": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `fields?`",
       "inputs": [
         "id",
@@ -3046,7 +2228,6 @@
       "rawMethod": "GET",
       "rawPath": "/order/{id}",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "order.read",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -3127,47 +2308,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "amount_on_account": {
-          "kind": "scalar"
-        },
-        "create_backorder": {
-          "kind": "scalar"
-        },
-        "create_on_account": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        },
-        "invoice_date": {
-          "kind": "scalar"
-        },
-        "invoice_id_if_is_credit_note": {
-          "kind": "scalar"
-        },
-        "on_account_comment": {
-          "kind": "scalar"
-        },
-        "override_email_address": {
-          "kind": "scalar"
-        },
-        "paid_amount": {
-          "kind": "scalar"
-        },
-        "paid_amount_account_currency": {
-          "kind": "scalar"
-        },
-        "payment_type_id": {
-          "kind": "scalar"
-        },
-        "send_to_customer": {
-          "kind": "scalar"
-        },
-        "send_type": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `invoice_date`, `send_to_customer?`, `send_type?`, `payment_type_id?`, `paid_amount?`, `paid_amount_account_currency?`, `create_on_account?`, `amount_on_account?`, `on_account_comment?`, `create_backorder?`, `invoice_id_if_is_credit_note?`, `override_email_address?`",
       "inputs": [
         "id",
@@ -3192,7 +2332,6 @@
       "rawMethod": "PUT",
       "rawPath": "/order/{id}/:invoice",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "order.invoice",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -3258,38 +2397,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "customer_id": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        },
-        "is_closed": {
-          "kind": "scalar"
-        },
-        "number": {
-          "kind": "scalar"
-        },
-        "order_date_from": {
-          "kind": "scalar"
-        },
-        "order_date_to": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id?`, `number?`, `customer_id?`, `order_date_from`, `order_date_to`, `is_closed?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "id",
@@ -3309,7 +2416,6 @@
       "rawMethod": "GET",
       "rawPath": "/order",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "order.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -3348,17 +2454,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        },
-        "update_lines_and_groups": {
-          "kind": "scalar"
-        },
-        "version": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, order payload, `version?`, `update_lines_and_groups?`",
       "inputs": [
         "id",
@@ -3371,7 +2466,6 @@
       "rawMethod": "PUT",
       "rawPath": "/order/{id}",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "order.update",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -3387,9 +2481,6 @@
       "conformancePolicyKey": null,
       "inputBindings": {
         "account_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "account",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -3405,9 +2496,6 @@
           "valueStrategy": "ref_object"
         },
         "department_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "department",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -3448,55 +2536,14 @@
           "valueStrategy": "plain"
         },
         "product_unit_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "productUnit",
           "targetSection": "body",
           "valueStrategy": "ref_object"
         },
         "vat_type_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "vatType",
           "targetSection": "body",
           "valueStrategy": "ref_object"
-        }
-      },
-      "inputSemantics": {
-        "account_ref": {
-          "kind": "reference"
-        },
-        "currency_ref": {
-          "kind": "reference"
-        },
-        "department_ref": {
-          "kind": "reference"
-        },
-        "description": {
-          "kind": "scalar"
-        },
-        "name": {
-          "kind": "scalar"
-        },
-        "number": {
-          "kind": "scalar"
-        },
-        "order_line_description": {
-          "kind": "scalar"
-        },
-        "price_excluding_vat_currency": {
-          "kind": "scalar"
-        },
-        "price_including_vat_currency": {
-          "kind": "scalar"
-        },
-        "product_unit_ref": {
-          "kind": "reference"
-        },
-        "vat_type_ref": {
-          "kind": "reference"
         }
       },
       "inputSpec": "`name`, `number?`, `description?`, `order_line_description?`, `price_excluding_vat_currency?`, `price_including_vat_currency?`, `vat_type_ref?`, `department_ref?`, `account_ref?`, `product_unit_ref?`, `currency_ref?`",
@@ -3519,7 +2566,6 @@
       "rawMethod": "POST",
       "rawPath": "/product",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "product.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -3540,11 +2586,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`",
       "inputs": [
         "id"
@@ -3555,7 +2596,6 @@
       "rawMethod": "DELETE",
       "rawPath": "/product/{id}",
       "safetyClass": "destructive",
-      "selectorFamily": null,
       "technicalFlowFamily": "product.delete",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -3582,14 +2622,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "fields": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `fields?`",
       "inputs": [
         "id",
@@ -3601,7 +2633,6 @@
       "rawMethod": "GET",
       "rawPath": "/product/{id}",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "product.read",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -3677,44 +2708,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "account_id": {
-          "kind": "scalar"
-        },
-        "count": {
-          "kind": "scalar"
-        },
-        "department_id": {
-          "kind": "scalar"
-        },
-        "ean": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "name": {
-          "kind": "scalar"
-        },
-        "number": {
-          "kind": "scalar"
-        },
-        "product_number": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        },
-        "supplier_id": {
-          "kind": "scalar"
-        },
-        "vat_type_id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`number?`, `product_number?`, `name?`, `ean?`, `supplier_id?`, `vat_type_id?`, `department_id?`, `account_id?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "number",
@@ -3736,7 +2729,6 @@
       "rawMethod": "GET",
       "rawPath": "/product",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "product.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -3772,14 +2764,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        },
-        "version": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, product payload, `version?`",
       "inputs": [
         "id",
@@ -3791,7 +2775,6 @@
       "rawMethod": "PUT",
       "rawPath": "/product/{id}",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "product.update",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -3847,32 +2830,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "common_code": {
-          "kind": "scalar"
-        },
-        "count": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        },
-        "name": {
-          "kind": "scalar"
-        },
-        "name_short": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id?`, `name?`, `name_short?`, `common_code?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "id",
@@ -3890,7 +2847,6 @@
       "rawMethod": "GET",
       "rawPath": "/product/unit",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "product.unit.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -3914,17 +2870,11 @@
           "valueStrategy": "ref_object"
         },
         "customer_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "customer",
           "targetSection": "body",
           "valueStrategy": "ref_object"
         },
         "department_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "department",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -3985,9 +2935,6 @@
           "valueStrategy": "body_merge"
         },
         "project_manager_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "projectManager",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -3996,53 +2943,6 @@
           "targetName": "startDate",
           "targetSection": "body",
           "valueStrategy": "plain"
-        }
-      },
-      "inputSemantics": {
-        "currency_ref": {
-          "kind": "reference"
-        },
-        "customer_ref": {
-          "kind": "reference"
-        },
-        "department_ref": {
-          "kind": "reference"
-        },
-        "description": {
-          "kind": "scalar"
-        },
-        "end_date": {
-          "kind": "scalar"
-        },
-        "fixedprice": {
-          "kind": "scalar"
-        },
-        "invoice_comment": {
-          "kind": "scalar"
-        },
-        "invoice_receiver_email": {
-          "kind": "scalar"
-        },
-        "is_fixed_price": {
-          "kind": "scalar"
-        },
-        "is_internal": {
-          "kind": "scalar"
-        },
-        "is_offer": {
-          "kind": "scalar"
-        },
-        "name": {
-          "kind": "scalar"
-        },
-        "number": {
-          "kind": "scalar"
-        },
-        "project_manager_ref": {
-          "kind": "reference"
-        },
-        "start_date": {
-          "kind": "scalar"
         }
       },
       "inputSpec": "`name`, `number?`, `description?`, `project_manager_ref?`, `department_ref?`, `customer_ref?`, `start_date?`, `end_date?`, `is_internal?`, `is_offer?`, `is_fixed_price?`, `fixedprice?`, `invoice_comment?`, `invoice_receiver_email?`, `currency_ref?`",
@@ -4069,7 +2969,6 @@
       "rawMethod": "POST",
       "rawPath": "/project",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "project.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -4090,11 +2989,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`",
       "inputs": [
         "id"
@@ -4107,7 +3001,6 @@
       "rawMethod": "DELETE",
       "rawPath": "/project/{id}",
       "safetyClass": "destructive",
-      "selectorFamily": null,
       "technicalFlowFamily": "project.delete",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -4134,14 +3027,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "fields": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `fields?`",
       "inputs": [
         "id",
@@ -4153,7 +3038,6 @@
       "rawMethod": "GET",
       "rawPath": "/project/{id}",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "project.read",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -4174,19 +3058,11 @@
           "valueStrategy": "plain"
         },
         "customer_id": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "project_selector"
-          },
           "targetName": "customerId",
           "targetSection": "query",
           "valueStrategy": "plain"
         },
         "department_id": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "project_selector"
-          },
           "targetName": "departmentId",
           "targetSection": "query",
           "valueStrategy": "plain"
@@ -4212,10 +3088,6 @@
           "valueStrategy": "plain"
         },
         "id": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "project_selector"
-          },
           "targetName": "id",
           "targetSection": "query",
           "valueStrategy": "plain"
@@ -4231,28 +3103,16 @@
           "valueStrategy": "plain"
         },
         "name": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "project_selector"
-          },
           "targetName": "name",
           "targetSection": "query",
           "valueStrategy": "plain"
         },
         "number": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "project_selector"
-          },
           "targetName": "number",
           "targetSection": "query",
           "valueStrategy": "plain"
         },
         "project_manager_id": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "project_selector"
-          },
           "targetName": "projectManagerId",
           "targetSection": "query",
           "valueStrategy": "plain"
@@ -4271,62 +3131,6 @@
           "targetName": "startDateTo",
           "targetSection": "query",
           "valueStrategy": "plain"
-        }
-      },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "customer_id": {
-          "kind": "selector_field",
-          "selectorFamily": "project_selector"
-        },
-        "department_id": {
-          "kind": "selector_field",
-          "selectorFamily": "project_selector"
-        },
-        "end_date_from": {
-          "kind": "scalar"
-        },
-        "end_date_to": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "selector_field",
-          "selectorFamily": "project_selector"
-        },
-        "is_closed": {
-          "kind": "scalar"
-        },
-        "is_fixed_price": {
-          "kind": "scalar"
-        },
-        "name": {
-          "kind": "selector_field",
-          "selectorFamily": "project_selector"
-        },
-        "number": {
-          "kind": "selector_field",
-          "selectorFamily": "project_selector"
-        },
-        "project_manager_id": {
-          "kind": "selector_field",
-          "selectorFamily": "project_selector"
-        },
-        "sorting": {
-          "kind": "scalar"
-        },
-        "start_date_from": {
-          "kind": "scalar"
-        },
-        "start_date_to": {
-          "kind": "scalar"
         }
       },
       "inputSpec": "`id?`, `name?`, `number?`, `project_manager_id?`, `department_id?`, `customer_id?`, `is_closed?`, `is_fixed_price?`, `start_date_from?`, `start_date_to?`, `end_date_from?`, `end_date_to?`, `fields?`, `from?`, `count?`, `sorting?`",
@@ -4354,7 +3158,6 @@
       "rawMethod": "GET",
       "rawPath": "/project",
       "safetyClass": "read_only",
-      "selectorFamily": "project_selector",
       "technicalFlowFamily": "project.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -4391,14 +3194,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        },
-        "version": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, project payload, `version?`",
       "inputs": [
         "id",
@@ -4412,7 +3207,6 @@
       "rawMethod": "PUT",
       "rawPath": "/project/{id}",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "project.update",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -4433,11 +3227,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "fields": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`fields?`",
       "inputs": [
         "fields"
@@ -4448,7 +3237,6 @@
       "rawMethod": "GET",
       "rawPath": "/token/session/>whoAmI",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "token.session.who_am_i",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -4464,9 +3252,6 @@
       "conformancePolicyKey": null,
       "inputBindings": {
         "account_manager_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "accountManager",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -4517,32 +3302,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "account_manager_ref": {
-          "kind": "reference"
-        },
-        "email": {
-          "kind": "scalar"
-        },
-        "invoice_email": {
-          "kind": "scalar"
-        },
-        "language": {
-          "kind": "scalar"
-        },
-        "name": {
-          "kind": "scalar"
-        },
-        "organization_number": {
-          "kind": "scalar"
-        },
-        "phone_number": {
-          "kind": "scalar"
-        },
-        "phone_number_mobile": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`name`, `organization_number?`, `email?`, `invoice_email?`, `phone_number?`, `phone_number_mobile?`, `account_manager_ref?`, `language?`, address fields as needed.",
       "inputs": [
         "name",
@@ -4560,7 +3319,6 @@
       "rawMethod": "POST",
       "rawPath": "/supplier",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "supplier.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -4587,14 +3345,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "fields": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `fields?`",
       "inputs": [
         "id",
@@ -4606,7 +3356,6 @@
       "rawMethod": "GET",
       "rawPath": "/supplier/{id}",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "supplier.read",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -4636,10 +3385,6 @@
           "valueStrategy": "plain"
         },
         "email": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "supplier_selector"
-          },
           "targetName": "email",
           "targetSection": "query",
           "valueStrategy": "plain"
@@ -4655,19 +3400,11 @@
           "valueStrategy": "plain"
         },
         "id": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "supplier_selector"
-          },
           "targetName": "id",
           "targetSection": "query",
           "valueStrategy": "plain"
         },
         "invoice_email": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "supplier_selector"
-          },
           "targetName": "invoiceEmail",
           "targetSection": "query",
           "valueStrategy": "plain"
@@ -4683,10 +3420,6 @@
           "valueStrategy": "plain"
         },
         "organization_number": {
-          "semantic": {
-            "kind": "selector_field",
-            "selectorFamily": "supplier_selector"
-          },
           "targetName": "organizationNumber",
           "targetSection": "query",
           "valueStrategy": "plain"
@@ -4705,54 +3438,6 @@
           "targetName": "supplierNumber",
           "targetSection": "query",
           "valueStrategy": "plain"
-        }
-      },
-      "inputSemantics": {
-        "account_manager_id": {
-          "kind": "scalar"
-        },
-        "changed_since": {
-          "kind": "scalar"
-        },
-        "count": {
-          "kind": "scalar"
-        },
-        "email": {
-          "kind": "selector_field",
-          "selectorFamily": "supplier_selector"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "selector_field",
-          "selectorFamily": "supplier_selector"
-        },
-        "invoice_email": {
-          "kind": "selector_field",
-          "selectorFamily": "supplier_selector"
-        },
-        "is_inactive": {
-          "kind": "scalar"
-        },
-        "is_wholesaler": {
-          "kind": "scalar"
-        },
-        "organization_number": {
-          "kind": "selector_field",
-          "selectorFamily": "supplier_selector"
-        },
-        "show_products": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        },
-        "supplier_number": {
-          "kind": "scalar"
         }
       },
       "inputSpec": "`id?`, `supplier_number?`, `organization_number?`, `email?`, `invoice_email?`, `is_inactive?`, `account_manager_id?`, `changed_since?`, `is_wholesaler?`, `show_products?`, `fields?`, `from?`, `count?`, `sorting?`",
@@ -4778,7 +3463,6 @@
       "rawMethod": "GET",
       "rawPath": "/supplier",
       "safetyClass": "read_only",
-      "selectorFamily": "supplier_selector",
       "technicalFlowFamily": "supplier.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -4813,14 +3497,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        },
-        "version": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, supplier payload including changed fields, `version?`",
       "inputs": [
         "id",
@@ -4832,7 +3508,6 @@
       "rawMethod": "PUT",
       "rawPath": "/supplier/{id}",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "supplier.update",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -4888,32 +3563,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "amount": {
-          "kind": "scalar"
-        },
-        "bban": {
-          "kind": "scalar"
-        },
-        "invoice_id": {
-          "kind": "scalar"
-        },
-        "kid_or_receiver_reference": {
-          "kind": "scalar"
-        },
-        "partial_payment": {
-          "kind": "scalar"
-        },
-        "payment_date": {
-          "kind": "scalar"
-        },
-        "payment_type": {
-          "kind": "scalar"
-        },
-        "use_default_payment_type": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`invoice_id`, `payment_type`, `amount?`, `kid_or_receiver_reference?`, `bban?`, `payment_date?`, `use_default_payment_type?`, `partial_payment?`",
       "inputs": [
         "invoice_id",
@@ -4933,7 +3582,6 @@
       "rawMethod": "POST",
       "rawPath": "/supplierInvoice/{invoiceId}/:addPayment",
       "safetyClass": "state_change",
-      "selectorFamily": null,
       "technicalFlowFamily": "supplier_invoice.add_payment",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -4959,14 +3607,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "fields": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `fields?`",
       "inputs": [
         "id",
@@ -4978,7 +3618,6 @@
       "rawMethod": "GET",
       "rawPath": "/supplierInvoice/{id}",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "supplier_invoice.read",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -5048,41 +3687,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        },
-        "invoice_date_from": {
-          "kind": "scalar"
-        },
-        "invoice_date_to": {
-          "kind": "scalar"
-        },
-        "invoice_number": {
-          "kind": "scalar"
-        },
-        "kid": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        },
-        "supplier_id": {
-          "kind": "scalar"
-        },
-        "voucher_id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id?`, `invoice_number?`, `kid?`, `voucher_id?`, `supplier_id?`, `invoice_date_from`, `invoice_date_to`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "id",
@@ -5103,7 +3707,6 @@
       "rawMethod": "GET",
       "rawPath": "/supplierInvoice",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "supplier_invoice.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -5148,20 +3751,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        },
-        "postings": {
-          "kind": "scalar"
-        },
-        "send_to_ledger": {
-          "kind": "scalar"
-        },
-        "voucher_date": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `postings[]`, `voucher_date?`, `send_to_ledger?`",
       "inputs": [
         "id",
@@ -5177,7 +3766,6 @@
       "rawMethod": "PUT",
       "rawPath": "/supplierInvoice/voucher/{id}/postings",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "supplier_invoice.voucher.update",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -5238,35 +3826,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "description": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        },
-        "is_inactive": {
-          "kind": "scalar"
-        },
-        "query": {
-          "kind": "scalar"
-        },
-        "show_on_employee_expenses": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id?`, `description?`, `show_on_employee_expenses?`, `is_inactive?`, `query?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "id",
@@ -5285,7 +3844,6 @@
       "rawMethod": "GET",
       "rawPath": "/travelExpense/costCategory",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.cost_category.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -5324,17 +3882,11 @@
           "valueStrategy": "body_merge"
         },
         "rate_category_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "rateCategory",
           "targetSection": "body",
           "valueStrategy": "ref_object"
         },
         "rate_type_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "rateType",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -5348,29 +3900,6 @@
           "targetName": "zone",
           "targetSection": "body",
           "valueStrategy": "plain"
-        }
-      },
-      "inputSemantics": {
-        "address": {
-          "kind": "scalar"
-        },
-        "count": {
-          "kind": "scalar"
-        },
-        "location": {
-          "kind": "scalar"
-        },
-        "rate_category_ref": {
-          "kind": "reference"
-        },
-        "rate_type_ref": {
-          "kind": "reference"
-        },
-        "travel_expense_ref": {
-          "kind": "reference"
-        },
-        "zone": {
-          "kind": "scalar"
         }
       },
       "inputSpec": "`travel_expense_ref`, `rate_type_ref`, `rate_category_ref`, `zone?`, `location`, `address?`, `count`",
@@ -5389,7 +3918,6 @@
       "rawMethod": "POST",
       "rawPath": "/travelExpense/accommodationAllowance",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.accommodation_allowance.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -5415,14 +3943,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        },
-        "override_approval_flow": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id` or list-like `id` query representation, `override_approval_flow?`",
       "inputs": [
         "id",
@@ -5435,7 +3955,6 @@
       "rawMethod": "PUT",
       "rawPath": "/travelExpense/:approve",
       "safetyClass": "state_change",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.approval",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -5466,9 +3985,6 @@
           "valueStrategy": "plain"
         },
         "cost_category_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "costCategory",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -5489,9 +4005,6 @@
           "valueStrategy": "body_merge"
         },
         "payment_type_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "paymentType",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -5502,38 +4015,9 @@
           "valueStrategy": "ref_object"
         },
         "vat_type_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "vatType",
           "targetSection": "body",
           "valueStrategy": "ref_object"
-        }
-      },
-      "inputSemantics": {
-        "amount_currency_inc_vat": {
-          "kind": "scalar"
-        },
-        "comments": {
-          "kind": "scalar"
-        },
-        "cost_category_ref": {
-          "kind": "reference"
-        },
-        "date": {
-          "kind": "scalar"
-        },
-        "is_chargeable": {
-          "kind": "scalar"
-        },
-        "payment_type_ref": {
-          "kind": "reference"
-        },
-        "travel_expense_ref": {
-          "kind": "reference"
-        },
-        "vat_type_ref": {
-          "kind": "reference"
         }
       },
       "inputSpec": "`travel_expense_ref`, `cost_category_ref`, `payment_type_ref?`, `date`, `comments?`, `amount_currency_inc_vat`, `vat_type_ref?`, `is_chargeable?`",
@@ -5553,7 +4037,6 @@
       "rawMethod": "POST",
       "rawPath": "/travelExpense/cost",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.cost.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -5574,26 +4057,16 @@
           "valueStrategy": "body_merge"
         },
         "costs": {
-          "semantic": {
-            "itemFamily": "travel_expense_cost_row",
-            "kind": "array_payload"
-          },
           "targetName": "costs",
           "targetSection": "body",
           "valueStrategy": "plain"
         },
         "department_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "department",
           "targetSection": "body",
           "valueStrategy": "ref_object"
         },
         "employee_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "employee",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -5604,18 +4077,11 @@
           "valueStrategy": "body_merge"
         },
         "per_diem_compensations": {
-          "semantic": {
-            "itemFamily": "travel_expense_per_diem_row",
-            "kind": "array_payload"
-          },
           "targetName": "perDiemCompensations",
           "targetSection": "body",
           "valueStrategy": "plain"
         },
         "project_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "project",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -5626,39 +4092,9 @@
           "valueStrategy": "plain"
         },
         "travel_details": {
-          "semantic": {
-            "kind": "payload",
-            "payloadFamily": "travel_details"
-          },
           "targetName": "travelDetails",
           "targetSection": "body",
           "valueStrategy": "plain"
-        }
-      },
-      "inputSemantics": {
-        "costs": {
-          "itemFamily": "travel_expense_cost_row",
-          "kind": "array_payload"
-        },
-        "department_ref": {
-          "kind": "reference"
-        },
-        "employee_ref": {
-          "kind": "reference"
-        },
-        "per_diem_compensations": {
-          "itemFamily": "travel_expense_per_diem_row",
-          "kind": "array_payload"
-        },
-        "project_ref": {
-          "kind": "reference"
-        },
-        "title": {
-          "kind": "scalar"
-        },
-        "travel_details": {
-          "kind": "payload",
-          "payloadFamily": "travel_details"
         }
       },
       "inputSpec": "`employee_ref`, `project_ref?`, `department_ref?`, `title?`, `travel_details`, `costs[]?`, `per_diem_compensations[]?`",
@@ -5679,7 +4115,6 @@
       "rawMethod": "POST",
       "rawPath": "/travelExpense",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -5706,14 +4141,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "date": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id` or list-like `id` query representation, `date`",
       "inputs": [
         "id",
@@ -5726,7 +4153,6 @@
       "rawMethod": "PUT",
       "rawPath": "/travelExpense/:createVouchers",
       "safetyClass": "state_change",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.create_vouchers",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -5747,11 +4173,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`",
       "inputs": [
         "id"
@@ -5762,7 +4183,6 @@
       "rawMethod": "DELETE",
       "rawPath": "/travelExpense/{id}",
       "safetyClass": "destructive",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.delete",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -5784,11 +4204,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id` or list-like `id` query representation",
       "inputs": [
         "id",
@@ -5800,7 +4215,6 @@
       "rawMethod": "PUT",
       "rawPath": "/travelExpense/:deliver",
       "safetyClass": "state_change",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.approval",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -5826,14 +4240,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "fields": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `fields?`",
       "inputs": [
         "id",
@@ -5845,7 +4251,6 @@
       "rawMethod": "GET",
       "rawPath": "/travelExpense/{id}",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.read",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -5896,17 +4301,11 @@
           "valueStrategy": "body_merge"
         },
         "rate_category_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "rateCategory",
           "targetSection": "body",
           "valueStrategy": "ref_object"
         },
         "rate_type_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "rateType",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -5915,32 +4314,6 @@
           "targetName": "travelExpense",
           "targetSection": "body",
           "valueStrategy": "ref_object"
-        }
-      },
-      "inputSemantics": {
-        "date": {
-          "kind": "scalar"
-        },
-        "departure_location": {
-          "kind": "scalar"
-        },
-        "destination": {
-          "kind": "scalar"
-        },
-        "is_company_car": {
-          "kind": "scalar"
-        },
-        "km": {
-          "kind": "scalar"
-        },
-        "rate_category_ref": {
-          "kind": "reference"
-        },
-        "rate_type_ref": {
-          "kind": "reference"
-        },
-        "travel_expense_ref": {
-          "kind": "reference"
         }
       },
       "inputSpec": "`travel_expense_ref`, `rate_type_ref`, `rate_category_ref`, `date`, `departure_location`, `destination`, `km`, `is_company_car?`",
@@ -5960,7 +4333,6 @@
       "rawMethod": "POST",
       "rawPath": "/travelExpense/mileageAllowance",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.mileage_allowance.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -6026,17 +4398,11 @@
           "valueStrategy": "body_merge"
         },
         "rate_category_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "rateCategory",
           "targetSection": "body",
           "valueStrategy": "ref_object"
         },
         "rate_type_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "rateType",
           "targetSection": "body",
           "valueStrategy": "ref_object"
@@ -6050,44 +4416,6 @@
           "targetName": "travelExpenseZoneId",
           "targetSection": "body",
           "valueStrategy": "plain"
-        }
-      },
-      "inputSemantics": {
-        "address": {
-          "kind": "scalar"
-        },
-        "count": {
-          "kind": "scalar"
-        },
-        "country_code": {
-          "kind": "scalar"
-        },
-        "is_deduction_for_breakfast": {
-          "kind": "scalar"
-        },
-        "is_deduction_for_dinner": {
-          "kind": "scalar"
-        },
-        "is_deduction_for_lunch": {
-          "kind": "scalar"
-        },
-        "location": {
-          "kind": "scalar"
-        },
-        "overnight_accommodation": {
-          "kind": "scalar"
-        },
-        "rate_category_ref": {
-          "kind": "reference"
-        },
-        "rate_type_ref": {
-          "kind": "reference"
-        },
-        "travel_expense_ref": {
-          "kind": "reference"
-        },
-        "travel_expense_zone_id": {
-          "kind": "scalar"
         }
       },
       "inputSpec": "`travel_expense_ref`, `rate_type_ref`, `rate_category_ref`, `country_code?`, `travel_expense_zone_id?`, `overnight_accommodation?`, `location`, `address?`, `count`, `is_deduction_for_breakfast?`, `is_deduction_for_lunch?`, `is_deduction_for_dinner?`",
@@ -6111,7 +4439,6 @@
       "rawMethod": "POST",
       "rawPath": "/travelExpense/perDiemCompensation",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.per_diem_compensation.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -6182,41 +4509,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "department_id": {
-          "kind": "scalar"
-        },
-        "departure_date_from": {
-          "kind": "scalar"
-        },
-        "employee_id": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "project_id": {
-          "kind": "scalar"
-        },
-        "project_manager_id": {
-          "kind": "scalar"
-        },
-        "return_date_to": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        },
-        "state": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`employee_id?`, `department_id?`, `project_id?`, `project_manager_id?`, `departure_date_from?`, `return_date_to?`, `state?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "employee_id",
@@ -6237,7 +4529,6 @@
       "rawMethod": "GET",
       "rawPath": "/travelExpense",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -6271,14 +4562,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        },
-        "version": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, travel-expense payload, `version?`",
       "inputs": [
         "id",
@@ -6290,7 +4573,6 @@
       "rawMethod": "PUT",
       "rawPath": "/travelExpense/{id}",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.update",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -6351,35 +4633,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "description": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        },
-        "is_inactive": {
-          "kind": "scalar"
-        },
-        "query": {
-          "kind": "scalar"
-        },
-        "show_on_employee_expenses": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id?`, `description?`, `show_on_employee_expenses?`, `is_inactive?`, `query?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "id",
@@ -6398,7 +4651,6 @@
       "rawMethod": "GET",
       "rawPath": "/travelExpense/paymentType",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.payment_type.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -6482,50 +4734,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "date_from": {
-          "kind": "scalar"
-        },
-        "date_to": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "is_valid_accommodation": {
-          "kind": "scalar"
-        },
-        "is_valid_day_trip": {
-          "kind": "scalar"
-        },
-        "is_valid_domestic": {
-          "kind": "scalar"
-        },
-        "is_valid_foreign_travel": {
-          "kind": "scalar"
-        },
-        "rate_category_id": {
-          "kind": "scalar"
-        },
-        "requires_overnight_accommodation": {
-          "kind": "scalar"
-        },
-        "requires_zone": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        },
-        "type": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`rate_category_id?`, `type?`, `is_valid_day_trip?`, `is_valid_accommodation?`, `is_valid_domestic?`, `is_valid_foreign_travel?`, `requires_zone?`, `requires_overnight_accommodation?`, `date_from?`, `date_to?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "rate_category_id",
@@ -6549,7 +4757,6 @@
       "rawMethod": "GET",
       "rawPath": "/travelExpense/rate",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.rate.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -6633,50 +4840,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "date_from": {
-          "kind": "scalar"
-        },
-        "date_to": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "is_valid_accommodation": {
-          "kind": "scalar"
-        },
-        "is_valid_day_trip": {
-          "kind": "scalar"
-        },
-        "is_valid_domestic": {
-          "kind": "scalar"
-        },
-        "name": {
-          "kind": "scalar"
-        },
-        "requires_overnight_accommodation": {
-          "kind": "scalar"
-        },
-        "requires_zone": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        },
-        "travel_report_rate_category_group_id": {
-          "kind": "scalar"
-        },
-        "type": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`type?`, `name?`, `travel_report_rate_category_group_id?`, `is_valid_day_trip?`, `is_valid_accommodation?`, `is_valid_domestic?`, `requires_zone?`, `requires_overnight_accommodation?`, `date_from?`, `date_to?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "type",
@@ -6700,7 +4863,6 @@
       "rawMethod": "GET",
       "rawPath": "/travelExpense/rateCategory",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.rate_category.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -6759,35 +4921,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "code": {
-          "kind": "scalar"
-        },
-        "count": {
-          "kind": "scalar"
-        },
-        "date": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        },
-        "is_disabled": {
-          "kind": "scalar"
-        },
-        "query": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id?`, `code?`, `query?`, `date?`, `is_disabled?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "id",
@@ -6806,7 +4939,6 @@
       "rawMethod": "GET",
       "rawPath": "/travelExpense/zone",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "travel_expense.zone.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -6865,35 +4997,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        },
-        "number": {
-          "kind": "scalar"
-        },
-        "should_include_specification_types": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        },
-        "type_of_vat": {
-          "kind": "scalar"
-        },
-        "vat_date": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id?`, `number?`, `type_of_vat?`, `vat_date?`, `should_include_specification_types?`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "id",
@@ -6912,7 +5015,6 @@
       "rawMethod": "GET",
       "rawPath": "/ledger/vatType",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "ledger.vat_type.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -6949,10 +5051,6 @@
           "valueStrategy": "body_merge"
         },
         "postings": {
-          "semantic": {
-            "itemFamily": "posting_line",
-            "kind": "array_payload"
-          },
           "targetName": "postings",
           "targetSection": "body",
           "valueStrategy": "plain"
@@ -6963,30 +5061,9 @@
           "valueStrategy": "plain"
         },
         "voucher_type_ref": {
-          "semantic": {
-            "kind": "reference"
-          },
           "targetName": "voucherType",
           "targetSection": "body",
           "valueStrategy": "ref_object"
-        }
-      },
-      "inputSemantics": {
-        "date": {
-          "kind": "scalar"
-        },
-        "description": {
-          "kind": "scalar"
-        },
-        "postings": {
-          "itemFamily": "posting_line",
-          "kind": "array_payload"
-        },
-        "send_to_ledger": {
-          "kind": "scalar"
-        },
-        "voucher_type_ref": {
-          "kind": "reference"
         }
       },
       "inputSpec": "`date`, `description`, `voucher_type_ref`, `postings[]`, `send_to_ledger?`",
@@ -7005,7 +5082,6 @@
       "rawMethod": "POST",
       "rawPath": "/ledger/voucher",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "ledger.voucher.create",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -7026,11 +5102,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`",
       "inputs": [
         "id"
@@ -7043,7 +5114,6 @@
       "rawMethod": "DELETE",
       "rawPath": "/ledger/voucher/{id}",
       "safetyClass": "destructive",
-      "selectorFamily": null,
       "technicalFlowFamily": "ledger.voucher.delete",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -7070,14 +5140,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "fields": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `fields?`",
       "inputs": [
         "id",
@@ -7089,7 +5151,6 @@
       "rawMethod": "GET",
       "rawPath": "/ledger/voucher/{id}",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "ledger.voucher.read",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -7115,14 +5176,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "date": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, `date`",
       "inputs": [
         "id",
@@ -7136,7 +5189,6 @@
       "rawMethod": "PUT",
       "rawPath": "/ledger/voucher/{id}/:reverse",
       "safetyClass": "high_risk",
-      "selectorFamily": null,
       "technicalFlowFamily": "ledger.voucher.reverse",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -7208,41 +5260,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "count": {
-          "kind": "scalar"
-        },
-        "date_from": {
-          "kind": "scalar"
-        },
-        "date_to": {
-          "kind": "scalar"
-        },
-        "fields": {
-          "kind": "scalar"
-        },
-        "from": {
-          "kind": "scalar"
-        },
-        "id": {
-          "kind": "scalar"
-        },
-        "number": {
-          "kind": "scalar"
-        },
-        "number_from": {
-          "kind": "scalar"
-        },
-        "number_to": {
-          "kind": "scalar"
-        },
-        "sorting": {
-          "kind": "scalar"
-        },
-        "type_id": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id?`, `number?`, `number_from?`, `number_to?`, `type_id?`, `date_from`, `date_to`, `fields?`, `from?`, `count?`, `sorting?`",
       "inputs": [
         "id",
@@ -7263,7 +5280,6 @@
       "rawMethod": "GET",
       "rawPath": "/ledger/voucher",
       "safetyClass": "read_only",
-      "selectorFamily": null,
       "technicalFlowFamily": "ledger.voucher.resolve",
       "unmappedInputs": [],
       "verificationChecklist": [],
@@ -7304,17 +5320,6 @@
           "valueStrategy": "plain"
         }
       },
-      "inputSemantics": {
-        "id": {
-          "kind": "scalar"
-        },
-        "send_to_ledger": {
-          "kind": "scalar"
-        },
-        "version": {
-          "kind": "scalar"
-        }
-      },
       "inputSpec": "`id`, voucher payload, `version?`, `send_to_ledger?`",
       "inputs": [
         "id",
@@ -7329,7 +5334,6 @@
       "rawMethod": "PUT",
       "rawPath": "/ledger/voucher/{id}",
       "safetyClass": "mutation",
-      "selectorFamily": null,
       "technicalFlowFamily": "ledger.voucher.update",
       "unmappedInputs": [],
       "verificationChecklist": [
@@ -7337,451 +5341,6 @@
       ],
       "workflowMembership": [
         "advanced correction flows."
-      ]
-    }
-  },
-  "payloadFamilies": {
-    "line_item": {
-      "allowedFields": [
-        "product_ref",
-        "description",
-        "count",
-        "unit_price_ex_vat",
-        "unit_price_inc_vat",
-        "vat_type_ref",
-        "currency_ref"
-      ],
-      "rawFieldMap": {
-        "count": "count",
-        "currency_ref": "currency",
-        "description": "description",
-        "product_ref": "product",
-        "unit_price_ex_vat": "unitPriceExcludingVatCurrency",
-        "unit_price_inc_vat": "unitPriceIncludingVatCurrency",
-        "vat_type_ref": "vatType"
-      },
-      "referenceFamilies": {
-        "currency_ref": "currency",
-        "product_ref": "product",
-        "vat_type_ref": "vat_type"
-      },
-      "requiredFields": [
-        "description",
-        "count"
-      ]
-    },
-    "payment_spec": {
-      "allowedFields": [
-        "payment_date",
-        "payment_type_ref",
-        "paid_amount",
-        "paid_amount_currency"
-      ],
-      "rawFieldMap": {
-        "paid_amount": "paidAmount",
-        "paid_amount_currency": "paidAmountCurrency",
-        "payment_date": "paymentDate",
-        "payment_type_ref": "paymentTypeRef"
-      },
-      "referenceFamilies": {
-        "payment_type_ref": "invoice_payment_type"
-      },
-      "requiredFields": [
-        "payment_date",
-        "payment_type_ref",
-        "paid_amount"
-      ]
-    },
-    "posting_line": {
-      "allowedFields": [
-        "account_ref",
-        "amount",
-        "amount_currency",
-        "currency_ref",
-        "date",
-        "description",
-        "vat_type_ref",
-        "customer_ref",
-        "supplier_ref",
-        "employee_ref",
-        "project_ref",
-        "department_ref"
-      ],
-      "rawFieldMap": {
-        "account_ref": "account",
-        "amount": "amount",
-        "amount_currency": "amountCurrency",
-        "currency_ref": "currency",
-        "customer_ref": "customer",
-        "date": "date",
-        "department_ref": "department",
-        "description": "description",
-        "employee_ref": "employee",
-        "project_ref": "project",
-        "supplier_ref": "supplier",
-        "vat_type_ref": "vatType"
-      },
-      "referenceFamilies": {
-        "account_ref": "ledger_account",
-        "currency_ref": "currency",
-        "customer_ref": "customer",
-        "department_ref": "department",
-        "employee_ref": "employee",
-        "project_ref": "project",
-        "supplier_ref": "supplier",
-        "vat_type_ref": "vat_type"
-      },
-      "requiredFields": [
-        "account_ref",
-        "amount",
-        "date"
-      ]
-    },
-    "travel_details": {
-      "allowedFields": [
-        "departure_date",
-        "return_date",
-        "departure_time",
-        "return_time",
-        "departure_from",
-        "destination",
-        "purpose",
-        "is_foreign_travel",
-        "is_day_trip",
-        "is_compensation_from_rates",
-        "detailed_journey_description"
-      ],
-      "rawFieldMap": {
-        "departure_date": "departureDate",
-        "departure_from": "departureFrom",
-        "departure_time": "departureTime",
-        "destination": "destination",
-        "detailed_journey_description": "detailedJourneyDescription",
-        "is_compensation_from_rates": "isCompensationFromRates",
-        "is_day_trip": "isDayTrip",
-        "is_foreign_travel": "isForeignTravel",
-        "purpose": "purpose",
-        "return_date": "returnDate",
-        "return_time": "returnTime"
-      },
-      "requiredFields": [
-        "departure_date",
-        "return_date",
-        "destination"
-      ]
-    },
-    "travel_expense_accommodation_row": {
-      "allowedFields": [
-        "rate_type_ref",
-        "rate_category_ref",
-        "zone",
-        "location",
-        "address",
-        "count"
-      ],
-      "rawFieldMap": {
-        "address": "address",
-        "count": "count",
-        "location": "location",
-        "rate_category_ref": "rateCategory",
-        "rate_type_ref": "rateType",
-        "zone": "zone"
-      },
-      "referenceFamilies": {
-        "rate_category_ref": "travel_rate_category",
-        "rate_type_ref": "travel_rate"
-      },
-      "requiredFields": [
-        "rate_type_ref",
-        "rate_category_ref",
-        "location",
-        "count"
-      ]
-    },
-    "travel_expense_cost_row": {
-      "allowedFields": [
-        "cost_category_ref",
-        "payment_type_ref",
-        "date",
-        "comments",
-        "amount_currency_inc_vat",
-        "vat_type_ref",
-        "is_chargeable"
-      ],
-      "rawFieldMap": {
-        "amount_currency_inc_vat": "amountCurrencyIncVat",
-        "comments": "comments",
-        "cost_category_ref": "costCategory",
-        "date": "date",
-        "is_chargeable": "isChargeable",
-        "payment_type_ref": "paymentType",
-        "vat_type_ref": "vatType"
-      },
-      "referenceFamilies": {
-        "cost_category_ref": "travel_cost_category",
-        "payment_type_ref": "travel_payment_type",
-        "vat_type_ref": "vat_type"
-      },
-      "requiredFields": [
-        "cost_category_ref",
-        "date",
-        "amount_currency_inc_vat"
-      ]
-    },
-    "travel_expense_mileage_row": {
-      "allowedFields": [
-        "rate_type_ref",
-        "rate_category_ref",
-        "date",
-        "departure_location",
-        "destination",
-        "km",
-        "is_company_car"
-      ],
-      "rawFieldMap": {
-        "date": "date",
-        "departure_location": "departureLocation",
-        "destination": "destination",
-        "is_company_car": "isCompanyCar",
-        "km": "km",
-        "rate_category_ref": "rateCategory",
-        "rate_type_ref": "rateType"
-      },
-      "referenceFamilies": {
-        "rate_category_ref": "travel_rate_category",
-        "rate_type_ref": "travel_rate"
-      },
-      "requiredFields": [
-        "rate_type_ref",
-        "rate_category_ref",
-        "date",
-        "departure_location",
-        "destination",
-        "km"
-      ]
-    },
-    "travel_expense_per_diem_row": {
-      "allowedFields": [
-        "rate_type_ref",
-        "rate_category_ref",
-        "country_code",
-        "travel_expense_zone_id",
-        "overnight_accommodation",
-        "location",
-        "address",
-        "count",
-        "is_deduction_for_breakfast",
-        "is_deduction_for_lunch",
-        "is_deduction_for_dinner"
-      ],
-      "rawFieldMap": {
-        "address": "address",
-        "count": "count",
-        "country_code": "countryCode",
-        "is_deduction_for_breakfast": "isDeductionForBreakfast",
-        "is_deduction_for_dinner": "isDeductionForDinner",
-        "is_deduction_for_lunch": "isDeductionForLunch",
-        "location": "location",
-        "overnight_accommodation": "overnightAccommodation",
-        "rate_category_ref": "rateCategory",
-        "rate_type_ref": "rateType",
-        "travel_expense_zone_id": "travelExpenseZoneId"
-      },
-      "referenceFamilies": {
-        "rate_category_ref": "travel_rate_category",
-        "rate_type_ref": "travel_rate"
-      },
-      "requiredFields": [
-        "rate_type_ref",
-        "rate_category_ref",
-        "location",
-        "count"
-      ]
-    }
-  },
-  "selectorFamilies": {
-    "currency_selector": {
-      "allowedFields": [
-        "id",
-        "code",
-        "description",
-        "name"
-      ]
-    },
-    "customer_selector": {
-      "allowedFields": [
-        "id",
-        "organization_number",
-        "customer_account_number",
-        "email",
-        "invoice_email",
-        "name"
-      ]
-    },
-    "department_selector": {
-      "allowedFields": [
-        "id",
-        "name",
-        "department_number",
-        "department_manager_id"
-      ]
-    },
-    "employee_selector": {
-      "allowedFields": [
-        "id",
-        "email",
-        "employee_number",
-        "first_name",
-        "last_name",
-        "department_id"
-      ],
-      "personLike": true
-    },
-    "invoice_payment_type_selector": {
-      "allowedFields": [
-        "id",
-        "description",
-        "query"
-      ]
-    },
-    "invoice_selector": {
-      "allowedFields": [
-        "id",
-        "invoice_number",
-        "customer_id",
-        "voucher_id",
-        "kid",
-        "date_window"
-      ]
-    },
-    "ledger_account_selector": {
-      "allowedFields": [
-        "id",
-        "number",
-        "description",
-        "name"
-      ]
-    },
-    "order_selector": {
-      "allowedFields": [
-        "id",
-        "number",
-        "customer_id",
-        "date_window"
-      ]
-    },
-    "product_selector": {
-      "allowedFields": [
-        "id",
-        "number",
-        "product_number",
-        "name",
-        "ean"
-      ]
-    },
-    "product_unit_selector": {
-      "allowedFields": [
-        "id",
-        "name"
-      ]
-    },
-    "project_selector": {
-      "allowedFields": [
-        "id",
-        "name",
-        "number",
-        "customer_id",
-        "project_manager_id",
-        "department_id"
-      ]
-    },
-    "supplier_invoice_selector": {
-      "allowedFields": [
-        "id",
-        "invoice_number",
-        "supplier_id",
-        "voucher_id",
-        "kid",
-        "date_window"
-      ]
-    },
-    "supplier_selector": {
-      "allowedFields": [
-        "id",
-        "organization_number",
-        "email",
-        "invoice_email",
-        "name"
-      ]
-    },
-    "travel_cost_category_selector": {
-      "allowedFields": [
-        "id",
-        "description",
-        "category"
-      ]
-    },
-    "travel_expense_selector": {
-      "allowedFields": [
-        "id",
-        "employee_id",
-        "project_id",
-        "department_id",
-        "state",
-        "departure_date_from",
-        "return_date_to"
-      ]
-    },
-    "travel_payment_type_selector": {
-      "allowedFields": [
-        "id",
-        "description",
-        "query",
-        "show_on_employee_expenses",
-        "is_inactive"
-      ]
-    },
-    "travel_rate_category_selector": {
-      "allowedFields": [
-        "id",
-        "name"
-      ]
-    },
-    "travel_rate_selector": {
-      "allowedFields": [
-        "id",
-        "name",
-        "description"
-      ]
-    },
-    "travel_zone_selector": {
-      "allowedFields": [
-        "id",
-        "code",
-        "name",
-        "location"
-      ]
-    },
-    "vat_type_selector": {
-      "allowedFields": [
-        "id",
-        "number",
-        "type_of_vat",
-        "vat_date"
-      ]
-    },
-    "voucher_selector": {
-      "allowedFields": [
-        "id",
-        "number",
-        "type_id",
-        "date_window"
-      ]
-    },
-    "voucher_type_selector": {
-      "allowedFields": [
-        "id",
-        "name"
       ]
     }
   }

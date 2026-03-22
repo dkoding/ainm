@@ -5,7 +5,6 @@ from typing import Any
 from app.contracts.execution import ExecutionContext
 from app.raw import RawCatalog, RawExecutor, load_raw_catalog
 from app.raw.errors import RawExecutionError
-from app.semantic_contract import to_raw_payload_value
 from app.utils import camel_case
 from app.wrapper.catalog import WrapperCatalog, load_wrapper_catalog
 from app.wrapper.helpers import (
@@ -87,7 +86,6 @@ class CommandExecutor:
                             passthrough_target,
                             "body",
                             "ref_object" if key.endswith("_ref") else "plain",
-                            command_meta.get("inputSemantics", {}).get(key),
                             body_properties.get(passthrough_target),
                             context,
                         )
@@ -105,7 +103,6 @@ class CommandExecutor:
                 raw_name,
                 section,
                 binding.get("valueStrategy"),
-                binding.get("semantic") or command_meta.get("inputSemantics", {}).get(key),
                 body_properties.get(raw_name),
                 context,
             )
@@ -162,7 +159,6 @@ class CommandExecutor:
         target_key: str,
         target_section: str,
         value_strategy: str | None,
-        semantic: dict[str, Any] | None,
         body_property_meta: dict[str, Any] | None,
         context: ExecutionContext,
     ) -> Any:
@@ -201,9 +197,4 @@ class CommandExecutor:
             return id_ref(value)
         if body_property_meta and body_property_meta.get("type") == "object" and isinstance(value, (int, str)):
             return {"id": coerce_int_like(value, field_name=source_key)}
-        if semantic:
-            if semantic.get("kind") == "payload":
-                return to_raw_payload_value(semantic.get("payloadFamily"), value)
-            if semantic.get("kind") == "array_payload":
-                return to_raw_payload_value(semantic.get("itemFamily"), value)
         return value

@@ -4,17 +4,14 @@ from typing import Any
 
 from app.contracts.execution import ExecutionContext
 from app.llm.contract_utils import split_required_inputs
-from app.openapi_catalog import load_openapi_catalog
 from app.raw.errors import RawExecutionError
 from app.wrapper.catalog import WrapperCatalog, load_wrapper_catalog
 from app.wrapper.commands import CommandExecutor
 from app.wrapper.helpers import (
-    coerce_int_like,
     default_date_window,
     ensure_single_result,
     extract_values,
     id_ref,
-    is_int_like,
     merge_maps,
     to_selector_dict,
 )
@@ -66,7 +63,6 @@ class FlowExecutor:
     ) -> None:
         self.wrapper_catalog = wrapper_catalog or load_wrapper_catalog()
         self.commands = command_executor or CommandExecutor(wrapper_catalog=self.wrapper_catalog)
-        self.openapi_catalog = load_openapi_catalog()
         self._handlers = {
             "bootstrap.inspect_context": self._bootstrap_inspect_context,
             "employee.create_basic": self._employee_create_basic,
@@ -100,49 +96,6 @@ class FlowExecutor:
             raise RawExecutionError(message=f"Unknown wrapper flow: {flow_name}") from exc
         return handler(inputs, context)
 
-    def _execute_command(
-        self,
-        command_name: str,
-        inputs: dict[str, Any],
-        context: ExecutionContext,
-        *,
-        optional: bool = False,
-        required_purpose: str | None = None,
-    ) -> Any:
-        operation_id = self.wrapper_catalog.get_command(command_name)["operationId"]
-        try:
-            return self.commands.execute(command_name, inputs, context)
-        except RawExecutionError as exc:
-            if not self._is_restricted_capability_error(operation_id, exc):
-                raise
-            if optional:
-                return None
-            profile = self.openapi_catalog.capability_profile(operation_id)
-            summary = profile.get("summary") or operation_id
-            purpose = required_purpose or summary
-            raise RawExecutionError(
-                message="Bridge JSON is blocked.",
-                details={
-                    "blockingIssues": [
-                        (
-                            f"The task requires {purpose}, but {operation_id} is a restricted Tripletex API feature "
-                            "that is not available for the current tenant."
-                        )
-                    ]
-                },
-            ) from exc
-
-    def _is_restricted_capability_error(self, operation_id: str, error: RawExecutionError) -> bool:
-        if error.status_code != 403:
-            return False
-        profile = self.openapi_catalog.capability_profile(operation_id)
-        if not profile.get("isRestricted"):
-            return False
-        body = error.details.get("body") if isinstance(error.details, dict) else {}
-        if not isinstance(body, dict):
-            return True
-        return body.get("code") == 9000 or "permission" in str(body.get("message") or "").lower()
-
     def _search(
         self,
         family: str,
@@ -151,17 +104,9 @@ class FlowExecutor:
         *,
         search_date_window: dict[str, Any] | None = None,
     ) -> Any:
-        search_inputs, _, has_searchable_criteria = self._prepare_search_inputs(
-            family,
-            selector,
-            context,
-            search_date_window=search_date_window,
-        )
-        if not has_searchable_criteria:
-            raise RawExecutionError(message=f"{SEARCH_COMMANDS[family]} requires at least one searchable selector field.")
         return self.commands.execute(
             SEARCH_COMMANDS[family],
-            search_inputs,
+            self._prepare_search_inputs(family, selector, context, search_date_window=search_date_window),
             context,
         )
 
@@ -173,8 +118,8 @@ class FlowExecutor:
         *,
         search_date_window: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        if isinstance(selector, dict) and "id" in selector and is_int_like(selector["id"]) and family in GET_COMMANDS:
-            return self._get(family, coerce_int_like(selector["id"], field_name=f"{family}.id"), context)
+        if isinstance(selector, dict) and "id" in selector and family in GET_COMMANDS:
+            return self._get(family, selector["id"], context)
         return ensure_single_result(
             self._search(family, selector, context, search_date_window=search_date_window),
             family=family,
@@ -191,8 +136,8 @@ class FlowExecutor:
     ) -> int:
         if isinstance(selector, int):
             return selector
-        if isinstance(selector, dict) and "id" in selector and is_int_like(selector["id"]):
-            return coerce_int_like(selector["id"], field_name=f"{family}.id")
+        if isinstance(selector, dict) and "id" in selector:
+            return selector["id"]
         record = self._resolve_record(family, selector, context, search_date_window=search_date_window)
         if "id" not in record:
             raise RawExecutionError(message=f"Resolved {family} record did not include an id.")
@@ -280,51 +225,28 @@ class FlowExecutor:
         context: ExecutionContext,
         *,
         search_date_window: dict[str, Any] | None = None,
-    ) -> tuple[dict[str, Any], list[str], bool]:
+    ) -> dict[str, Any]:
         payload = to_selector_dict(family, selector)
         command_name = SEARCH_COMMANDS[family]
         command_meta = self.wrapper_catalog.get_command(command_name)
-        legal_inputs = {name for name in command_meta.get("inputs", []) if name}
         required_inputs, _ = split_required_inputs(command_meta.get("inputs", []), command_meta.get("inputSpec"))
-        explicit_window = (
-            search_date_window
-            if isinstance(search_date_window, dict)
-            else payload.get("date_window")
-            if isinstance(payload.get("date_window"), dict)
-            else None
-        )
-        projected: dict[str, Any] = {}
-        dropped_fields: list[str] = []
-        for key, value in payload.items():
-            if value is None:
-                continue
-            if key == "date_window":
-                projected[key] = value
-                continue
-            if key in legal_inputs:
-                projected[key] = value
-                continue
-            dropped_fields.append(key)
         pair = self._required_search_window_pair(required_inputs)
-        has_searchable_criteria = any(key != "date_window" for key in projected) or (
-            pair is not None and explicit_window is not None
-        )
         if not pair:
-            projected.pop("date_window", None)
-            return projected, dropped_fields, has_searchable_criteria
+            payload.pop("date_window", None)
+            return payload
         start_key, end_key = pair
-        if projected.get(start_key) is None or projected.get(end_key) is None:
+        if payload.get(start_key) is None or payload.get(end_key) is None:
             window = (
                 search_date_window
-                or projected.pop("date_window", None)
+                or payload.pop("date_window", None)
                 or default_date_window(context.current_date)
             )
             if not isinstance(window, dict):
                 raise RawExecutionError(message=f"{command_name} requires a date window.")
-            projected.setdefault(start_key, window.get("from"))
-            projected.setdefault(end_key, window.get("to"))
-        projected.pop("date_window", None)
-        return projected, dropped_fields, has_searchable_criteria
+            payload.setdefault(start_key, window.get("from"))
+            payload.setdefault(end_key, window.get("to"))
+        payload.pop("date_window", None)
+        return payload
 
     def _required_search_window_pair(self, required_inputs: list[str]) -> tuple[str, str] | None:
         pairs = [
@@ -346,7 +268,7 @@ class FlowExecutor:
 
     def _employee_create_basic(self, inputs: dict[str, Any], context: ExecutionContext) -> Any:
         if inputs.get("duplicate_check") and inputs.get("email"):
-            existing = extract_values(self._execute_command("employee.search", {"email": inputs["email"]}, context))
+            existing = extract_values(self.commands.execute("employee.search", {"email": inputs["email"]}, context))
             if existing:
                 return {"value": existing[0]}
         payload = dict(inputs)
@@ -365,7 +287,7 @@ class FlowExecutor:
                 context,
             )
         if inputs.get("entitlement_template"):
-            self._execute_command("employee.entitlements.search", {"employee_id": employee_id}, context, optional=True)
+            self.commands.execute("employee.entitlements.search", {"employee_id": employee_id}, context)
         return created
 
     def _employee_update_contact(self, inputs: dict[str, Any], context: ExecutionContext) -> Any:
@@ -390,14 +312,13 @@ class FlowExecutor:
             payload["account_manager_ref"] = id_ref(self._resolve_id("employee", payload.pop("account_manager"), context))
         lookup = selector or {key: payload[key] for key in ("name", "organization_number", "email", "invoice_email") if payload.get(key)}
         if lookup and patch_mode != "create":
-            matches = self._search_matches_for_upsert("customer", lookup, context)
-            if matches is not None:
-                if len(matches) == 1:
-                    current = self._get("customer", matches[0]["id"], context)
-                    update_payload = merge_maps(payload, {"id": current["id"], "version": current.get("version")})
-                    return self.commands.execute("customer.update", update_payload, context)
-                if len(matches) > 1:
-                    raise RawExecutionError(message="customer.create_or_update matched multiple customers.")
+            matches = extract_values(self.commands.execute("customer.search", lookup, context))
+            if len(matches) == 1:
+                current = self._get("customer", matches[0]["id"], context)
+                update_payload = merge_maps(payload, {"id": current["id"], "version": current.get("version")})
+                return self.commands.execute("customer.update", update_payload, context)
+            if len(matches) > 1:
+                raise RawExecutionError(message="customer.create_or_update matched multiple customers.")
         return self.commands.execute("customer.create", payload, context)
 
     def _product_create_or_update(self, inputs: dict[str, Any], context: ExecutionContext) -> Any:
@@ -413,14 +334,13 @@ class FlowExecutor:
             payload["currency_ref"] = id_ref(self._resolve_id("currency", payload.pop("currency"), context))
         lookup = selector or {key: payload[key] for key in ("name", "number") if payload.get(key)}
         if lookup:
-            matches = self._search_matches_for_upsert("product", lookup, context)
-            if matches is not None:
-                if len(matches) == 1:
-                    current = self._get("product", matches[0]["id"], context)
-                    update_payload = merge_maps(payload, {"id": current["id"], "version": current.get("version")})
-                    return self.commands.execute("product.update", update_payload, context)
-                if len(matches) > 1:
-                    raise RawExecutionError(message="product.create_or_update matched multiple products.")
+            matches = extract_values(self.commands.execute("product.search", lookup, context))
+            if len(matches) == 1:
+                current = self._get("product", matches[0]["id"], context)
+                update_payload = merge_maps(payload, {"id": current["id"], "version": current.get("version")})
+                return self.commands.execute("product.update", update_payload, context)
+            if len(matches) > 1:
+                raise RawExecutionError(message="product.create_or_update matched multiple products.")
         return self.commands.execute("product.create", payload, context)
 
     def _invoice_order_first(self, inputs: dict[str, Any], context: ExecutionContext) -> Any:
@@ -607,27 +527,14 @@ class FlowExecutor:
             if payload.get(key)
         }
         if lookup and patch_mode != "create":
-            matches = self._search_matches_for_upsert("supplier", lookup, context)
-            if matches is not None:
-                if len(matches) == 1:
-                    current = self._get("supplier", matches[0]["id"], context)
-                    update_payload = merge_maps(payload, {"id": current["id"], "version": current.get("version")})
-                    return self.commands.execute("supplier.update", update_payload, context)
-                if len(matches) > 1:
-                    raise RawExecutionError(message="supplier.create_or_update matched multiple suppliers.")
+            matches = extract_values(self.commands.execute("supplier.search", lookup, context))
+            if len(matches) == 1:
+                current = self._get("supplier", matches[0]["id"], context)
+                update_payload = merge_maps(payload, {"id": current["id"], "version": current.get("version")})
+                return self.commands.execute("supplier.update", update_payload, context)
+            if len(matches) > 1:
+                raise RawExecutionError(message="supplier.create_or_update matched multiple suppliers.")
         return self.commands.execute("supplier.create", payload, context)
-
-    def _search_matches_for_upsert(
-        self,
-        family: str,
-        selector: Any,
-        context: ExecutionContext,
-    ) -> list[dict[str, Any]] | None:
-        search_inputs, _, has_searchable_criteria = self._prepare_search_inputs(family, selector, context)
-        if not has_searchable_criteria:
-            return None
-        matches = extract_values(self.commands.execute(SEARCH_COMMANDS[family], search_inputs, context))
-        return [item for item in matches if isinstance(item, dict)]
 
     def _department_create_with_manager(self, inputs: dict[str, Any], context: ExecutionContext) -> Any:
         payload = dict(inputs)
@@ -727,7 +634,7 @@ class FlowExecutor:
         supplier_id = None
         if inputs.get("supplier") is not None:
             supplier_id = self._ensure_supplier_id(inputs.get("supplier"), context)
-        imported = self._execute_command(
+        imported = self.commands.execute(
             "ledger.voucher.import_document",
             {
                 "attachment_id": attachment_id,
@@ -738,21 +645,9 @@ class FlowExecutor:
         )
         voucher_id = self._extract_id(imported, "ledger.voucher.import_document")
         result: dict[str, Any] = {"imported": imported}
-        needs_incoming_invoice = (
-            inputs.get("invoice_header") is not None
-            or inputs.get("order_lines") is not None
-            or inputs.get("send_to") is not None
-        )
-        incoming_invoice = None
-        if needs_incoming_invoice:
-            incoming_invoice = self._execute_command(
-                "incoming_invoice.get",
-                {"voucher_id": voucher_id},
-                context,
-                required_purpose="updating imported supplier invoice fields",
-            )
-            result["incomingInvoice"] = incoming_invoice
-        if needs_incoming_invoice:
+        incoming_invoice = self.commands.execute("incoming_invoice.get", {"voucher_id": voucher_id}, context)
+        result["incomingInvoice"] = incoming_invoice
+        if inputs.get("invoice_header") is not None or inputs.get("order_lines") is not None or inputs.get("send_to") is not None:
             invoice_header = dict(inputs.get("invoice_header", {}))
             if supplier_id is not None and "supplier" not in invoice_header:
                 invoice_header["supplier"] = {"id": supplier_id}
@@ -764,14 +659,9 @@ class FlowExecutor:
                 "invoice_header": invoice_header or None,
                 "order_lines": inputs.get("order_lines"),
             }
-            result["updatedIncomingInvoice"] = self._execute_command(
-                "incoming_invoice.update",
-                update_payload,
-                context,
-                required_purpose="updating imported supplier invoice fields",
-            )
+            result["updatedIncomingInvoice"] = self.commands.execute("incoming_invoice.update", update_payload, context)
         if inputs.get("postings"):
-            result["postings"] = self._execute_command(
+            result["postings"] = self.commands.execute(
                 "supplier_invoice.voucher.update_postings",
                 {
                     "id": voucher_id,

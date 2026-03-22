@@ -15,9 +15,6 @@ class AttachmentEvidenceBuilder:
         for index, file in enumerate(files, start=1):
             payload = self._decode(file)
             decoded_text = self._extract_text(file, payload)
-            extraction_mode = self._extraction_mode(file, payload, decoded_text)
-            warnings = self._warnings(file, payload, decoded_text, extraction_mode)
-            extraction_confidence = self._extraction_confidence(decoded_text)
             evidence.append(
                 {
                     "attachmentId": f"attachment_{index}",
@@ -25,19 +22,14 @@ class AttachmentEvidenceBuilder:
                     "mimeType": file.mime_type,
                     "byteSize": len(payload),
                     "sha256": hashlib.sha256(payload).hexdigest() if payload else "",
-                    "extractedText": decoded_text,
                     "textOriginal": decoded_text,
                     "textCanonical": decoded_text,
-                    "ocrText": "",
-                    "extractionConfidence": extraction_confidence,
-                    "ocrConfidence": 0.0,
+                    "ocrConfidence": 1.0 if decoded_text else 0.0,
                     "tables": [],
-                    "warnings": warnings,
                     "detectedLanguages": [],
                     "extractedFactHints": [],
                     "provenance": {
                         "source": "local_extract",
-                        "mode": extraction_mode,
                         "supportsMultimodal": self._supports_multimodal(file.mime_type),
                     },
                 }
@@ -64,33 +56,6 @@ class AttachmentEvidenceBuilder:
         if file.mime_type == "application/pdf" or file.filename.lower().endswith(".pdf"):
             return self._extract_pdf_text(payload)
         return ""
-
-    def _extraction_mode(self, file: SolveFile, payload: bytes, decoded_text: str) -> str:
-        if not payload:
-            return "decode_failed"
-        if file.mime_type.startswith("text/") or file.filename.endswith((".txt", ".csv", ".json", ".md")):
-            return "local_text_extract"
-        if file.mime_type == "application/pdf" or file.filename.lower().endswith(".pdf"):
-            return "local_pdf_extract" if decoded_text else "multimodal_only"
-        if self._supports_multimodal(file.mime_type):
-            return "multimodal_only"
-        return "unsupported_binary"
-
-    def _warnings(self, file: SolveFile, payload: bytes, decoded_text: str, extraction_mode: str) -> list[str]:
-        if not payload:
-            return ["Attachment content could not be decoded from base64."]
-        if decoded_text:
-            return []
-        if extraction_mode == "multimodal_only":
-            if file.mime_type == "application/pdf" or file.filename.lower().endswith(".pdf"):
-                return ["No embedded PDF text was extracted locally; rely on Gemini multimodal analysis for document understanding."]
-            return ["No local text extraction is available for this attachment; rely on Gemini multimodal analysis."]
-        if extraction_mode == "unsupported_binary":
-            return ["No local text extraction is available for this binary attachment."]
-        return []
-
-    def _extraction_confidence(self, decoded_text: str) -> float:
-        return 1.0 if decoded_text else 0.0
 
     def _extract_pdf_text(self, payload: bytes) -> str:
         try:

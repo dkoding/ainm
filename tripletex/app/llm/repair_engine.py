@@ -27,19 +27,11 @@ class RepairEngine:
         return self.client.generate(
             {
                 "systemInstruction": (
-                "Repair the provided Tripletex bridge JSON after a concrete execution or validation error. "
-                "Return exactly one valid bridge JSON object and no prose. "
-                "Make the minimal legal changes needed to avoid the reported failure. "
-                "Do not invent near-match field names or undocumented raw body fields. "
-                "Do not introduce direct mutation commands when a documented business flow exists for the same task. "
-                "Do not emit step-output placeholder ids such as step_1.project.id; the runtime does not dereference them. "
-                "If a raw mutation cannot be expressed using the documented contract, reroute to a documented flow/command or set validation.isExecutable=false. "
-                "If the API error reports a missing required field or empty mandatory value that cannot be filled from the existing prompt, attachment facts, or bridge data, "
-                "set validation.isExecutable=false with blocking issues instead of retrying the same mutation shape. "
-                "If originalRequest.attachments is empty, do not keep or introduce attachment_accounting routes or attachment_id inputs. "
-                "validation.blockingIssues and validation.warnings must stay arrays of plain strings, not objects. "
-                "If the task cannot be completed legally from the available facts, set validation.isExecutable=false "
-                "and explain the blocking issue inside the JSON."
+                    "Repair the provided Tripletex bridge JSON after a concrete execution or validation error. "
+                    "Return exactly one valid bridge JSON object and no prose. "
+                    "Make the minimal legal changes needed to avoid the reported failure. "
+                    "If the task cannot be completed legally from the available facts, set validation.isExecutable=false "
+                    "and explain the blocking issue inside the JSON."
                 ),
                 "request": {
                     "originalBridge": json.dumps(bridge, ensure_ascii=False),

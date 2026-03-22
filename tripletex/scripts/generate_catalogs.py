@@ -3,26 +3,13 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sys
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from app.semantic_contract import (
-    clean_contract_name,
-    command_input_semantics,
-    copy_payload_families,
-    copy_selector_families,
-    flow_input_semantics,
-    selector_family_for_command,
-)
-
-
 OPENAPI_PATH = ROOT / "docs" / "openapi.json"
 DESC_PATH = ROOT / "DESC.md"
 GENERATED_DIR = ROOT / "app" / "generated"
@@ -141,71 +128,29 @@ def dereference_schema(spec: dict[str, Any], schema: dict[str, Any] | None) -> d
     return schema
 
 
-def schema_summary(
-    spec: dict[str, Any],
-    schema: dict[str, Any] | None,
-    *,
-    depth: int = 0,
-    max_depth: int = 1,
-    seen_refs: tuple[str, ...] = (),
-) -> dict[str, Any]:
+def schema_summary(spec: dict[str, Any], schema: dict[str, Any] | None) -> dict[str, Any]:
     if not schema:
         return {}
-    ref = schema.get("$ref")
-    if ref and (ref in seen_refs or depth >= max_depth):
-        resolved = dereference_schema(spec, schema)
-        schema_type = resolved.get("type")
-        if schema_type is None:
-            if resolved.get("properties"):
-                schema_type = "object"
-            elif resolved.get("items"):
-                schema_type = "array"
-        return {
-            "type": schema_type,
-            "required": resolved.get("required", []),
-            "properties": {},
-            "itemsRef": resolved.get("items", {}).get("$ref"),
-            "enum": resolved.get("enum"),
-            "format": resolved.get("format"),
-            "readOnly": bool(resolved.get("readOnly")),
-            "ref": ref,
-        }
     resolved = dereference_schema(spec, schema)
     if not resolved:
         return {}
-    child_seen_refs = seen_refs + ((ref,) if ref else ())
-    summary = {
-        "type": resolved.get("type"),
-        "required": resolved.get("required", []),
-        "properties": {},
-        "itemsRef": resolved.get("items", {}).get("$ref"),
-        "enum": resolved.get("enum"),
-        "format": resolved.get("format"),
-        "readOnly": bool(resolved.get("readOnly")),
-        "ref": ref,
-    }
-    if depth >= max_depth:
-        return summary
     properties = {}
     for name, value in resolved.get("properties", {}).items():
-        properties[name] = schema_summary(
-            spec,
-            value,
-            depth=depth + 1,
-            max_depth=max_depth,
-            seen_refs=child_seen_refs,
-        )
-    summary["properties"] = properties
-    items = resolved.get("items")
-    if items:
-        summary["items"] = schema_summary(
-            spec,
-            items,
-            depth=depth + 1,
-            max_depth=max_depth,
-            seen_refs=child_seen_refs,
-        )
-    return summary
+        prop = dereference_schema(spec, value)
+        properties[name] = {
+            "type": prop.get("type"),
+            "format": prop.get("format"),
+            "readOnly": bool(prop.get("readOnly")),
+            "enum": prop.get("enum"),
+            "ref": value.get("$ref"),
+        }
+    return {
+        "type": resolved.get("type"),
+        "required": resolved.get("required", []),
+        "properties": properties,
+        "itemsRef": resolved.get("items", {}).get("$ref"),
+        "enum": resolved.get("enum"),
+    }
 
 
 def merged_parameters(path_item: dict[str, Any], operation: dict[str, Any]) -> list[dict[str, Any]]:
@@ -268,10 +213,14 @@ def response_summary(spec: dict[str, Any], operation: dict[str, Any]) -> dict[st
         return {}
     response = responses[status_code]
     content = response.get("content", {})
+    summaries: dict[str, Any] = {}
+    for content_type, value in content.items():
+        summaries[content_type] = schema_summary(spec, value.get("schema"))
     return {
         "statusCode": status_code,
         "description": response.get("description", ""),
         "contentTypes": sorted(content.keys()),
+        "content": summaries,
     }
 
 
@@ -436,8 +385,12 @@ class ParsedCommand:
     notes: list[str]
 
 
+def clean_input_name(value: str) -> str:
+    return value.replace("[]", "").rstrip("?").strip()
+
+
 def binding_candidates(input_name: str) -> list[str]:
-    base = clean_contract_name(input_name)
+    base = clean_input_name(input_name)
     candidates = [base, camel_case(base)]
     if base.endswith("_ref"):
         stem = base[:-4]
@@ -459,7 +412,7 @@ def binding_candidates(input_name: str) -> list[str]:
 
 
 def binding_strategy(input_name: str, target_name: str, section: str, body_properties: dict[str, Any]) -> str:
-    if clean_contract_name(input_name).endswith("_ref"):
+    if clean_input_name(input_name).endswith("_ref"):
         if section in {"path", "query"}:
             return "ref_id"
         body_property = body_properties.get(target_name, {})
@@ -483,7 +436,7 @@ def build_input_bindings(command_name: str, command: ParsedCommand, raw_meta: di
     bindings: dict[str, Any] = {}
     unmapped: list[str] = []
     for original in command.inputs:
-        input_name = clean_contract_name(original)
+        input_name = clean_input_name(original)
         if input_name in CONTROL_FIELDS:
             bindings[input_name] = {
                 "targetSection": "control",
@@ -515,9 +468,6 @@ def build_input_bindings(command_name: str, command: ParsedCommand, raw_meta: di
             "targetName": target,
             "valueStrategy": binding_strategy(input_name, target, section, body_properties),
         }
-        semantics = command_input_semantics(command_name, input_name)
-        if semantics.get("kind") != "scalar":
-            bindings[input_name]["semantic"] = semantics
     if raw_meta["requestBody"]:
         bindings["body"] = {"targetSection": "body", "targetName": "body", "valueStrategy": "body_merge"}
         bindings["payload"] = {"targetSection": "body", "targetName": "payload", "valueStrategy": "body_merge"}
@@ -562,7 +512,7 @@ def parse_commands(desc_text: str) -> list[ParsedCommand]:
                     workflows = [item for item in extract_backticked_values(value) if item]
                 elif label == "Inputs":
                     input_spec = value
-                    inputs = [clean_contract_name(item) for item in extract_backticked_values(value)]
+                    inputs = [clean_input_name(item) for item in extract_backticked_values(value)]
                 elif label == "Notes":
                     notes.append(value)
             index += 1
@@ -600,7 +550,6 @@ def parse_flows(desc_text: str) -> dict[str, Any]:
                 "useWhen": [],
                 "inputs": [],
                 "inputSpec": [],
-                "inputSemantics": {},
                 "steps": [],
                 "commandNames": [],
                 "result": [],
@@ -625,7 +574,7 @@ def parse_flows(desc_text: str) -> dict[str, Any]:
                 current_flow["useWhen"].append(value)
             elif current_section == "inputs":
                 current_flow["inputSpec"].append(value)
-                current_flow["inputs"].extend(clean_contract_name(item) for item in extract_backticked_values(value))
+                current_flow["inputs"].extend(item.rstrip("?") for item in extract_backticked_values(value))
             elif current_section == "result":
                 current_flow["result"].append(value)
             elif current_section == "notes":
@@ -641,15 +590,9 @@ def parse_flows(desc_text: str) -> dict[str, Any]:
         flows[current_flow["flowName"]] = current_flow
     for flow in flows.values():
         flow["inputs"] = sorted(set(flow["inputs"]))
-        flow["inputSemantics"] = {
-            input_name: flow_input_semantics(flow["flowName"], input_name)
-            for input_name in flow["inputs"]
-        }
         flow["commandNames"] = [name for idx, name in enumerate(flow["commandNames"]) if name not in flow["commandNames"][:idx]]
     return {
         "flowCount": len(flows),
-        "payloadFamilies": copy_payload_families(),
-        "selectorFamilies": copy_selector_families(),
         "flows": flows,
     }
 
@@ -687,11 +630,6 @@ def build_command_catalog(
             "technicalFlowFamily": raw_meta["technicalFlowFamily"],
             "verificationChecklist": verification_hints,
             "conformancePolicyKey": raw_meta["conformancePolicyKey"],
-            "selectorFamily": selector_family_for_command(command.name),
-            "inputSemantics": {
-                input_name: command_input_semantics(command.name, input_name)
-                for input_name in command.inputs
-            },
             "inputBindings": input_bindings,
             "unmappedInputs": unmapped_inputs,
             "allowsBodyPassthrough": bool(raw_meta["requestBody"]),
@@ -699,8 +637,6 @@ def build_command_catalog(
         }
     return {
         "commandCount": len(commands),
-        "payloadFamilies": copy_payload_families(),
-        "selectorFamilies": copy_selector_families(),
         "commands": commands,
     }
 

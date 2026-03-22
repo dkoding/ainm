@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from config import DEFAULT_HISTORY_CACHE_PREFIX, DEFAULT_OUTPUT_DIR, DEFAULT_PREDICTION_FLOOR
-from history_cache import history_round_entries_with_analysis, load_history_index
+from history_cache import load_history_index
 from scoring import round_score, score_breakdown, seed_score
 from sklearn_model import build_round_predictions_from_model, train_random_forest_from_history
 
@@ -60,12 +60,11 @@ def evaluate_sklearn_history(
     if not index:
         raise SystemExit(f"No history cache found under {root_path / cache_prefix}.")
 
-    round_entries = history_round_entries_with_analysis(index)
     rounds_report: list[dict[str, Any]] = []
     all_seed_scores: list[float] = []
     all_dynamic_seed_scores: list[float] = []
 
-    for round_entry in round_entries:
+    for round_entry in index.get("rounds", []):
         round_id = str(round_entry["round_id"])
         round_detail_path = root_path / cache_prefix / "rounds" / round_id / "public" / "round_detail.json"
         round_detail = json.loads(round_detail_path.read_text())
